@@ -1,0 +1,102 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: insight_edu
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Setup database
+        working-directory: ./backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: insight_edu
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          npm run migrate || true
+          psql -h localhost -U postgres -d insight_edu -f init.sql || true
+          psql -h localhost -U postgres -d insight_edu -f seed.sql || true
+
+      - name: Start backend server
+        working-directory: ./backend
+        env:
+          PORT: 3000
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: insight_edu
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          JWT_SECRET: test-secret-key-for-ci
+        run: |
+          npm start &
+          npx wait-on http://localhost:3000/health --timeout 60000
+
+      - name: Start frontend server
+        working-directory: ./frontend
+        run: |
+          npm run dev &
+          npx wait-on http://localhost:5173 --timeout 60000
+
+      - name: Run Cypress E2E tests
+        working-directory: ./frontend
+        run: npm run test:e2e
+        env:
+          CYPRESS_baseUrl: http://localhost:5173
+          CYPRESS_apiUrl: http://localhost:3000/api
+
+      - name: Upload Cypress screenshots
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cypress-screenshots
+          path: frontend/cypress/screenshots
+
+      - name: Upload Cypress videos
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cypress-videos
+          path: frontend/cypress/videos
+

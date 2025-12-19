@@ -1,0 +1,472 @@
+import { User, Teacher, ClassGroup, Student, Session, Score, BehaviorRating, StudentInsightRecord, AttendanceRecord, Location } from '../types';
+
+const API_BASE_URL = 'http://localhost:3000/api';
+
+interface AppSettings {
+  dashboardInsight: string;
+  lastAnalyzed: string;
+  insightAutoUpdateHours?: number;
+}
+
+interface LoginResponse {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    mustChangePassword: boolean;
+  };
+}
+
+interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// Token and user session management
+let authToken: string | null = localStorage.getItem('authToken');
+
+const setAuthToken = (token: string | null) => {
+  authToken = token;
+  if (token) {
+    localStorage.setItem('authToken', token);
+  } else {
+    localStorage.removeItem('authToken');
+  }
+};
+
+// User session management
+const setUserSession = (user: LoginResponse['user']) => {
+  localStorage.setItem('userSession', JSON.stringify(user));
+};
+
+const getUserSession = (): LoginResponse['user'] | null => {
+  const session = localStorage.getItem('userSession');
+  if (session) {
+    try {
+      return JSON.parse(session);
+    } catch (e) {
+      console.error('Failed to parse user session:', e);
+      return null;
+    }
+  }
+  return null;
+};
+
+const clearUserSession = () => {
+  localStorage.removeItem('userSession');
+};
+
+const getAuthHeaders = () => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  return headers;
+};
+
+// Helper function to convert snake_case to camelCase
+const toCamelCase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCase);
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc, key) => {
+      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      acc[camelKey] = toCamelCase(obj[key]);
+      return acc;
+    }, {} as any);
+  }
+  return obj;
+};
+
+// Helper function to convert camelCase to snake_case
+const toSnakeCase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(toSnakeCase);
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc, key) => {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      acc[snakeKey] = toSnakeCase(obj[key]);
+      return acc;
+    }, {} as any);
+  }
+  return obj;
+};
+
+export const api = {
+  // Initialize (no-op for backend API)
+  init: async () => {
+    console.log("Using backend API at", API_BASE_URL);
+  },
+
+  // Authentication
+  login: async (email: string, password: string): Promise<LoginResponse> => {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Login failed');
+    }
+
+    const data = await response.json();
+    setAuthToken(data.token);
+    setUserSession(data.user); // Store user session
+    return data;
+  },
+
+  logout: () => {
+    setAuthToken(null);
+    clearUserSession(); // Clear user session
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to change password');
+    }
+  },
+
+  getAuthToken: () => authToken,
+
+  isAuthenticated: () => !!authToken,
+
+  // Get stored user session
+  getStoredSession: (): { user: LoginResponse['user'], token: string } | null => {
+    const user = getUserSession();
+    const token = authToken;
+    if (user && token) {
+      return { user, token };
+    }
+    return null;
+  },
+
+  // Verify token and get current user
+  verifyToken: async (): Promise<LoginResponse['user'] | null> => {
+    if (!authToken) return null;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        // Token is invalid, clear session
+        setAuthToken(null);
+        clearUserSession();
+        return null;
+      }
+
+      const data = await response.json();
+      const user = toCamelCase(data);
+      setUserSession(user); // Update stored session
+      return user;
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      setAuthToken(null);
+      clearUserSession();
+      return null;
+    }
+  },
+
+  // Settings
+  fetchSettings: async (): Promise<AppSettings> => {
+    const response = await fetch(`${API_BASE_URL}/settings`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  updateSettings: async (settings: Partial<AppSettings>): Promise<AppSettings> => {
+    const response = await fetch(`${API_BASE_URL}/settings`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(settings))
+    });
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+
+  // Student Insights
+  fetchStudentInsight: async (studentId: string): Promise<StudentInsightRecord | undefined> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/student-insights/${studentId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (response.status === 404) return undefined;
+      const data = await response.json();
+      return toCamelCase(data);
+    } catch (error) {
+      return undefined;
+    }
+  },
+  saveStudentInsight: async (record: StudentInsightRecord): Promise<void> => {
+    await fetch(`${API_BASE_URL}/student-insights`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(record))
+    });
+  },
+
+  // Users
+  fetchUsers: async (): Promise<User[]> => {
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch users: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+
+  // Locations
+  fetchLocations: async (): Promise<Location[]> => {
+    const response = await fetch(`${API_BASE_URL}/locations`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch locations: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  createLocation: async (location: Location): Promise<Location> => {
+    const response = await fetch(`${API_BASE_URL}/locations`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(location)
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create location: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  deleteLocation: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete location: ${response.statusText}`);
+    }
+  },
+
+  // Teachers
+  fetchTeachers: async (): Promise<Teacher[]> => {
+    const response = await fetch(`${API_BASE_URL}/teachers`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch teachers: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  createTeacher: async (teacher: Teacher): Promise<Teacher> => {
+    const response = await fetch(`${API_BASE_URL}/teachers`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(teacher))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create teacher: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  deleteTeacher: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/teachers/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete teacher: ${response.statusText}`);
+    }
+  },
+
+  // Classes
+  fetchClasses: async (): Promise<ClassGroup[]> => {
+    const response = await fetch(`${API_BASE_URL}/classes`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch classes: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  createClass: async (cls: ClassGroup): Promise<ClassGroup> => {
+    const response = await fetch(`${API_BASE_URL}/classes`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(cls))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create class: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  deleteClass: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/classes/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete class: ${response.statusText}`);
+    }
+  },
+
+  // Students
+  fetchStudents: async (): Promise<Student[]> => {
+    const response = await fetch(`${API_BASE_URL}/students`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch students: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  updateStudent: async (student: Student): Promise<Student> => {
+    const response = await fetch(`${API_BASE_URL}/students/${student.id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(student))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update student: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  createStudent: async (student: Student): Promise<Student> => {
+    const response = await fetch(`${API_BASE_URL}/students`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(student))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create student: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  deleteStudent: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete student: ${response.statusText}`);
+    }
+  },
+
+  // Sessions
+  fetchSessions: async (): Promise<Session[]> => {
+    const response = await fetch(`${API_BASE_URL}/sessions`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sessions: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  createSession: async (session: Session): Promise<Session> => {
+    const response = await fetch(`${API_BASE_URL}/sessions`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(session))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create session: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  updateSessionStatus: async (sessionId: string, status: 'COMPLETED' | 'CANCELLED' | 'SCHEDULED'): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status })
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update session status: ${response.statusText}`);
+    }
+  },
+
+  // Attendance
+  fetchAttendance: async (): Promise<AttendanceRecord[]> => {
+    const response = await fetch(`${API_BASE_URL}/attendance`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch attendance: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  recordAttendance: async (record: AttendanceRecord): Promise<AttendanceRecord> => {
+    const response = await fetch(`${API_BASE_URL}/attendance`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(record))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to record attendance: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+
+  // Scores
+  fetchScores: async (): Promise<Score[]> => {
+    const response = await fetch(`${API_BASE_URL}/scores`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch scores: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+
+  // Behavior
+  fetchBehaviors: async (): Promise<BehaviorRating[]> => {
+    const response = await fetch(`${API_BASE_URL}/behaviors`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch behaviors: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  recordBehavior: async (behavior: BehaviorRating): Promise<BehaviorRating> => {
+    const response = await fetch(`${API_BASE_URL}/behaviors`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(behavior))
+    });
+    const data = await response.json();
+    return toCamelCase(data);
+  }
+};
+

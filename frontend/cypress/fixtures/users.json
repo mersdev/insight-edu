@@ -1,0 +1,25 @@
+{
+  "hqUser": {
+    "email": "admin@edu.com",
+    "password": "Admin123",
+    "role": "HQ",
+    "name": "HQ Admin"
+  },
+  "teacherUser": {
+    "email": "sarah@edu.com",
+    "password": "123",
+    "role": "TEACHER",
+    "name": "Teacher User"
+  },
+  "parentUser": {
+    "email": "parent.ali@edu.com",
+    "password": "123",
+    "role": "PARENT",
+    "name": "Parent User"
+  },
+  "invalidUser": {
+    "email": "invalid@example.com",
+    "password": "wrongpassword"
+  }
+}
+
