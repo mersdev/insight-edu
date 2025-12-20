@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Eye, Edit2 } from 'lucide-react';
+import { Plus, Save, Edit2 } from 'lucide-react';
 import { Button, Card, Input, Dialog, Select, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
 import { Student, ClassGroup } from '../../types';
 
@@ -51,6 +51,12 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
     }));
   };
 
+  const handleSaveScores = () => {
+    // TODO: Implement API call to save scores to backend
+    onShowToast("Scores saved successfully!");
+    setViewMode('READ');
+  };
+
   return (
     <div className="pb-32 md:pb-8 max-w-lg mx-auto md:max-w-none animate-in fade-in duration-300">
         
@@ -72,19 +78,19 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
         {/* Controls - EDIT MODE (Top) */}
         {viewMode === 'EDIT' && (
             <div className="flex gap-3 mb-6 animate-in slide-in-from-top-2 fade-in duration-300">
-                 <Button 
-                    variant="outline" 
+                 <Button
+                    variant="outline"
                     className="flex-1 h-12 bg-white border-gray-200 text-foreground hover:bg-gray-50 rounded-xl shadow-sm"
-                    onClick={() => setViewMode('READ')}
+                    onClick={handleSaveScores}
                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    {t.glanceView}
+                    <Save className="w-4 h-4 mr-2" />
+                    {t.saveScore}
                  </Button>
-                 <Button 
-                    onClick={() => setAddColOpen(true)} 
+                 <Button
+                    onClick={() => setAddColOpen(true)}
                     className="flex-1 h-12 bg-black text-white hover:bg-black/90 rounded-xl shadow-sm"
                  >
-                    <Plus className="mr-2 h-4 w-4" /> 
+                    <Plus className="mr-2 h-4 w-4" />
                     {t.addCol}
                  </Button>
             </div>
