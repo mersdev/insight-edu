@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save, Edit2 } from 'lucide-react';
 import { Button, Card, Input, Dialog, Select, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
-import { Student, ClassGroup } from '../../types';
+import { Student, ClassGroup, Score } from '../../types';
+import { api } from '../../services/backendApi';
 
 interface ScoreInputProps {
   t: any;
@@ -51,10 +52,54 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
     }));
   };
 
-  const handleSaveScores = () => {
-    // TODO: Implement API call to save scores to backend
-    onShowToast("Scores saved successfully!");
-    setViewMode('READ');
+  // Helper function to determine score type from column name
+  const getScoreType = (columnName: string): Score['type'] => {
+    const lowerName = columnName.toLowerCase();
+    if (lowerName.includes('exam')) return 'EXAM';
+    if (lowerName.includes('homework') || lowerName.includes('hw')) return 'HOMEWORK';
+    if (lowerName.includes('quiz')) return 'QUIZ';
+    if (lowerName.includes('lab')) return 'LAB';
+    if (lowerName.includes('presentation')) return 'PRESENTATION';
+    return 'EXAM'; // Default to EXAM
+  };
+
+  const handleSaveScores = async () => {
+    try {
+      const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const scoresToSave: Score[] = [];
+
+      // Transform the scores object into an array of Score objects
+      Object.entries(scores).forEach(([studentId, studentScores]) => {
+        Object.entries(studentScores).forEach(([columnName, value]) => {
+          // Only save non-empty scores
+          if (value && value.trim() !== '') {
+            scoresToSave.push({
+              studentId,
+              date: currentDate,
+              subject: columnName,
+              value: parseInt(value, 10),
+              type: getScoreType(columnName)
+            });
+          }
+        });
+      });
+
+      // Save all scores to the backend
+      if (scoresToSave.length === 0) {
+        onShowToast("No scores to save");
+        setViewMode('READ');
+        return;
+      }
+
+      // Save each score individually
+      await Promise.all(scoresToSave.map(score => api.createScore(score)));
+
+      onShowToast(`Successfully saved ${scoresToSave.length} score(s)!`);
+      setViewMode('READ');
+    } catch (error) {
+      console.error('Error saving scores:', error);
+      onShowToast("Failed to save scores. Please try again.");
+    }
   };
 
   return (

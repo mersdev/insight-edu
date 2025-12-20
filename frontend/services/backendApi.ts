@@ -448,6 +448,18 @@ export const api = {
     const data = await response.json();
     return toCamelCase(data);
   },
+  createScore: async (score: Score): Promise<Score> => {
+    const response = await fetch(`${API_BASE_URL}/scores`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(score))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create score: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
 
   // Behavior
   fetchBehaviors: async (): Promise<BehaviorRating[]> => {
