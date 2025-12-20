@@ -16,7 +16,7 @@ Cypress.Commands.add('login', (email: string, password: string) => {
   // Use API login to set token directly
   cy.request({
     method: 'POST',
-    url: 'http://localhost:3000/api/auth/login',
+    url: 'http://localhost:8787/api/auth/login',
     body: {
       email,
       password

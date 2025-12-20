@@ -108,8 +108,8 @@ describe('Teacher User - Complete Workflow', () => {
       cy.get('select').first().then(($select) => {
         const options = $select.find('option');
         if (options.length > 1) {
-          const studentName = options.eq(1).text();
-          studentReportPage.selectStudent(studentName);
+          // Select by index instead of text to avoid duplicate text issues
+          cy.get('select').first().select(1);
           cy.wait(2000);
         }
       });
