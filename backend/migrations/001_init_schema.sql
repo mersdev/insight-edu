@@ -1,4 +1,5 @@
--- Create tables for Insight EDU database (D1 SQLite compatible)
+-- Insight EDU Database Schema for D1 (SQLite)
+-- This is the initial schema migration for Cloudflare D1
 
 -- Settings table
 CREATE TABLE IF NOT EXISTS settings (
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT,
   role TEXT NOT NULL CHECK (role IN ('TEACHER', 'HQ', 'PARENT')),
   must_change_password INTEGER DEFAULT 0,
-  last_password_change TIMESTAMP
+  last_password_change DATETIME
 );
 
 -- Locations table
@@ -36,7 +37,9 @@ CREATE TABLE IF NOT EXISTS teachers (
   email TEXT NOT NULL,
   subject TEXT NOT NULL,
   phone TEXT,
-  description TEXT
+  description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Classes table
@@ -46,7 +49,9 @@ CREATE TABLE IF NOT EXISTS classes (
   teacher_id TEXT REFERENCES teachers(id) ON DELETE CASCADE,
   location_id TEXT REFERENCES locations(id) ON DELETE SET NULL,
   grade TEXT NOT NULL,
-  default_schedule TEXT
+  default_schedule TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Students table
@@ -72,8 +77,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   start_time TIME NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('REGULAR', 'SPECIAL')),
   status TEXT NOT NULL CHECK (status IN ('SCHEDULED', 'CANCELLED', 'COMPLETED')),
-  target_student_ids TEXT,
-  UNIQUE(class_id, date, start_time)
+  target_student_ids TEXT
 );
 
 -- Attendance table
@@ -101,7 +105,7 @@ CREATE TABLE IF NOT EXISTS behaviors (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
   session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
-  date TIMESTAMP NOT NULL,
+  date DATETIME NOT NULL,
   category TEXT NOT NULL CHECK (category IN ('Attention', 'Participation', 'Homework', 'Behavior', 'Practice')),
   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5)
 );
@@ -123,4 +127,5 @@ CREATE INDEX IF NOT EXISTS idx_attendance_session_id ON attendance(session_id);
 CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
 CREATE INDEX IF NOT EXISTS idx_behaviors_student_id ON behaviors(student_id);
 CREATE INDEX IF NOT EXISTS idx_behaviors_session_id ON behaviors(session_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 

@@ -1,33 +1,28 @@
 {
   "name": "insight-edu-backend",
   "version": "1.0.0",
-  "description": "Backend API for Insight EDU",
-  "main": "src/server.js",
+  "description": "Backend API for Insight EDU - Cloudflare Workers",
+  "main": "src/worker.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --forceExit"
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --forceExit",
+    "build": "echo 'Build complete'",
+    "db:seed": "wrangler d1 execute insight-edu --local --file=seed.sql",
+    "db:seed:remote": "wrangler d1 execute insight-edu --remote --file=seed.sql"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "express-rate-limit": "^8.2.1",
-    "express-validator": "^7.3.1",
-    "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.3",
-    "pg": "^8.11.3",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "bcryptjs": "^3.0.3",
+    "itty-router": "^4.0.0",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "nodemon": "^3.0.2",
-    "supertest": "^6.3.3"
+    "wrangler": "^3.0.0"
   }
 }

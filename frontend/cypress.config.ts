@@ -9,7 +9,7 @@ export default defineConfig({
       // implement node event listeners here
     },
     env: {
-      apiUrl: 'http://localhost:3000/api',
+      apiUrl: 'http://localhost:8787/api',
     },
     viewportWidth: 1280,
     viewportHeight: 720,

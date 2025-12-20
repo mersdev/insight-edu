@@ -1,6 +1,7 @@
 import { User, Teacher, ClassGroup, Student, Session, Score, BehaviorRating, StudentInsightRecord, AttendanceRecord, Location } from '../types';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+// Cloudflare Workers endpoint - update this with your actual deployment URL
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8787/api';
 
 interface AppSettings {
   dashboardInsight: string;

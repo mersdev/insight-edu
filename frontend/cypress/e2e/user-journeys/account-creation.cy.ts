@@ -9,7 +9,7 @@ describe('Account Creation for Teachers and Parents', () => {
     cy.fixture('users').then((users) => {
       cy.request({
         method: 'POST',
-        url: 'http://localhost:3000/api/auth/login',
+        url: 'http://localhost:8787/api/auth/login',
         body: {
           email: users.hqUser.email,
           password: users.hqUser.password
@@ -66,7 +66,7 @@ describe('Account Creation for Teachers and Parents', () => {
           // Verify user account was created by checking if login works
           cy.request({
             method: 'POST',
-            url: 'http://localhost:3000/api/auth/login',
+            url: 'http://localhost:8787/api/auth/login',
             body: {
               email: createdTeacherEmail,
               password: '123'
@@ -132,7 +132,7 @@ describe('Account Creation for Teachers and Parents', () => {
           // Verify user account was created by checking if login works
           cy.request({
             method: 'POST',
-            url: 'http://localhost:3000/api/auth/login',
+            url: 'http://localhost:8787/api/auth/login',
             body: {
               email: createdParentEmail,
               password: '123'

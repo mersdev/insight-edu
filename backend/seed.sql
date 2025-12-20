@@ -7,11 +7,11 @@ INSERT INTO settings (dashboard_insight, last_analyzed) VALUES ('', '');
 -- Insert users with hashed passwords
 -- Note: password_hash, must_change_password, and last_password_change columns are added by migration 001_add_password_columns.sql
 INSERT INTO users (id, name, email, password, password_hash, role, must_change_password) VALUES
-('admin', 'HQ Admin', 'admin@edu.com', 'Admin123', '$2b$10$GOKlaLMUnNiR61MXBJ9IDeEAmlrSutGsAalNcxiyD/cmuBn84WxqO', 'HQ', true),
-('u_t1', 'Sarah Jenkins', 'sarah@edu.com', '123', '$2b$10$Xi559l/1aqbWBsrEXCDCT.4VBm4Zq2DQb5PsstrFxGJT4d3CIyVly', 'TEACHER', true),
-('u_t2', 'David Lee', 'david@edu.com', '123', '$2b$10$Jj2b9BAsRLXEm89VkUjFruQwDDWwToVN.IQsR.Xmyk5uN177SEE..', 'TEACHER', true),
-('u_p1', 'Mr. Ahmad', 'parent.ali@edu.com', '123', '$2b$10$WXX7u28qMRPI8hnjwdHySuIpw6xKJW6nyTFcSwOE0M6w5NJFCfufG', 'PARENT', true),
-('u_p2', 'Mrs. Wong', 'parent.ben@edu.com', '123', '$2b$10$S6sU8Ii1VeZ00DudBO1/F.wG2VFYkaZW/7LezY5UYHaAaI7s44ihK', 'PARENT', true),
+('admin', 'HQ Admin', 'admin@edu.com', 'Admin123', '$2b$10$GOKlaLMUnNiR61MXBJ9IDeEAmlrSutGsAalNcxiyD/cmuBn84WxqO', 'HQ', false),
+('u_t1', 'Sarah Jenkins', 'sarah@edu.com', '123', '$2b$10$Xi559l/1aqbWBsrEXCDCT.4VBm4Zq2DQb5PsstrFxGJT4d3CIyVly', 'TEACHER', false),
+('u_t2', 'David Lee', 'david@edu.com', '123', '$2b$10$Jj2b9BAsRLXEm89VkUjFruQwDDWwToVN.IQsR.Xmyk5uN177SEE..', 'TEACHER', false),
+('u_p1', 'Mr. Ahmad', 'parent.ali@edu.com', '123', '$2b$10$WXX7u28qMRPI8hnjwdHySuIpw6xKJW6nyTFcSwOE0M6w5NJFCfufG', 'PARENT', false),
+('u_p2', 'Mrs. Wong', 'parent.ben@edu.com', '123', '$2b$10$S6sU8Ii1VeZ00DudBO1/F.wG2VFYkaZW/7LezY5UYHaAaI7s44ihK', 'PARENT', false),
 ('u_p3', 'Ms. Davis', 'parent.charlie@edu.com', '123', '$2b$10$dcbONp5ShVGTrMsKzjN/u.4qawazd0oqzdsepVAAGY1XXJBMmqA/G', 'PARENT', true),
 ('u_p4', 'Ms. Goh', 'parent.goh@edu.com', '123', '$2b$10$S6sU8Ii1VeZ00DudBO1/F.wG2VFYkaZW/7LezY5UYHaAaI7s44ihK', 'PARENT', true);
 

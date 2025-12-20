@@ -121,10 +121,8 @@ describe('Authentication - Protected Routes', () => {
           expect(win.localStorage.getItem('authToken')).to.exist;
         });
 
-        // Note: The app redirects to login after refresh because user state is not persisted
-        // This is expected behavior - the app only sets user state through the login flow
-        // The token persists, but the user needs to login again to restore the session
-        cy.hash().should('eq', '#/login');
+        // The app should restore the session and redirect to dashboard
+        cy.hash({ timeout: 10000 }).should('eq', '#/dashboard');
       });
     });
 
@@ -175,7 +173,7 @@ describe('Authentication - Protected Routes', () => {
     it('should not allow API calls without authentication', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:3000/api/users',
+        url: 'http://localhost:8787/api/users',
         failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.be.oneOf([401, 403]);
