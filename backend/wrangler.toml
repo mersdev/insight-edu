@@ -14,14 +14,26 @@ database_id = "a72ec55a-1171-4ada-af45-443ba8e56fc2"
 [env.production]
 name = "insight-edu-backend-prod"
 vars = { ENVIRONMENT = "production", JWT_EXPIRES_IN = "24h" }
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "insight-edu"
+database_id = "a72ec55a-1171-4ada-af45-443ba8e56fc2"
 
 [env.staging]
 name = "insight-edu-backend-staging"
 vars = { ENVIRONMENT = "staging", JWT_EXPIRES_IN = "24h" }
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "insight-edu"
+database_id = "a72ec55a-1171-4ada-af45-443ba8e56fc2"
 
 [env.development]
 name = "insight-edu-backend-dev"
 vars = { ENVIRONMENT = "development", JWT_EXPIRES_IN = "24h" }
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "insight-edu"
+database_id = "a72ec55a-1171-4ada-af45-443ba8e56fc2"
 
 # Build configuration
 [build]
