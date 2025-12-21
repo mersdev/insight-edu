@@ -51,5 +51,44 @@ describe('Students API', () => {
       expect(aliAhmad.school).toBe('City High School');
     });
   });
-});
 
+  describe('POST /api/v1/admin/students', () => {
+    test('should create a parent user that can login', async () => {
+      const token = createToken('admin', 'admin@edu.com', 'HQ');
+      const studentId = `s_test_${Date.now()}`;
+      const parentEmail = `parent.${Date.now()}@edu.com`;
+
+      const request = new Request('http://localhost/api/v1/admin/students', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          id: studentId,
+          name: 'Test Student',
+          classIds: [],
+          parentName: 'Test Parent',
+          parentEmail,
+          attendance: 100,
+          atRisk: false,
+        }),
+      });
+
+      const response = await worker.fetch(request, mockEnv, mockCtx);
+      expect(response.status).toBe(201);
+
+      const loginRequest = new Request('http://localhost/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: parentEmail,
+          password: '123',
+        }),
+      });
+
+      const loginResponse = await worker.fetch(loginRequest, mockEnv, mockCtx);
+      expect(loginResponse.status).toBe(200);
+
+      const loginData = await loginResponse.json();
+      expect(loginData.user.email).toBe(parentEmail);
+      expect(loginData.user.role).toBe('PARENT');
+    });
+  });
+});

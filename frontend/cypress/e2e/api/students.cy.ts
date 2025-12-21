@@ -62,9 +62,10 @@ describe('API Integration - Students', () => {
   });
 
   describe('POST /api/students', () => {
-    it('should create a new student with valid data', () => {
+    it('should create a new student with valid data and allow parent login', () => {
+      const timestamp = Date.now();
       const newStudent = {
-        id: `s_test_${Date.now()}`,
+        id: `s_test_${timestamp}`,
         name: 'Test Student',
         parent_id: 'p_test',
         class_ids: [],
@@ -74,7 +75,7 @@ describe('API Integration - Students', () => {
         parent_name: 'Test Parent',
         relationship: 'Father',
         emergency_contact: '1234567890',
-        parent_email: `parent.${Date.now()}@edu.com`
+        parent_email: `parent.${timestamp}@edu.com`
       };
 
       cy.request({
@@ -89,6 +90,18 @@ describe('API Integration - Students', () => {
         expect(response.body).to.have.property('id');
         expect(response.body).to.have.property('name', newStudent.name);
         expect(response.body).to.have.property('parentEmail', newStudent.parent_email);
+
+        cy.request({
+          method: 'POST',
+          url: `${apiUrl}/auth/login`,
+          body: {
+            email: newStudent.parent_email,
+            password: '123'
+          }
+        }).then((loginResponse) => {
+          expect(loginResponse.status).to.eq(200);
+          expect(loginResponse.body.user).to.have.property('role', 'PARENT');
+        });
       });
     });
 
@@ -198,4 +211,3 @@ describe('API Integration - Students', () => {
     });
   });
 });
-

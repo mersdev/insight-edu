@@ -1,5 +1,9 @@
+import bcrypt from 'bcryptjs';
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
+
+const DEFAULT_PASSWORD = '123';
+const SALT_ROUNDS = 10;
 
 export async function handleGetStudents({ db, corsHeaders }) {
   try {
@@ -42,12 +46,45 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
       );
     }
 
+    const trimmedParentEmail = parentEmail?.trim();
+    let resolvedParentId = parentId || null;
+
+    if (trimmedParentEmail) {
+      const existingUser = await db
+        .prepare('SELECT id, role FROM users WHERE email = ?')
+        .bind(trimmedParentEmail)
+        .first();
+
+      if (existingUser && existingUser.role !== 'PARENT') {
+        return jsonResponse(
+          { error: 'Validation Error', message: 'Parent email already belongs to a non-parent user' },
+          409,
+          corsHeaders
+        );
+      }
+
+      if (existingUser) {
+        resolvedParentId = existingUser.id;
+      } else {
+        const generatedParentId = parentId && parentId !== 'p_new' ? parentId : `p_${id}`;
+        const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+        const parentUserName = parentName?.trim() || `${name} Parent`;
+
+        await db
+          .prepare('INSERT INTO users (id, name, email, password, password_hash, role, must_change_password, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)')
+          .bind(generatedParentId, parentUserName, trimmedParentEmail, DEFAULT_PASSWORD, passwordHash, 'PARENT', 1)
+          .run();
+
+        resolvedParentId = generatedParentId;
+      }
+    }
+
     await db
       .prepare('INSERT INTO students (id, name, parent_id, class_ids, attendance, at_risk, school, parent_name, relationship, emergency_contact, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(
         id,
         name,
-        parentId || null,
+        resolvedParentId,
         JSON.stringify(classIds || []),
         attendance || 0,
         atRisk ? 1 : 0,
@@ -55,7 +92,7 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
         parentName || null,
         relationship || null,
         emergencyContact || null,
-        parentEmail || null
+        trimmedParentEmail || null
       )
       .run();
 

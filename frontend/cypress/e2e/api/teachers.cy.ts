@@ -61,7 +61,7 @@ describe('API Integration - Teachers', () => {
   });
 
   describe('POST /api/teachers', () => {
-    it('should create a new teacher with valid data', () => {
+    it('should create a new teacher with valid data and allow login', () => {
       const newTeacher = {
         id: `t_test_${Date.now()}`,
         name: 'Test Teacher',
@@ -85,6 +85,18 @@ describe('API Integration - Teachers', () => {
         expect(response.body).to.have.property('name', newTeacher.name);
         expect(response.body).to.have.property('email', newTeacher.email);
         expect(response.body).to.have.property('subject', newTeacher.subject);
+
+        cy.request({
+          method: 'POST',
+          url: `${apiUrl}/auth/login`,
+          body: {
+            email: newTeacher.email,
+            password: '123'
+          }
+        }).then((loginResponse) => {
+          expect(loginResponse.status).to.eq(200);
+          expect(loginResponse.body.user).to.have.property('role', 'TEACHER');
+        });
       });
     });
 
@@ -163,4 +175,3 @@ describe('API Integration - Teachers', () => {
     });
   });
 });
-

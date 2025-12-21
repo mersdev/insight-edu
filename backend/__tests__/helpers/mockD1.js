@@ -203,9 +203,10 @@ export class MockD1 {
         id: args[0],
         name: args[1],
         email: args[2],
-        password_hash: args[3],
-        role: args[4],
-        must_change_password: 0,
+        password: args[3],
+        password_hash: args[4],
+        role: args[5],
+        must_change_password: args[6] ?? 0,
       };
       this.data.users.push(user);
       return { success: true };
@@ -322,4 +323,3 @@ export class MockD1 {
     return { success: true };
   }
 }
-
