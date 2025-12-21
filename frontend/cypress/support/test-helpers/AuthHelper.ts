@@ -19,14 +19,17 @@ export class AuthHelper {
    * Login via API (faster for setup)
    */
   static loginViaAPI(email: string, password: string): void {
+    const apiUrl = Cypress.env('apiUrl') || 'http://localhost:8787/api/v1';
     cy.request({
       method: 'POST',
-      url: 'http://localhost:3000/api/auth/login',
+      url: `${apiUrl}/auth/login`,
       body: { email, password }
     }).then((response) => {
-      cy.visit('/#/');
-      cy.window().then((win) => {
-        win.localStorage.setItem('authToken', response.body.token);
+      cy.visit('/#/', {
+        onBeforeLoad(win) {
+          win.localStorage.setItem('authToken', response.body.token);
+          win.localStorage.setItem('userSession', JSON.stringify(response.body.user));
+        }
       });
     });
   }
@@ -37,6 +40,7 @@ export class AuthHelper {
   static logout(): void {
     cy.window().then((win) => {
       win.localStorage.removeItem('authToken');
+      win.localStorage.removeItem('userSession');
     });
     cy.visit('/#/login');
   }
@@ -53,6 +57,7 @@ export class AuthHelper {
    */
   static verifyAuthenticated(): void {
     cy.window().its('localStorage').invoke('getItem', 'authToken').should('exist');
+    cy.window().its('localStorage').invoke('getItem', 'userSession').should('exist');
   }
 
   /**
@@ -61,6 +66,7 @@ export class AuthHelper {
   static verifyNotAuthenticated(): void {
     cy.window().then((win) => {
       expect(win.localStorage.getItem('authToken')).to.be.null;
+      expect(win.localStorage.getItem('userSession')).to.be.null;
     });
   }
 
@@ -109,5 +115,11 @@ export class AuthHelper {
       }
     });
   }
-}
 
+  /**
+   * Ensure any blocking dialogs are closed
+   */
+  static dismissOverlays(): void {
+    this.dismissDeviceWarning();
+  }
+}

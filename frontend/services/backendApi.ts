@@ -1,7 +1,15 @@
 import { User, Teacher, ClassGroup, Student, Session, Score, BehaviorRating, StudentInsightRecord, AttendanceRecord, Location } from '../types';
 
 // Cloudflare Workers endpoint - update this with your actual deployment URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
+const API_BASE_URL = RAW_API_URL.replace(/\/$/, '').endsWith('/api/v1')
+  ? RAW_API_URL.replace(/\/$/, '')
+  : RAW_API_URL.replace(/\/$/, '').endsWith('/api')
+    ? `${RAW_API_URL.replace(/\/$/, '')}/v1`
+    : `${RAW_API_URL.replace(/\/$/, '')}/api/v1`;
+const AUTH_BASE = `${API_BASE_URL}/auth`;
+const ADMIN_BASE = `${API_BASE_URL}/admin`;
+const TEACHER_BASE = `${API_BASE_URL}/teacher`;
 
 interface AppSettings {
   dashboardInsight: string;
@@ -105,7 +113,7 @@ export const api = {
 
   // Authentication
   login: async (email: string, password: string): Promise<LoginResponse> => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${AUTH_BASE}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +138,7 @@ export const api = {
   },
 
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+    const response = await fetch(`${AUTH_BASE}/change-password`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ currentPassword, newPassword }),
@@ -161,7 +169,7 @@ export const api = {
     if (!authToken) return null;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      const response = await fetch(`${AUTH_BASE}/me`, {
         headers: getAuthHeaders(),
       });
 
@@ -186,14 +194,14 @@ export const api = {
 
   // Settings
   fetchSettings: async (): Promise<AppSettings> => {
-    const response = await fetch(`${API_BASE_URL}/settings`, {
+    const response = await fetch(`${ADMIN_BASE}/settings`, {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
     return toCamelCase(data);
   },
   updateSettings: async (settings: Partial<AppSettings>): Promise<AppSettings> => {
-    const response = await fetch(`${API_BASE_URL}/settings`, {
+    const response = await fetch(`${ADMIN_BASE}/settings`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(settings))
@@ -205,7 +213,7 @@ export const api = {
   // Student Insights
   fetchStudentInsight: async (studentId: string): Promise<StudentInsightRecord | undefined> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/student-insights/${studentId}`, {
+      const response = await fetch(`${TEACHER_BASE}/student-insights/${studentId}`, {
         headers: getAuthHeaders(),
       });
       if (response.status === 404) return undefined;
@@ -216,7 +224,7 @@ export const api = {
     }
   },
   saveStudentInsight: async (record: StudentInsightRecord): Promise<void> => {
-    await fetch(`${API_BASE_URL}/student-insights`, {
+    await fetch(`${TEACHER_BASE}/student-insights`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(record))
@@ -225,7 +233,7 @@ export const api = {
 
   // Users
   fetchUsers: async (): Promise<User[]> => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
+    const response = await fetch(`${ADMIN_BASE}/users`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -237,7 +245,7 @@ export const api = {
 
   // Locations
   fetchLocations: async (): Promise<Location[]> => {
-    const response = await fetch(`${API_BASE_URL}/locations`, {
+    const response = await fetch(`${ADMIN_BASE}/locations`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -247,7 +255,7 @@ export const api = {
     return toCamelCase(data);
   },
   createLocation: async (location: Location): Promise<Location> => {
-    const response = await fetch(`${API_BASE_URL}/locations`, {
+    const response = await fetch(`${ADMIN_BASE}/locations`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(location)
@@ -259,7 +267,7 @@ export const api = {
     return toCamelCase(data);
   },
   deleteLocation: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
+    const response = await fetch(`${ADMIN_BASE}/locations/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -270,7 +278,7 @@ export const api = {
 
   // Teachers
   fetchTeachers: async (): Promise<Teacher[]> => {
-    const response = await fetch(`${API_BASE_URL}/teachers`, {
+    const response = await fetch(`${ADMIN_BASE}/teachers`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -280,7 +288,7 @@ export const api = {
     return toCamelCase(data);
   },
   createTeacher: async (teacher: Teacher): Promise<Teacher> => {
-    const response = await fetch(`${API_BASE_URL}/teachers`, {
+    const response = await fetch(`${ADMIN_BASE}/teachers`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(teacher))
@@ -292,7 +300,7 @@ export const api = {
     return toCamelCase(data);
   },
   deleteTeacher: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/teachers/${id}`, {
+    const response = await fetch(`${ADMIN_BASE}/teachers/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -303,7 +311,7 @@ export const api = {
 
   // Classes
   fetchClasses: async (): Promise<ClassGroup[]> => {
-    const response = await fetch(`${API_BASE_URL}/classes`, {
+    const response = await fetch(`${ADMIN_BASE}/classes`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -313,7 +321,7 @@ export const api = {
     return toCamelCase(data);
   },
   createClass: async (cls: ClassGroup): Promise<ClassGroup> => {
-    const response = await fetch(`${API_BASE_URL}/classes`, {
+    const response = await fetch(`${ADMIN_BASE}/classes`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(cls))
@@ -325,7 +333,7 @@ export const api = {
     return toCamelCase(data);
   },
   deleteClass: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/classes/${id}`, {
+    const response = await fetch(`${ADMIN_BASE}/classes/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -336,7 +344,7 @@ export const api = {
 
   // Students
   fetchStudents: async (): Promise<Student[]> => {
-    const response = await fetch(`${API_BASE_URL}/students`, {
+    const response = await fetch(`${ADMIN_BASE}/students`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -346,7 +354,7 @@ export const api = {
     return toCamelCase(data);
   },
   updateStudent: async (student: Student): Promise<Student> => {
-    const response = await fetch(`${API_BASE_URL}/students/${student.id}`, {
+    const response = await fetch(`${ADMIN_BASE}/students/${student.id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(student))
@@ -358,7 +366,7 @@ export const api = {
     return toCamelCase(data);
   },
   createStudent: async (student: Student): Promise<Student> => {
-    const response = await fetch(`${API_BASE_URL}/students`, {
+    const response = await fetch(`${ADMIN_BASE}/students`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(student))
@@ -370,7 +378,7 @@ export const api = {
     return toCamelCase(data);
   },
   deleteStudent: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
+    const response = await fetch(`${ADMIN_BASE}/students/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -381,7 +389,7 @@ export const api = {
 
   // Sessions
   fetchSessions: async (): Promise<Session[]> => {
-    const response = await fetch(`${API_BASE_URL}/sessions`, {
+    const response = await fetch(`${ADMIN_BASE}/sessions`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -391,7 +399,7 @@ export const api = {
     return toCamelCase(data);
   },
   createSession: async (session: Session): Promise<Session> => {
-    const response = await fetch(`${API_BASE_URL}/sessions`, {
+    const response = await fetch(`${ADMIN_BASE}/sessions`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(session))
@@ -403,7 +411,7 @@ export const api = {
     return toCamelCase(data);
   },
   updateSessionStatus: async (sessionId: string, status: 'COMPLETED' | 'CANCELLED' | 'SCHEDULED'): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/status`, {
+    const response = await fetch(`${ADMIN_BASE}/sessions/${sessionId}/status`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ status })
@@ -415,7 +423,7 @@ export const api = {
 
   // Attendance
   fetchAttendance: async (): Promise<AttendanceRecord[]> => {
-    const response = await fetch(`${API_BASE_URL}/attendance`, {
+    const response = await fetch(`${TEACHER_BASE}/attendance`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -425,7 +433,7 @@ export const api = {
     return toCamelCase(data);
   },
   recordAttendance: async (record: AttendanceRecord): Promise<AttendanceRecord> => {
-    const response = await fetch(`${API_BASE_URL}/attendance`, {
+    const response = await fetch(`${TEACHER_BASE}/attendance`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(record))
@@ -439,7 +447,7 @@ export const api = {
 
   // Scores
   fetchScores: async (): Promise<Score[]> => {
-    const response = await fetch(`${API_BASE_URL}/scores`, {
+    const response = await fetch(`${TEACHER_BASE}/scores`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -449,7 +457,7 @@ export const api = {
     return toCamelCase(data);
   },
   createScore: async (score: Score): Promise<Score> => {
-    const response = await fetch(`${API_BASE_URL}/scores`, {
+    const response = await fetch(`${TEACHER_BASE}/scores`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(score))
@@ -463,7 +471,7 @@ export const api = {
 
   // Behavior
   fetchBehaviors: async (): Promise<BehaviorRating[]> => {
-    const response = await fetch(`${API_BASE_URL}/behaviors`, {
+    const response = await fetch(`${TEACHER_BASE}/behaviors`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -473,7 +481,7 @@ export const api = {
     return toCamelCase(data);
   },
   recordBehavior: async (behavior: BehaviorRating): Promise<BehaviorRating> => {
-    const response = await fetch(`${API_BASE_URL}/behaviors`, {
+    const response = await fetch(`${TEACHER_BASE}/behaviors`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(toSnakeCase(behavior))
@@ -482,4 +490,3 @@ export const api = {
     return toCamelCase(data);
   }
 };
-

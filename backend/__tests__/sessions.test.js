@@ -14,11 +14,11 @@ describe('Sessions API', () => {
     mockCtx = createMockContext();
   });
 
-  describe('GET /api/sessions', () => {
+  describe('GET /api/v1/admin/sessions', () => {
     test('should get all sessions with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/sessions', {
+      const request = new Request('http://localhost/api/v1/admin/sessions', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });

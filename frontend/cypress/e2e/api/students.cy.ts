@@ -31,7 +31,7 @@ describe('API Integration - Students', () => {
     it('should fetch all students with valid auth token', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/students`,
+        url: `${apiUrl}/admin/students`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -53,7 +53,7 @@ describe('API Integration - Students', () => {
     it('should fail without auth token', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/students`,
+        url: `${apiUrl}/admin/students`,
         failOnStatusCode: false
       }).then((response) => {
         expect(response.status).to.be.oneOf([401, 403]);
@@ -79,7 +79,7 @@ describe('API Integration - Students', () => {
 
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/students`,
+        url: `${apiUrl}/admin/students`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -95,7 +95,7 @@ describe('API Integration - Students', () => {
     it('should fail without auth token', () => {
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/students`,
+        url: `${apiUrl}/admin/students`,
         body: {
           id: 's_test',
           name: 'Test',
@@ -124,7 +124,7 @@ describe('API Integration - Students', () => {
 
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/students`,
+        url: `${apiUrl}/admin/students`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -146,7 +146,7 @@ describe('API Integration - Students', () => {
 
       cy.request({
         method: 'PUT',
-        url: `${apiUrl}/students/${studentId}`,
+        url: `${apiUrl}/admin/students/${studentId}`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -175,7 +175,7 @@ describe('API Integration - Students', () => {
 
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/students`,
+        url: `${apiUrl}/admin/students`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -188,7 +188,7 @@ describe('API Integration - Students', () => {
     it('should delete a student with valid auth token', () => {
       cy.request({
         method: 'DELETE',
-        url: `${apiUrl}/students/${studentId}`,
+        url: `${apiUrl}/admin/students/${studentId}`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }

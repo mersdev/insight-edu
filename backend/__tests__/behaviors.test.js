@@ -14,11 +14,11 @@ describe('Behaviors API', () => {
     mockCtx = createMockContext();
   });
 
-  describe('GET /api/behaviors', () => {
+  describe('GET /api/v1/teacher/behaviors', () => {
     test('should get all behaviors with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/behaviors', {
+      const request = new Request('http://localhost/api/v1/teacher/behaviors', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });

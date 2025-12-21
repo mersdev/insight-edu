@@ -92,9 +92,15 @@ describe('Error Handling - API Errors', () => {
       // Set expired token
       cy.window().then((win) => {
         win.localStorage.setItem('authToken', 'expired-token');
+        win.localStorage.setItem('userSession', JSON.stringify({
+          id: 'expired-user',
+          name: 'Expired User',
+          email: 'expired@edu.com',
+          role: 'HQ'
+        }));
       });
 
-      cy.intercept('GET', `${apiUrl}/teachers`, {
+      cy.intercept('GET', `${apiUrl}/admin/teachers`, {
         statusCode: 401,
         body: { message: 'Token expired' }
       }).as('expiredToken');
@@ -111,7 +117,7 @@ describe('Error Handling - API Errors', () => {
       // Make direct API request to test 404 handling
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/students/nonexistent-id-12345`,
+        url: `${apiUrl}/admin/students/nonexistent-id-12345`,
         headers: {
           'Authorization': 'Bearer invalid-token'
         },
@@ -127,7 +133,7 @@ describe('Error Handling - API Errors', () => {
     it('should handle 400 Bad Request', () => {
       AuthHelper.loginAsHQ();
 
-      cy.intercept('POST', '**/api/teachers*', {
+      cy.intercept('POST', '**/api/v1/admin/teachers*', {
         statusCode: 400,
         body: { message: 'Invalid data provided' }
       }).as('badRequest');
@@ -148,7 +154,7 @@ describe('Error Handling - API Errors', () => {
     it('should handle 403 Forbidden', () => {
       AuthHelper.loginAsTeacher();
 
-      cy.intercept('GET', `${apiUrl}/teachers`, {
+      cy.intercept('GET', `${apiUrl}/admin/teachers`, {
         statusCode: 403,
         body: { message: 'Access denied' }
       }).as('forbidden');
@@ -181,7 +187,7 @@ describe('Error Handling - API Errors', () => {
     it('should handle missing required fields in response', () => {
       // Set up intercept BEFORE visiting login page
       // Return 500 error instead of 200 with missing fields (more realistic)
-      cy.intercept('POST', '**/api/auth/login*', {
+      cy.intercept('POST', '**/api/v1/auth/login*', {
         statusCode: 500,
         body: { message: 'Internal server error - missing token' }
       }).as('missingFields');
@@ -216,4 +222,3 @@ describe('Error Handling - API Errors', () => {
     });
   });
 });
-

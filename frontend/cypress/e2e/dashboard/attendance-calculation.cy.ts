@@ -31,9 +31,9 @@ describe('HQ Dashboard - Attendance Calculation', () => {
 
   it('should calculate attendance from completed sessions only', () => {
     // Intercept the API calls to verify data
-    cy.intercept('GET', '**/api/sessions').as('getSessions');
-    cy.intercept('GET', '**/api/attendance').as('getAttendance');
-    cy.intercept('GET', '**/api/students').as('getStudents');
+    cy.intercept('GET', '**/api/v1/admin/sessions').as('getSessions');
+    cy.intercept('GET', '**/api/v1/teacher/attendance').as('getAttendance');
+    cy.intercept('GET', '**/api/v1/admin/students').as('getStudents');
     
     // Reload to trigger API calls
     cy.reload();
@@ -152,4 +152,3 @@ describe('HQ Dashboard - Attendance Calculation', () => {
     });
   });
 });
-

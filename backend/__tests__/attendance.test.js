@@ -14,11 +14,11 @@ describe('Attendance API', () => {
     mockCtx = createMockContext();
   });
 
-  describe('GET /api/attendance', () => {
+  describe('GET /api/v1/teacher/attendance', () => {
     test('should get all attendance records with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/attendance', {
+      const request = new Request('http://localhost/api/v1/teacher/attendance', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });

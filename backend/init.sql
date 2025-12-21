@@ -1,4 +1,5 @@
 -- Create tables for Insight EDU database (D1 SQLite compatible)
+PRAGMA foreign_keys = ON;
 
 -- Settings table
 CREATE TABLE IF NOT EXISTS settings (
@@ -36,7 +37,9 @@ CREATE TABLE IF NOT EXISTS teachers (
   email TEXT NOT NULL,
   subject TEXT NOT NULL,
   phone TEXT,
-  description TEXT
+  description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Classes table
@@ -46,7 +49,9 @@ CREATE TABLE IF NOT EXISTS classes (
   teacher_id TEXT REFERENCES teachers(id) ON DELETE CASCADE,
   location_id TEXT REFERENCES locations(id) ON DELETE SET NULL,
   grade TEXT NOT NULL,
-  default_schedule TEXT
+  default_schedule TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Students table
@@ -72,8 +77,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   start_time TIME NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('REGULAR', 'SPECIAL')),
   status TEXT NOT NULL CHECK (status IN ('SCHEDULED', 'CANCELLED', 'COMPLETED')),
-  target_student_ids TEXT,
-  UNIQUE(class_id, date, start_time)
+  target_student_ids TEXT
 );
 
 -- Attendance table
@@ -118,9 +122,15 @@ CREATE TABLE IF NOT EXISTS student_insights (
 CREATE INDEX IF NOT EXISTS idx_students_parent_id ON students(parent_id);
 CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_class_id ON sessions(class_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_date_time ON sessions(date, start_time);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_class_date_time ON sessions(class_id, date, start_time);
 CREATE INDEX IF NOT EXISTS idx_attendance_student_id ON attendance(student_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_session_id ON attendance(session_id);
 CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
+CREATE INDEX IF NOT EXISTS idx_scores_date ON scores(date);
+CREATE INDEX IF NOT EXISTS idx_scores_student_date_subject_type ON scores(student_id, date, subject, type);
 CREATE INDEX IF NOT EXISTS idx_behaviors_student_id ON behaviors(student_id);
 CREATE INDEX IF NOT EXISTS idx_behaviors_session_id ON behaviors(session_id);
-
+CREATE INDEX IF NOT EXISTS idx_behaviors_date ON behaviors(date);
+CREATE INDEX IF NOT EXISTS idx_behaviors_student_session_category ON behaviors(student_id, session_id, category);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

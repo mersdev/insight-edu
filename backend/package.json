@@ -11,7 +11,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --forceExit",
     "build": "echo 'Build complete'",
     "db:seed": "wrangler d1 execute insight-edu --local --file=seed.sql",
-    "db:seed:remote": "wrangler d1 execute insight-edu --remote --file=seed.sql"
+    "db:seed:remote": "wrangler d1 execute insight-edu --remote --file=seed.sql",
+    "db:reset": "wrangler d1 execute insight-edu --local --file=scripts/d1-reset.sql && wrangler d1 execute insight-edu --local --file=init.sql && wrangler d1 execute insight-edu --local --file=seed.sql"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +24,6 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "wrangler": "^3.0.0"
+    "wrangler": "^4.56.0"
   }
 }

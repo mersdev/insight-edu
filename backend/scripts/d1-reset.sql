@@ -1,0 +1,15 @@
+PRAGMA foreign_keys = OFF;
+
+DROP TABLE IF EXISTS attendance;
+DROP TABLE IF EXISTS behaviors;
+DROP TABLE IF EXISTS scores;
+DROP TABLE IF EXISTS student_insights;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS students;
+DROP TABLE IF EXISTS classes;
+DROP TABLE IF EXISTS teachers;
+DROP TABLE IF EXISTS locations;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS settings;
+
+PRAGMA foreign_keys = ON;

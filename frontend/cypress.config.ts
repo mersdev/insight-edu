@@ -9,7 +9,7 @@ export default defineConfig({
       // implement node event listeners here
     },
     env: {
-      apiUrl: 'http://localhost:8787/api',
+      apiUrl: 'http://localhost:8787/api/v1',
     },
     viewportWidth: 1280,
     viewportHeight: 720,
@@ -28,4 +28,3 @@ export default defineConfig({
     supportFile: 'cypress/support/component.ts',
   },
 });
-

@@ -23,10 +23,9 @@ import './commands';
 declare global {
   namespace Cypress {
     interface Chainable {
-      login(email: string, password: string): Chainable<void>;
+      login(email: string, password: string, options?: { redirectPath?: string }): Chainable<void>;
       logout(): Chainable<void>;
       getByTestId(testId: string): Chainable<JQuery<HTMLElement>>;
     }
   }
 }
-

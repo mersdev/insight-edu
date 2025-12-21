@@ -5,8 +5,7 @@
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   dashboard_insight TEXT DEFAULT '',
-  last_analyzed TEXT DEFAULT '',
-  insight_auto_update_hours INTEGER DEFAULT 12
+  last_analyzed TEXT DEFAULT ''
 );
 
 -- Users table
@@ -128,4 +127,3 @@ CREATE INDEX IF NOT EXISTS idx_scores_student_id ON scores(student_id);
 CREATE INDEX IF NOT EXISTS idx_behaviors_student_id ON behaviors(student_id);
 CREATE INDEX IF NOT EXISTS idx_behaviors_session_id ON behaviors(session_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-

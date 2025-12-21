@@ -23,6 +23,7 @@ describe('Parent User - Complete Workflow', () => {
       cy.fixture('users').then((users) => {
         if (users.parentUser) {
           AuthHelper.loginAsParent();
+          AuthHelper.dismissDeviceWarning();
         }
       });
     });
@@ -178,4 +179,3 @@ describe('Parent User - Complete Workflow', () => {
     });
   });
 });
-

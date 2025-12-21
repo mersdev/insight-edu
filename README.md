@@ -15,18 +15,17 @@ A comprehensive educational management system for tracking student performance, 
 ## 📋 Prerequisites
 
 - **Node.js** >= 18.x
-- **Podman** (or Docker) for PostgreSQL database
-- **PostgreSQL** 15+
+- **Wrangler** (Cloudflare Workers CLI)
 - **Google Gemini API Key** (for AI insights)
 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Node.js** with Express.js
-- **PostgreSQL** database
+- **Cloudflare Workers** (Wrangler)
+- **Cloudflare D1** database
 - **JWT** for authentication
-- **bcrypt** for password hashing
-- **Jest** & **Supertest** for testing
+- **bcryptjs** for password hashing
+- **Jest** for testing
 
 ### Frontend
 - **React** 19.x with TypeScript
@@ -59,50 +58,16 @@ npm install
 
 ### 3. Environment Setup
 
-Create a `.env` file in the `backend` directory (use `.env.example` as a template):
-
-```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=insight_edu
-DB_USER=postgres
-DB_PASSWORD=<your-secure-password>
-
-# JWT Configuration (Generate a strong secret key)
-JWT_SECRET=<your-super-secret-jwt-key-change-in-production>
-JWT_EXPIRES_IN=24h
-```
-
 Create a `.env` file in the `frontend` directory (use `.env.example` as a template):
 
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:8787/api
 VITE_GEMINI_API_KEY=<your-gemini-api-key>
 ```
 
 **⚠️ IMPORTANT:** Never commit `.env` files to version control. Use `.env.example` files to document required variables.
 
-### 4. Database Setup
-
-Start PostgreSQL using Podman:
-
-```bash
-cd backend
-chmod +x start-db.sh
-./start-db.sh
-```
-
-This script will:
-- Start a PostgreSQL container
-- Initialize the database schema
-- Seed initial data
-
-### 5. Run the Application
+### 4. Run the Application
 
 **Start Backend:**
 ```bash
@@ -118,7 +83,7 @@ npm run dev
 
 The application will be available at:
 - Frontend: http://localhost:5173
-- Backend API: http://localhost:3000
+- Backend API: http://localhost:8787/api
 
 ## 🧪 Testing
 
@@ -144,9 +109,8 @@ npm test -- api.test.js
 The project includes comprehensive E2E tests using Cypress for testing the full stack integration.
 
 **Prerequisites:**
-1. Ensure PostgreSQL database is running
-2. Start the backend server
-3. Start the frontend development server
+1. Start the backend server
+2. Start the frontend development server
 
 **Run E2E Tests:**
 
@@ -180,45 +144,30 @@ npm run cypress:open
 
 For detailed E2E testing documentation, see [frontend/cypress/README.md](frontend/cypress/README.md)
 
-## 📚 API Documentation
+## 📚 API Overview
 
-The project includes comprehensive API documentation using Swagger/OpenAPI.
-
-### Access API Documentation
-
-Once the backend server is running, you can access the interactive API documentation at:
-
-**Swagger UI:** [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
-
-**OpenAPI JSON:** [http://localhost:3000/api-docs.json](http://localhost:3000/api-docs.json)
-
-The Swagger UI provides:
-- ✅ Complete API endpoint documentation
-- ✅ Request/response schemas with examples
-- ✅ Authentication requirements for each endpoint
-- ✅ Interactive API testing (Try it out feature)
-- ✅ Error response documentation
-
-### API Endpoint Categories
+Base: `/api/v1`
 
 **Authentication**
-- `POST /api/auth/login` - User login
-- `POST /api/auth/change-password` - Change user password (requires authentication)
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/me`
+- `POST /api/v1/auth/change-password`
 
-**Users**
-- `GET /api/users` - Get all users
-- `GET /api/users/:id` - Get user by ID
-- `POST /api/users` - Create a new user
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
+**HQ Admin**
+- `GET|PUT /api/v1/admin/settings`
+- `GET|POST /api/v1/admin/users`
+- `GET|POST /api/v1/admin/locations`
+- `GET|POST /api/v1/admin/teachers`
+- `GET|POST /api/v1/admin/classes`
+- `GET|POST /api/v1/admin/students`
+- `GET|POST /api/v1/admin/sessions`
 
-**Settings**
-- `GET /api/settings` - Get system settings
-- `PUT /api/settings` - Update system settings
-
-**Students, Teachers, Classes, Sessions, Attendance, Scores, Behaviors, and more...**
-
-For complete endpoint documentation with request/response schemas, visit the Swagger UI at `/api-docs`.
+**Teacher**
+- `GET|POST /api/v1/teacher/sessions`
+- `GET|POST /api/v1/teacher/attendance`
+- `GET|POST /api/v1/teacher/scores`
+- `GET|POST /api/v1/teacher/behaviors`
+- `POST /api/v1/teacher/student-insights`
 
 ## 👥 Default Users
 
@@ -226,15 +175,15 @@ After seeding the database, you can login with the following test accounts:
 
 **HQ Admin:**
 - Email: `admin@edu.com`
-- Password: Check the seed.sql file for the hashed password
+- Password: `Admin123`
 
 **Teacher:**
 - Email: `sarah@edu.com`
-- Password: Check the seed.sql file for the hashed password
+- Password: `123`
 
 **Parent:**
 - Email: `parent.ali@edu.com`
-- Password: Check the seed.sql file for the hashed password
+- Password: `123`
 
 **⚠️ SECURITY NOTE:** These are test credentials for development only. In production:
 - Change all default passwords immediately
@@ -248,24 +197,18 @@ After seeding the database, you can login with the following test accounts:
 insight-edu/
 ├── backend/
 │   ├── src/
-│   │   ├── config/          # Configuration files
-│   │   │   └── database.js  # Database connection
-│   │   ├── middleware/      # Express middleware
-│   │   │   └── auth.js      # Authentication & authorization
-│   │   ├── routes/          # API route handlers
-│   │   │   ├── auth.js
-│   │   │   ├── students.js
-│   │   │   ├── teachers.js
-│   │   │   ├── classes.js
-│   │   │   ├── sessions.js
-│   │   │   ├── attendance.js
-│   │   │   ├── behaviors.js
-│   │   │   └── ...
-│   │   └── server.js        # Express app entry point
+│   │   ├── handlers/        # Route handlers
+│   │   ├── utils/           # Shared utilities
+│   │   ├── routes.js        # Route table
+│   │   ├── router.js        # Request router
+│   │   └── worker.js        # Worker entry point
 │   ├── __tests__/           # Test files
 │   ├── migrations/          # Database migrations
 │   ├── init.sql             # Database schema
 │   ├── seed.sql             # Seed data
+│   ├── scripts/             # Local helper scripts
+│   │   └── d1-reset.sql     # Local D1 reset helper
+│   ├── wrangler.toml        # Worker config
 │   └── package.json
 ├── frontend/
 │   ├── components/          # Reusable React components
@@ -286,33 +229,24 @@ insight-edu/
 - **JWT Authentication**: Secure token-based authentication
 - **Role-Based Access Control**: Different permissions for Admin, Teacher, and Parent roles
 - **Environment Variables**: Sensitive data stored in .env files (not committed to git)
-- **SQL Injection Protection**: Parameterized queries using pg library
+- **SQL Injection Protection**: Parameterized queries in D1
 - **CORS Configuration**: Controlled cross-origin resource sharing
 
 ## 🚀 Deployment
 
-### Production Checklist
+### Backend (Cloudflare Workers)
 
-1. **Update Environment Variables**:
-   - Generate a strong JWT_SECRET
-   - Use production database credentials
-   - Set NODE_ENV=production
+```bash
+cd backend
+npx wrangler deploy --env production
+```
 
-2. **Database**:
-   - Run migrations on production database
-   - Set up regular backups
-   - Configure connection pooling
+### Frontend (Cloudflare Pages)
 
-3. **Security**:
-   - Enable HTTPS
-   - Configure CORS for production domain
-   - Set up rate limiting
-   - Enable security headers (helmet)
-
-4. **Monitoring**:
-   - Set up logging
-   - Configure error tracking
-   - Monitor database performance
+```bash
+cd frontend
+npx wrangler pages deploy dist --project-name=insight-edu-frontend --branch=main
+```
 
 ## 🤝 Contributing
 
@@ -328,28 +262,13 @@ This project is licensed under the ISC License.
 
 ## 🐛 Troubleshooting
 
-### Database Connection Issues
-
-If you encounter database connection errors:
-
-```bash
-# Check if PostgreSQL container is running
-podman ps
-
-# Restart the database
-cd backend
-./start-db.sh
-```
-
 ### Port Already in Use
 
-If port 3000 or 5173 is already in use:
+If port 8787 or 5173 is already in use:
 
 ```bash
-# Change PORT in backend/.env
-PORT=3001
-
-# Vite will automatically use next available port
+# Wrangler picks a new port, or set one explicitly:
+wrangler dev --port 8788
 ```
 
 ### Test Failures
@@ -370,4 +289,3 @@ For issues and questions, please open an issue on GitHub.
 ---
 
 Built with ❤️ for educational excellence
-

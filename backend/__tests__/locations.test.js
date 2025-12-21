@@ -14,11 +14,11 @@ describe('Locations API', () => {
     mockCtx = createMockContext();
   });
 
-  describe('GET /api/locations', () => {
+  describe('GET /api/v1/admin/locations', () => {
     test('should get all locations with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/locations', {
+      const request = new Request('http://localhost/api/v1/admin/locations', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -33,7 +33,7 @@ describe('Locations API', () => {
     test('should retrieve locations from seed data', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
 
-      const request = new Request('http://localhost/api/locations', {
+      const request = new Request('http://localhost/api/v1/admin/locations', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -52,11 +52,11 @@ describe('Locations API', () => {
     });
   });
 
-  describe('POST /api/locations', () => {
+  describe('POST /api/v1/admin/locations', () => {
     test('should create a new location with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/locations', {
+      const request = new Request('http://localhost/api/v1/admin/locations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

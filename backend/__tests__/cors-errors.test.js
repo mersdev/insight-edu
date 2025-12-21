@@ -16,7 +16,7 @@ describe('CORS and Error Handling', () => {
 
   describe('CORS', () => {
     test('should handle CORS preflight requests', async () => {
-      const request = new Request('http://localhost/api/users', {
+      const request = new Request('http://localhost/api/v1/admin/users', {
         method: 'OPTIONS',
       });
 
@@ -30,7 +30,7 @@ describe('CORS and Error Handling', () => {
     test('should return 404 for unknown routes', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/unknown', {
+      const request = new Request('http://localhost/api/v1/unknown', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });

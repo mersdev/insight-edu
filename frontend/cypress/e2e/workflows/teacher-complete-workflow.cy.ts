@@ -48,6 +48,7 @@ describe('Teacher User - Complete Workflow', () => {
 
     it('should navigate to score input', () => {
       teacherClassesPage.navigateToScoreInput();
+      AuthHelper.dismissDeviceWarning();
       scoreInputPage.verifyScoreInputPageDisplayed();
     });
 
@@ -61,6 +62,7 @@ describe('Teacher User - Complete Workflow', () => {
     beforeEach(() => {
       AuthHelper.loginAsTeacher();
       scoreInputPage.visit();
+      AuthHelper.dismissDeviceWarning();
     });
 
     it('should display score input page', () => {
@@ -81,7 +83,7 @@ describe('Teacher User - Complete Workflow', () => {
     it('should switch to edit mode', () => {
       cy.wait(1000);
       cy.get('body').then(($body) => {
-        if ($body.text().includes('Edit')) {
+        if ($body.text().includes('Edit Scores')) {
           scoreInputPage.switchToEditMode();
           cy.wait(500);
         }
@@ -170,6 +172,7 @@ describe('Teacher User - Complete Workflow', () => {
     beforeEach(() => {
       AuthHelper.loginAsTeacher();
       teacherClassesPage.visit();
+      AuthHelper.dismissDeviceWarning();
     });
 
     it('should view sessions for current month', () => {
@@ -196,6 +199,7 @@ describe('Teacher User - Complete Workflow', () => {
     beforeEach(() => {
       AuthHelper.loginAsTeacher();
       teacherClassesPage.visit();
+      AuthHelper.dismissDeviceWarning();
     });
 
     it('should display behavior rating interface', () => {
@@ -205,4 +209,3 @@ describe('Teacher User - Complete Workflow', () => {
     });
   });
 });
-

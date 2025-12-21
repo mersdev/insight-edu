@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 
 describe('Authentication - Protected Routes', () => {
+  const apiUrl = Cypress.env('apiUrl') || 'http://localhost:8787/api/v1';
   beforeEach(() => {
     cy.clearLocalStorage();
   });
@@ -173,7 +174,7 @@ describe('Authentication - Protected Routes', () => {
     it('should not allow API calls without authentication', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8787/api/users',
+        url: `${apiUrl}/admin/users`,
         failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.be.oneOf([401, 403]);
@@ -181,4 +182,3 @@ describe('Authentication - Protected Routes', () => {
     });
   });
 });
-
