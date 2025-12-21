@@ -14,11 +14,11 @@ describe('Users API', () => {
     mockCtx = createMockContext();
   });
 
-  describe('GET /api/users', () => {
+  describe('GET /api/v1/admin/users', () => {
     test('should get all users with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/users', {
+      const request = new Request('http://localhost/api/v1/admin/users', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -32,7 +32,7 @@ describe('Users API', () => {
     });
 
     test('should return 401 without auth token', async () => {
-      const request = new Request('http://localhost/api/users', {
+      const request = new Request('http://localhost/api/v1/admin/users', {
         method: 'GET',
       });
 
@@ -41,11 +41,11 @@ describe('Users API', () => {
     });
   });
 
-  describe('POST /api/users', () => {
-    test('should create a new user with valid token', async () => {
+  describe('POST /api/v1/admin/users', () => {
+    test('should return 404 (endpoint removed)', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/users', {
+      const request = new Request('http://localhost/api/v1/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,8 +61,8 @@ describe('Users API', () => {
       });
 
       const response = await worker.fetch(request, mockEnv, mockCtx);
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(404);
     });
   });
-});
 
+});

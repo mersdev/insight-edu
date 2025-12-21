@@ -31,7 +31,7 @@ describe('API Integration - Teachers', () => {
     it('should fetch all teachers with valid auth token', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/teachers`,
+        url: `${apiUrl}/admin/teachers`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -52,7 +52,7 @@ describe('API Integration - Teachers', () => {
     it('should fail without auth token', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/teachers`,
+        url: `${apiUrl}/admin/teachers`,
         failOnStatusCode: false
       }).then((response) => {
         expect(response.status).to.be.oneOf([401, 403]);
@@ -74,7 +74,7 @@ describe('API Integration - Teachers', () => {
 
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/teachers`,
+        url: `${apiUrl}/admin/teachers`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -91,7 +91,7 @@ describe('API Integration - Teachers', () => {
     it('should fail without auth token', () => {
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/teachers`,
+        url: `${apiUrl}/admin/teachers`,
         body: {
           id: 't_test',
           name: 'Test',
@@ -118,7 +118,7 @@ describe('API Integration - Teachers', () => {
 
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/teachers`,
+        url: `${apiUrl}/admin/teachers`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -131,7 +131,7 @@ describe('API Integration - Teachers', () => {
     it('should delete a teacher with valid auth token', () => {
       cy.request({
         method: 'DELETE',
-        url: `${apiUrl}/teachers/${teacherId}`,
+        url: `${apiUrl}/admin/teachers/${teacherId}`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -142,7 +142,7 @@ describe('API Integration - Teachers', () => {
       // Verify teacher is deleted
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/teachers`,
+        url: `${apiUrl}/admin/teachers`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -155,7 +155,7 @@ describe('API Integration - Teachers', () => {
     it('should fail without auth token', () => {
       cy.request({
         method: 'DELETE',
-        url: `${apiUrl}/teachers/${teacherId}`,
+        url: `${apiUrl}/admin/teachers/${teacherId}`,
         failOnStatusCode: false
       }).then((response) => {
         expect(response.status).to.be.oneOf([401, 403]);

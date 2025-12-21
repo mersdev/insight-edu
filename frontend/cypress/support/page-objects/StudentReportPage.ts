@@ -12,6 +12,7 @@ export class StudentReportPage extends BasePage {
    */
   verifyStudentReportPageDisplayed(): void {
     this.verifyUrl();
+    this.dismissDialogIfPresent();
     cy.contains(/reports/i).should('be.visible');
   }
 
@@ -94,4 +95,3 @@ export class StudentReportPage extends BasePage {
     cy.contains(/schedule|calendar/i).should('be.visible');
   }
 }
-

@@ -47,6 +47,7 @@ export class LoginPage extends BasePage {
    */
   verifyTokenStored(): void {
     cy.window().its('localStorage').invoke('getItem', 'authToken').should('exist');
+    cy.window().its('localStorage').invoke('getItem', 'userSession').should('exist');
   }
 
   /**
@@ -55,6 +56,7 @@ export class LoginPage extends BasePage {
   verifyTokenNotStored(): void {
     cy.window().then((win) => {
       expect(win.localStorage.getItem('authToken')).to.be.null;
+      expect(win.localStorage.getItem('userSession')).to.be.null;
     });
   }
 
@@ -79,4 +81,3 @@ export class LoginPage extends BasePage {
     cy.get(this.passwordInput).should('exist');
   }
 }
-

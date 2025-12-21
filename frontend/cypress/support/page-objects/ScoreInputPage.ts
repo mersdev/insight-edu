@@ -26,7 +26,7 @@ export class ScoreInputPage extends BasePage {
    * Switch to edit mode
    */
   switchToEditMode(): void {
-    cy.contains('button', /edit/i).click();
+    cy.contains('button', /edit scores/i).click();
   }
 
   /**
@@ -79,4 +79,3 @@ export class ScoreInputPage extends BasePage {
     cy.get('table tbody tr').should('have.length.at.least', 1);
   }
 }
-

@@ -30,7 +30,7 @@ describe('API Integration - Classes and Locations', () => {
     it('should fetch all locations', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/locations`,
+        url: `${apiUrl}/admin/locations`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -52,7 +52,7 @@ describe('API Integration - Classes and Locations', () => {
 
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/locations`,
+        url: `${apiUrl}/admin/locations`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -70,7 +70,7 @@ describe('API Integration - Classes and Locations', () => {
     it('should fetch all classes', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/classes`,
+        url: `${apiUrl}/admin/classes`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -98,7 +98,7 @@ describe('API Integration - Classes and Locations', () => {
       const timestamp = Date.now();
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/locations`,
+        url: `${apiUrl}/admin/locations`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -114,7 +114,7 @@ describe('API Integration - Classes and Locations', () => {
       // Get a teacher
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/teachers`,
+        url: `${apiUrl}/admin/teachers`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -141,7 +141,7 @@ describe('API Integration - Classes and Locations', () => {
 
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/classes`,
+        url: `${apiUrl}/admin/classes`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         },
@@ -164,7 +164,7 @@ describe('API Integration - Classes and Locations', () => {
       // Create a class to delete
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/classes`,
+        url: `${apiUrl}/admin/classes`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -179,7 +179,7 @@ describe('API Integration - Classes and Locations', () => {
       if (classId) {
         cy.request({
           method: 'DELETE',
-          url: `${apiUrl}/classes/${classId}`,
+          url: `${apiUrl}/admin/classes/${classId}`,
           headers: {
             'Authorization': `Bearer ${authToken}`
           }

@@ -16,7 +16,7 @@ describe('Authentication', () => {
 
   describe('Login Endpoint', () => {
     test('should return 400 for missing email or password', async () => {
-      const request = new Request('http://localhost/api/auth/login', {
+      const request = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'test@example.com' }),
@@ -27,7 +27,7 @@ describe('Authentication', () => {
     });
 
     test('should return 401 for invalid credentials', async () => {
-      const request = new Request('http://localhost/api/auth/login', {
+      const request = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -41,7 +41,7 @@ describe('Authentication', () => {
     });
 
     test('should login successfully with correct credentials', async () => {
-      const request = new Request('http://localhost/api/auth/login', {
+      const request = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -62,7 +62,7 @@ describe('Authentication', () => {
 
   describe('Seed Data Authentication', () => {
     test('should login successfully as HQ Admin with seed credentials', async () => {
-      const request = new Request('http://localhost/api/auth/login', {
+      const request = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -83,7 +83,7 @@ describe('Authentication', () => {
     });
 
     test('should login successfully as Teacher with seed credentials', async () => {
-      const request = new Request('http://localhost/api/auth/login', {
+      const request = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +104,7 @@ describe('Authentication', () => {
     });
 
     test('should login successfully as Parent with seed credentials', async () => {
-      const request = new Request('http://localhost/api/auth/login', {
+      const request = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,7 +125,7 @@ describe('Authentication', () => {
     });
 
     test('should fail login with incorrect password', async () => {
-      const request = new Request('http://localhost/api/auth/login', {
+      const request = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,13 +141,31 @@ describe('Authentication', () => {
 
   describe('Token Validation', () => {
     test('should return 401 for missing auth token', async () => {
-      const request = new Request('http://localhost/api/users', {
+      const request = new Request('http://localhost/api/v1/admin/users', {
         method: 'GET',
       });
 
       const response = await worker.fetch(request, mockEnv, mockCtx);
       expect(response.status).toBe(401);
     });
+
+    test('should return current user info for valid token', async () => {
+      const token = createToken('admin', 'admin@edu.com', 'HQ');
+      const request = new Request('http://localhost/api/v1/auth/me', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const response = await worker.fetch(request, mockEnv, mockCtx);
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.email).toBe('admin@edu.com');
+      expect(data.role).toBe('HQ');
+      expect(data.name).toBe('HQ Admin');
+      expect(data.mustChangePassword).toBe(true);
+    });
   });
 });
-

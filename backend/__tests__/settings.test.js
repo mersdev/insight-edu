@@ -14,11 +14,11 @@ describe('Settings API', () => {
     mockCtx = createMockContext();
   });
 
-  describe('GET /api/settings', () => {
+  describe('GET /api/v1/admin/settings', () => {
     test('should get settings with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/settings', {
+      const request = new Request('http://localhost/api/v1/admin/settings', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });

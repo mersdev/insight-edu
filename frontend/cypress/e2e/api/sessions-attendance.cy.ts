@@ -30,7 +30,7 @@ describe('API Integration - Sessions and Attendance', () => {
     it('should fetch all sessions', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/sessions`,
+        url: `${apiUrl}/admin/sessions`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -56,7 +56,7 @@ describe('API Integration - Sessions and Attendance', () => {
       // First create a location, teacher, and class
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/locations`,
+        url: `${apiUrl}/admin/locations`,
         headers: { 'Authorization': `Bearer ${authToken}` },
         body: {
           id: `loc_test_${timestamp}`,
@@ -69,7 +69,7 @@ describe('API Integration - Sessions and Attendance', () => {
         // Create a teacher
         cy.request({
           method: 'POST',
-          url: `${apiUrl}/teachers`,
+          url: `${apiUrl}/admin/teachers`,
           headers: { 'Authorization': `Bearer ${authToken}` },
           body: {
             id: `t_test_${timestamp}`,
@@ -85,7 +85,7 @@ describe('API Integration - Sessions and Attendance', () => {
           // Create a class
           cy.request({
             method: 'POST',
-            url: `${apiUrl}/classes`,
+            url: `${apiUrl}/admin/classes`,
             headers: { 'Authorization': `Bearer ${authToken}` },
             body: {
               id: `c_test_${timestamp}`,
@@ -109,7 +109,7 @@ describe('API Integration - Sessions and Attendance', () => {
 
             cy.request({
               method: 'POST',
-              url: `${apiUrl}/sessions`,
+              url: `${apiUrl}/admin/sessions`,
               headers: {
                 'Authorization': `Bearer ${authToken}`
               },
@@ -133,7 +133,7 @@ describe('API Integration - Sessions and Attendance', () => {
       // Get a session ID
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/sessions`,
+        url: `${apiUrl}/admin/sessions`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -148,7 +148,7 @@ describe('API Integration - Sessions and Attendance', () => {
       if (sessionId) {
         cy.request({
           method: 'PUT',
-          url: `${apiUrl}/sessions/${sessionId}/status`,
+          url: `${apiUrl}/admin/sessions/${sessionId}/status`,
           headers: {
             'Authorization': `Bearer ${authToken}`
           },
@@ -165,7 +165,7 @@ describe('API Integration - Sessions and Attendance', () => {
       if (sessionId) {
         cy.request({
           method: 'PUT',
-          url: `${apiUrl}/sessions/${sessionId}/status`,
+          url: `${apiUrl}/admin/sessions/${sessionId}/status`,
           headers: {
             'Authorization': `Bearer ${authToken}`
           },
@@ -183,7 +183,7 @@ describe('API Integration - Sessions and Attendance', () => {
     it('should fetch all attendance records', () => {
       cy.request({
         method: 'GET',
-        url: `${apiUrl}/attendance`,
+        url: `${apiUrl}/teacher/attendance`,
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -201,7 +201,7 @@ describe('API Integration - Sessions and Attendance', () => {
       // Create all required data: location -> teacher -> class -> session -> student
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/locations`,
+        url: `${apiUrl}/admin/locations`,
         headers: { 'Authorization': `Bearer ${authToken}` },
         body: {
           id: `loc_att_${timestamp}`,
@@ -213,7 +213,7 @@ describe('API Integration - Sessions and Attendance', () => {
 
         cy.request({
           method: 'POST',
-          url: `${apiUrl}/teachers`,
+          url: `${apiUrl}/admin/teachers`,
           headers: { 'Authorization': `Bearer ${authToken}` },
           body: {
             id: `t_att_${timestamp}`,
@@ -228,7 +228,7 @@ describe('API Integration - Sessions and Attendance', () => {
 
           cy.request({
             method: 'POST',
-            url: `${apiUrl}/classes`,
+            url: `${apiUrl}/admin/classes`,
             headers: { 'Authorization': `Bearer ${authToken}` },
             body: {
               id: `c_att_${timestamp}`,
@@ -242,7 +242,7 @@ describe('API Integration - Sessions and Attendance', () => {
 
             cy.request({
               method: 'POST',
-              url: `${apiUrl}/sessions`,
+              url: `${apiUrl}/admin/sessions`,
               headers: { 'Authorization': `Bearer ${authToken}` },
               body: {
                 id: `sess_att_${timestamp}`,
@@ -273,7 +273,7 @@ describe('API Integration - Sessions and Attendance', () => {
 
                 cy.request({
                   method: 'POST',
-                  url: `${apiUrl}/students`,
+                  url: `${apiUrl}/admin/students`,
                   headers: { 'Authorization': `Bearer ${authToken}` },
                   body: {
                     id: `s_att_${timestamp}`,
@@ -298,7 +298,7 @@ describe('API Integration - Sessions and Attendance', () => {
 
                 cy.request({
                   method: 'POST',
-                  url: `${apiUrl}/attendance`,
+                  url: `${apiUrl}/teacher/attendance`,
                   headers: {
                     'Authorization': `Bearer ${authToken}`
                   },

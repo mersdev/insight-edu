@@ -14,11 +14,11 @@ describe('Classes API', () => {
     mockCtx = createMockContext();
   });
 
-  describe('GET /api/classes', () => {
+  describe('GET /api/v1/admin/classes', () => {
     test('should get all classes with valid token', async () => {
       const token = createToken();
 
-      const request = new Request('http://localhost/api/classes', {
+      const request = new Request('http://localhost/api/v1/admin/classes', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -33,7 +33,7 @@ describe('Classes API', () => {
     test('should retrieve classes from seed data', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
 
-      const request = new Request('http://localhost/api/classes', {
+      const request = new Request('http://localhost/api/v1/admin/classes', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });

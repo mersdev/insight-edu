@@ -18,7 +18,7 @@ describe('Error Handling - Edge Cases', () => {
   describe('Empty States', () => {
     it('should handle empty teachers list', () => {
       // Set up intercept BEFORE login
-      cy.intercept('GET', '**/api/teachers*', {
+      cy.intercept('GET', '**/api/v1/admin/teachers*', {
         statusCode: 200,
         body: []
       }).as('emptyTeachers');
@@ -32,7 +32,7 @@ describe('Error Handling - Edge Cases', () => {
 
     it('should handle empty students list', () => {
       // Set up intercept BEFORE login
-      cy.intercept('GET', '**/api/students*', {
+      cy.intercept('GET', '**/api/v1/admin/students*', {
         statusCode: 200,
         body: []
       }).as('emptyStudents');
@@ -46,7 +46,7 @@ describe('Error Handling - Edge Cases', () => {
 
     it('should handle empty classes list', () => {
       // Set up intercept BEFORE login
-      cy.intercept('GET', '**/api/classes*', {
+      cy.intercept('GET', '**/api/v1/admin/classes*', {
         statusCode: 200,
         body: []
       }).as('emptyClasses');
@@ -71,7 +71,7 @@ describe('Error Handling - Edge Cases', () => {
       }));
 
       // Set up intercept BEFORE login
-      cy.intercept('GET', '**/api/students*', {
+      cy.intercept('GET', '**/api/v1/admin/students*', {
         statusCode: 200,
         body: largeStudentList
       }).as('largeStudents');
@@ -93,7 +93,7 @@ describe('Error Handling - Edge Cases', () => {
       }));
 
       // Set up intercept BEFORE login
-      cy.intercept('GET', '**/api/teachers*', {
+      cy.intercept('GET', '**/api/v1/admin/teachers*', {
         statusCode: 200,
         body: largeTeacherList
       }).as('largeTeachers');
@@ -145,7 +145,7 @@ describe('Error Handling - Edge Cases', () => {
       
       teachersPage.clickAddTeacher();
       const longName = 'A'.repeat(100);
-      cy.get('input').first().type(longName);
+      cy.contains('label', /full.*name/i).parent().find('input').type(longName, { force: true });
       
       // Should handle or truncate long names
       cy.wait(500);
@@ -156,6 +156,7 @@ describe('Error Handling - Edge Cases', () => {
     beforeEach(() => {
       AuthHelper.loginAsTeacher();
       cy.visit('/#/input');
+      AuthHelper.dismissDeviceWarning();
     });
 
     it('should handle score of 0', () => {
@@ -312,4 +313,3 @@ describe('Error Handling - Edge Cases', () => {
     });
   });
 });
-

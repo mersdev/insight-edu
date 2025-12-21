@@ -12,21 +12,24 @@
  * Custom command to login
  * @example cy.login('admin@example.com', 'password123')
  */
-Cypress.Commands.add('login', (email: string, password: string) => {
+Cypress.Commands.add('login', (email: string, password: string, options?: { redirectPath?: string }) => {
+  const apiUrl = Cypress.env('apiUrl') || 'http://localhost:8787/api/v1';
   // Use API login to set token directly
   cy.request({
     method: 'POST',
-    url: 'http://localhost:8787/api/auth/login',
+    url: `${apiUrl}/auth/login`,
     body: {
       email,
       password
     }
   }).then((response) => {
-    // Visit the app first to have access to localStorage
-    cy.visit('/#/');
-    // Store the token in localStorage
-    cy.window().then((win) => {
-      win.localStorage.setItem('authToken', response.body.token);
+    const redirectPath = options?.redirectPath || '/#/';
+    // Ensure storage is set before app scripts load so session restore works.
+    cy.visit(redirectPath, {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('authToken', response.body.token);
+        win.localStorage.setItem('userSession', JSON.stringify(response.body.user));
+      }
     });
   });
 });
@@ -38,6 +41,7 @@ Cypress.Commands.add('login', (email: string, password: string) => {
 Cypress.Commands.add('logout', () => {
   cy.window().then((win) => {
     win.localStorage.removeItem('authToken');
+    win.localStorage.removeItem('userSession');
   });
   cy.visit('/#/login');
 });
@@ -49,4 +53,3 @@ Cypress.Commands.add('logout', () => {
 Cypress.Commands.add('getByTestId', (testId: string) => {
   return cy.get(`[data-testid="${testId}"]`);
 });
-

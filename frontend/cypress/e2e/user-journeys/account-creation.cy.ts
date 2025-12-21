@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 
 describe('Account Creation for Teachers and Parents', () => {
+  const apiUrl = Cypress.env('apiUrl') || 'http://localhost:8787/api/v1';
   let authToken: string;
 
   beforeEach(() => {
@@ -9,7 +10,7 @@ describe('Account Creation for Teachers and Parents', () => {
     cy.fixture('users').then((users) => {
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8787/api/auth/login',
+        url: `${apiUrl}/auth/login`,
         body: {
           email: users.hqUser.email,
           password: users.hqUser.password
@@ -66,7 +67,7 @@ describe('Account Creation for Teachers and Parents', () => {
           // Verify user account was created by checking if login works
           cy.request({
             method: 'POST',
-            url: 'http://localhost:8787/api/auth/login',
+            url: `${apiUrl}/auth/login`,
             body: {
               email: createdTeacherEmail,
               password: '123'
@@ -132,7 +133,7 @@ describe('Account Creation for Teachers and Parents', () => {
           // Verify user account was created by checking if login works
           cy.request({
             method: 'POST',
-            url: 'http://localhost:8787/api/auth/login',
+            url: `${apiUrl}/auth/login`,
             body: {
               email: createdParentEmail,
               password: '123'
@@ -153,4 +154,3 @@ describe('Account Creation for Teachers and Parents', () => {
   });
 
 });
-

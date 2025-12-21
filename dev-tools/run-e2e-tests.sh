@@ -7,20 +7,27 @@ set -e
 
 echo "🚀 Starting E2E Test Environment..."
 
+# Use a workspace-local Wrangler home to keep logs/state in the repo.
+export WRANGLER_HOME="${WRANGLER_HOME:-$(pwd)/backend/.wrangler}"
+
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Check if database is running
-echo -e "${YELLOW}Checking database...${NC}"
-if ! podman ps | grep -q insight-edu-postgres; then
-    echo -e "${RED}Database is not running. Please start it first:${NC}"
-    echo "cd backend && ./start-db.sh"
+# Backend URL (Cloudflare Wrangler defaults to 8787)
+BACKEND_URL=${BACKEND_URL:-http://localhost:8787}
+
+echo -e "${YELLOW}Resetting local D1 database...${NC}"
+cd backend
+npm run db:reset > /tmp/backend-db-reset.log 2>&1 || {
+    echo -e "${RED}Failed to reset local D1 database${NC}"
+    cat /tmp/backend-db-reset.log
     exit 1
-fi
-echo -e "${GREEN}✓ Database is running${NC}"
+}
+cd ..
+echo -e "${GREEN}✓ Local D1 database seeded${NC}"
 
 # Function to cleanup background processes
 cleanup() {
@@ -37,17 +44,17 @@ cleanup() {
 # Set trap to cleanup on exit
 trap cleanup EXIT INT TERM
 
-# Start backend server
-echo -e "${YELLOW}Starting backend server...${NC}"
+# Start backend server (local D1 via Wrangler)
+echo -e "${YELLOW}Starting backend server (local D1)...${NC}"
 cd backend
-npm start > /tmp/backend.log 2>&1 &
+npm run dev -- --local > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 
 # Wait for backend to be ready
-echo -e "${YELLOW}Waiting for backend to be ready...${NC}"
+echo -e "${YELLOW}Waiting for backend to be ready at ${BACKEND_URL}...${NC}"
 for i in {1..30}; do
-    if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+    if curl -s "${BACKEND_URL}/health" > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Backend is ready${NC}"
         break
     fi
@@ -108,4 +115,3 @@ else
 fi
 
 exit $TEST_EXIT_CODE
-

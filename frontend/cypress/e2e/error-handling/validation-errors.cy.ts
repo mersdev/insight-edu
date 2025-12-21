@@ -16,6 +16,98 @@ describe('Error Handling - Validation Errors', () => {
   const studentsPage = new StudentsPage();
   const classesPage = new ClassesPage();
   const locationsPage = new LocationsPage();
+  const apiUrl = Cypress.env('apiUrl') || 'http://localhost:8787/api/v1';
+
+  const ensureClassExists = () => {
+    const timestamp = Date.now();
+
+    return cy.window()
+      .its('localStorage')
+      .invoke('getItem', 'authToken')
+      .should('be.a', 'string')
+      .and('not.be.empty')
+      .then((token) => {
+        const headers = { Authorization: `Bearer ${token}` };
+
+        return cy
+          .request({
+            method: 'GET',
+            url: `${apiUrl}/admin/classes`,
+            headers,
+          })
+          .then((classesResponse) => {
+            if (classesResponse.body.length > 0) {
+              return;
+            }
+
+            return cy
+              .request({
+                method: 'GET',
+                url: `${apiUrl}/admin/teachers`,
+                headers,
+              })
+              .then((teachersResponse) => {
+                const existingTeacher = teachersResponse.body[0];
+                const teacherRequest = existingTeacher
+                  ? cy.wrap(existingTeacher)
+                  : cy
+                      .request({
+                        method: 'POST',
+                        url: `${apiUrl}/admin/teachers`,
+                        headers,
+                        body: {
+                          id: `t_test_${timestamp}`,
+                          name: `Cypress Teacher ${timestamp}`,
+                          email: `cypress.teacher.${timestamp}@edu.com`,
+                          subject: 'Math',
+                        },
+                      })
+                      .then((response) => response.body);
+
+                return teacherRequest.then((teacher) => {
+                  return cy
+                    .request({
+                      method: 'GET',
+                      url: `${apiUrl}/admin/locations`,
+                      headers,
+                    })
+                    .then((locationsResponse) => {
+                      const existingLocation = locationsResponse.body[0];
+                      const locationRequest = existingLocation
+                        ? cy.wrap(existingLocation)
+                        : cy
+                            .request({
+                              method: 'POST',
+                              url: `${apiUrl}/admin/locations`,
+                              headers,
+                              body: {
+                                id: `l_test_${timestamp}`,
+                                name: `Cypress Location ${timestamp}`,
+                                address: '123 Cypress Lane',
+                              },
+                            })
+                            .then((response) => response.body);
+
+                      return locationRequest.then((location) => {
+                        return cy.request({
+                          method: 'POST',
+                          url: `${apiUrl}/admin/classes`,
+                          headers,
+                          body: {
+                            id: `c_test_${timestamp}`,
+                            name: `Cypress Class ${timestamp}`,
+                            grade: '10',
+                            teacherId: teacher.id,
+                            locationId: location.id,
+                          },
+                        });
+                      });
+                    });
+                });
+              });
+          });
+      });
+  };
 
   describe('Login Form Validation', () => {
     beforeEach(() => {
@@ -104,6 +196,7 @@ describe('Error Handling - Validation Errors', () => {
     beforeEach(() => {
       AuthHelper.loginAsHQ();
       studentsPage.visit();
+      ensureClassExists();
     });
 
     it('should validate required fields when creating student', () => {
@@ -132,11 +225,23 @@ describe('Error Handling - Validation Errors', () => {
 
   describe('Class Form Validation', () => {
     beforeEach(() => {
+      cy.intercept('GET', '**/api/v1/admin/teachers*').as('getTeachers');
+      cy.intercept('GET', '**/api/v1/admin/locations*').as('getLocations');
       AuthHelper.loginAsHQ();
       classesPage.visit();
+      AuthHelper.dismissDeviceWarning();
+      cy.wait(['@getTeachers', '@getLocations']);
     });
 
     it('should validate required fields when creating class', () => {
+      cy.get('body').then(($body) => {
+        if ($body.text().includes('Please add at least one teacher')) {
+          cy.contains('button', 'OK').click({ force: true });
+        }
+        if ($body.text().includes('Please add at least one location')) {
+          cy.contains('button', 'OK').click({ force: true });
+        }
+      });
       classesPage.clickAddClass();
 
       // Try to submit without filling required fields
@@ -147,6 +252,14 @@ describe('Error Handling - Validation Errors', () => {
     });
 
     it('should require teacher selection', () => {
+      cy.get('body').then(($body) => {
+        if ($body.text().includes('Please add at least one teacher')) {
+          cy.contains('button', 'OK').click({ force: true });
+        }
+        if ($body.text().includes('Please add at least one location')) {
+          cy.contains('button', 'OK').click({ force: true });
+        }
+      });
       classesPage.clickAddClass();
 
       // Close the dialog first to avoid element covered error
@@ -159,6 +272,14 @@ describe('Error Handling - Validation Errors', () => {
     });
 
     it('should require location selection', () => {
+      cy.get('body').then(($body) => {
+        if ($body.text().includes('Please add at least one teacher')) {
+          cy.contains('button', 'OK').click({ force: true });
+        }
+        if ($body.text().includes('Please add at least one location')) {
+          cy.contains('button', 'OK').click({ force: true });
+        }
+      });
       classesPage.clickAddClass();
 
       // Close the dialog first to avoid element covered error
@@ -173,8 +294,11 @@ describe('Error Handling - Validation Errors', () => {
 
   describe('Location Form Validation', () => {
     beforeEach(() => {
+      cy.intercept('GET', '**/api/v1/admin/locations*').as('getLocations');
       AuthHelper.loginAsHQ();
       locationsPage.visit();
+      AuthHelper.dismissDeviceWarning();
+      cy.wait('@getLocations');
     });
 
     it('should validate required fields when creating location', () => {
@@ -202,6 +326,7 @@ describe('Error Handling - Validation Errors', () => {
     beforeEach(() => {
       AuthHelper.loginAsTeacher();
       cy.visit('/#/input');
+      AuthHelper.dismissDeviceWarning();
     });
 
     it('should validate score range', () => {
@@ -255,4 +380,3 @@ describe('Error Handling - Validation Errors', () => {
     });
   });
 });
-

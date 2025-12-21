@@ -18,14 +18,66 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
   const [scoreColumns, setScoreColumns] = useState(['Exam 1']);
   const [isAddColOpen, setAddColOpen] = useState(false);
   const [newColName, setNewColName] = useState('');
-  
+
   // State for scores: { studentId: { colName: value } }
   const [scores, setScores] = useState<Record<string, Record<string, string>>>({});
-  
+
   // View Mode: 'READ' (Default) | 'EDIT'
   const [viewMode, setViewMode] = useState<'READ' | 'EDIT'>('READ');
-  
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(false);
+
   const classStudents = students.filter(s => (s.classIds || []).includes(selectedClassId));
+
+  // Load existing scores when component mounts or class changes
+  useEffect(() => {
+    const loadScores = async () => {
+      try {
+        setIsLoading(true);
+        const allScores = await api.fetchScores();
+
+        // Filter scores for students in the selected class
+        const classStudentIds = classStudents.map(s => s.id);
+        const classScores = allScores.filter(score => classStudentIds.includes(score.studentId));
+
+        // Get today's date
+        const today = new Date().toISOString().split('T')[0];
+
+        // Group scores by student and subject
+        const scoresMap: Record<string, Record<string, string>> = {};
+        const subjectsSet = new Set<string>();
+
+        classScores.forEach(score => {
+          // Only load today's scores
+          if (score.date === today) {
+            if (!scoresMap[score.studentId]) {
+              scoresMap[score.studentId] = {};
+            }
+            scoresMap[score.studentId][score.subject] = score.value.toString();
+            subjectsSet.add(score.subject);
+          }
+        });
+
+        // Update state
+        setScores(scoresMap);
+
+        // Update columns if we have subjects from loaded scores
+        if (subjectsSet.size > 0) {
+          setScoreColumns(Array.from(subjectsSet));
+        }
+      } catch (error) {
+        console.error('Error loading scores:', error);
+        onShowToast("Failed to load existing scores");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (selectedClassId && classStudents.length > 0) {
+      loadScores();
+    }
+  }, [selectedClassId, classStudents.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trigger Toast when entering Read Mode
   useEffect(() => {
@@ -120,8 +172,16 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
             </Select>
         </div>
 
+        {/* Loading Indicator */}
+        {isLoading && (
+            <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <p className="mt-2 text-sm text-gray-600">Loading scores...</p>
+            </div>
+        )}
+
         {/* Controls - EDIT MODE (Top) */}
-        {viewMode === 'EDIT' && (
+        {!isLoading && viewMode === 'EDIT' && (
             <div className="flex gap-3 mb-6 animate-in slide-in-from-top-2 fade-in duration-300">
                  <Button
                     variant="outline"
@@ -142,6 +202,7 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
         )}
 
         {/* --- DESKTOP TABLE VIEW --- */}
+        {!isLoading && (
         <div className="hidden md:block">
             <Card className="overflow-visible border shadow-sm bg-white">
                 <Table>
@@ -198,8 +259,10 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                 </Table>
             </Card>
         </div>
+        )}
 
         {/* --- MOBILE CARD VIEW --- */}
+        {!isLoading && (
         <div className="md:hidden space-y-4">
              {classStudents.map(student => (
                  <Card key={student.id} className="p-5 border-gray-100 shadow-sm rounded-2xl bg-white">
@@ -245,9 +308,10 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                 </div>
              )}
         </div>
+        )}
 
         {/* Controls - READ MODE (Bottom Sticky) */}
-        {viewMode === 'READ' && (
+        {!isLoading && viewMode === 'READ' && (
              <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 z-30 md:static md:bg-transparent md:border-none md:p-0 md:mt-8 animate-in slide-in-from-bottom-4 duration-300">
                  <div className="max-w-lg mx-auto md:max-w-none space-y-3">
                      <Button 
