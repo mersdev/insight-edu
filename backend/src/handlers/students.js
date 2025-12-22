@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
-import { sendLoginEmail, formatNotificationEmail } from '../utils/email.js';
+import { sendLoginEmail, formatNotificationEmail, createResendContact, removeResendContact } from '../utils/email.js';
 
 const DEFAULT_PASSWORD = '123';
 const SALT_ROUNDS = 10;
@@ -91,6 +91,12 @@ export async function handleCreateStudent({ body, db, env, corsHeaders }) {
       } catch (emailError) {
         console.error('Parent login email error:', emailError);
       }
+    }
+
+    try {
+      await createResendContact({ env, email: loginParentEmail, name: parentDisplayName });
+    } catch (contactError) {
+      console.error('Parent contact sync error:', contactError);
     }
 
     await db
@@ -183,13 +189,55 @@ export async function handleUpdateStudent({ params, body, db, corsHeaders }) {
   }
 }
 
-export async function handleDeleteStudent({ params, db, corsHeaders }) {
+export async function handleDeleteStudent({ params, db, env, corsHeaders }) {
   const studentId = params.id;
   try {
+    const student = await db
+      .prepare('SELECT id, parent_id FROM students WHERE id = ?')
+      .bind(studentId)
+      .first();
+
+    if (!student) {
+      return jsonResponse(
+        { error: 'Not Found', message: 'Student not found' },
+        404,
+        corsHeaders
+      );
+    }
+
+    const parentId = student.parent_id;
+
     await db
       .prepare('DELETE FROM students WHERE id = ?')
       .bind(studentId)
       .run();
+
+    if (parentId) {
+      const parentUser = await db
+        .prepare('SELECT id, email FROM users WHERE id = ?')
+        .bind(parentId)
+        .first();
+
+      const anotherStudent = await db
+        .prepare('SELECT id FROM students WHERE parent_id = ? LIMIT 1')
+        .bind(parentId)
+        .first();
+
+      if (!anotherStudent) {
+        await db
+          .prepare('DELETE FROM users WHERE id = ?')
+          .bind(parentId)
+          .run();
+
+        if (parentUser?.email) {
+          try {
+            await removeResendContact({ env, email: parentUser.email });
+          } catch (contactError) {
+            console.error('Parent contact removal error:', contactError);
+          }
+        }
+      }
+    }
 
     return new Response(null, { status: 204, headers: corsHeaders });
   } catch (error) {

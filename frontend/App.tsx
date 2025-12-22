@@ -51,8 +51,19 @@ const AppContent: React.FC = () => {
 
   // Device Warning State
   const [showDeviceWarning, setShowDeviceWarning] = useState(false);
+  const isTestEnv = typeof window !== 'undefined' && !!(window as any).Cypress;
+
+  const getStoredDeviceWarningDismissed = (role?: string | null) => {
+    if (typeof window === 'undefined') return false;
+    if (isTestEnv) return true;
+    const key = role ? `deviceWarningDismissed_${role}` : 'deviceWarningDismissed';
+    return window.localStorage.getItem(key) === 'true';
+  };
+
   const [deviceWarningMsg, setDeviceWarningMsg] = useState('');
-  const [deviceWarningDismissed, setDeviceWarningDismissed] = useState(false);
+  const [deviceWarningDismissed, setDeviceWarningDismissed] = useState(() =>
+    getStoredDeviceWarningDismissed(null)
+  );
 
   const t = TRANSLATIONS[lang];
   const navigate = useNavigate();
@@ -151,12 +162,18 @@ const AppContent: React.FC = () => {
 
   // Device Warning Logic
   useEffect(() => {
-    // Reset dismissal when user changes
-    setDeviceWarningDismissed(false);
-  }, [user]);
+    if (isTestEnv) {
+      setShowDeviceWarning(false);
+      setDeviceWarningDismissed(true);
+      return;
+    }
+
+    const nextDismissed = getStoredDeviceWarningDismissed(user?.role);
+    setDeviceWarningDismissed(nextDismissed);
+  }, [user, isTestEnv]);
 
   useEffect(() => {
-    if (!user || deviceWarningDismissed) {
+    if (!user || deviceWarningDismissed || isTestEnv) {
         setShowDeviceWarning(false);
         return;
     }
@@ -182,8 +199,13 @@ const AppContent: React.FC = () => {
   }, [user, t, deviceWarningDismissed]);
 
   const handleDismissWarning = () => {
-      setShowDeviceWarning(false);
-      setDeviceWarningDismissed(true);
+    setShowDeviceWarning(false);
+    setDeviceWarningDismissed(true);
+
+    if (typeof window !== 'undefined' && !isTestEnv) {
+      const key = user?.role ? `deviceWarningDismissed_${user.role}` : 'deviceWarningDismissed';
+      window.localStorage.setItem(key, 'true');
+    }
   };
 
   // Handle Login

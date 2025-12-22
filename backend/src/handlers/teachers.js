@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
-import { sendLoginEmail, formatNotificationEmail } from '../utils/email.js';
+import { sendLoginEmail, formatNotificationEmail, createResendContact, removeResendContact } from '../utils/email.js';
 
 const DEFAULT_PASSWORD = '123';
 const SALT_ROUNDS = 10;
@@ -68,6 +68,12 @@ export async function handleCreateTeacher({ body, db, env, corsHeaders }) {
       } catch (emailError) {
         console.error('Teacher login email error:', emailError);
       }
+    }
+
+    try {
+      await createResendContact({ env, email: loginEmail, name });
+    } catch (contactError) {
+      console.error('Teacher contact sync error:', contactError);
     }
 
     const created = await db
@@ -147,13 +153,39 @@ export async function handleUpdateTeacher({ params, body, db, corsHeaders }) {
   }
 }
 
-export async function handleDeleteTeacher({ params, db, corsHeaders }) {
+export async function handleDeleteTeacher({ params, db, env, corsHeaders }) {
   const teacherId = params.id;
   try {
+    const existing = await db
+      .prepare('SELECT id, email, name FROM teachers WHERE id = ?')
+      .bind(teacherId)
+      .first();
+
+    if (!existing) {
+      return jsonResponse(
+        { error: 'Not Found', message: 'Teacher not found' },
+        404,
+        corsHeaders
+      );
+    }
+
     await db
       .prepare('DELETE FROM teachers WHERE id = ?')
       .bind(teacherId)
       .run();
+
+    await db
+      .prepare('DELETE FROM users WHERE id = ?')
+      .bind(teacherId)
+      .run();
+
+    if (existing.email) {
+      try {
+        await removeResendContact({ env, email: existing.email });
+      } catch (contactError) {
+        console.error('Teacher contact removal error:', contactError);
+      }
+    }
 
     return new Response(null, { status: 204, headers: corsHeaders });
   } catch (error) {

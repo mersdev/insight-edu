@@ -44,7 +44,7 @@ export async function handleLogin({ body, db, env, corsHeaders }) {
       );
     }
 
-    const jwtSecret = env.JWT_SECRET || 'test-secret-key';
+    const jwtSecret = env.JWT_SECRET || process?.env?.JWT_SECRET || 'test-secret-key';
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       jwtSecret,

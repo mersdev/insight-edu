@@ -1,45 +1,85 @@
 #!/bin/bash
+set -euo pipefail
 
 # Script to add all GitHub secrets for Cloudflare deployment
+# Usage:
+#   ./add-secrets.sh                         # reads backend/.env and frontend/.env
+#   ENV_BACKEND=backend/.env ENV_FRONTEND=frontend/.env ./add-secrets.sh
+
+set -euo pipefail
+
+ENV_BACKEND=${ENV_BACKEND:-backend/.env}
+ENV_FRONTEND=${ENV_FRONTEND:-frontend/.env}
+
+load_env_file() {
+  local file=$1
+  if [ ! -f "$file" ]; then
+    echo "Environment file '$file' not found." >&2
+    exit 1
+  fi
+  set -a
+  # shellcheck disable=SC1090
+  source "$file"
+  set +a
+}
+
+require_var() {
+  local name=$1
+  local source_file=$2
+  if [ -z "${!name:-}" ]; then
+    echo "Missing required env var: $name (set it in $source_file)" >&2
+    exit 1
+  fi
+}
 
 echo "🔐 Adding GitHub Secrets for Cloudflare Deployment..."
+echo "Using backend env: $ENV_BACKEND"
+echo "Using frontend env: $ENV_FRONTEND"
 echo ""
+
+load_env_file "$ENV_BACKEND"
+load_env_file "$ENV_FRONTEND"
+
+# Validate required values
+require_var CLOUDFLARE_API_TOKEN "$ENV_BACKEND"
+require_var CLOUDFLARE_ACCOUNT_ID "$ENV_BACKEND"
+require_var D1_DATABASE_ID "$ENV_BACKEND"
+require_var D1_DATABASE_NAME "$ENV_BACKEND"
+require_var RESEND_API_KEY "$ENV_BACKEND"
+require_var JWT_SECRET "$ENV_BACKEND"
+require_var VITE_API_URL "$ENV_FRONTEND"
+require_var VITE_GEMINI_API_KEY "$ENV_FRONTEND"
 
 # Core Cloudflare Credentials
 echo "Adding Cloudflare credentials..."
-gh secret set CLOUDFLARE_API_TOKEN --body "vDVplcwwlLxxUK6g8Cu67ChP9b68NSkxEWober8n"
-gh secret set CLOUDFLARE_ACCOUNT_ID --body "d40d7ee9e42d0a12c82a628b40db26ff"
+gh secret set CLOUDFLARE_API_TOKEN --body "$CLOUDFLARE_API_TOKEN"
+gh secret set CLOUDFLARE_ACCOUNT_ID --body "$CLOUDFLARE_ACCOUNT_ID"
+gh secret set D1_DATABASE_ID --body "$D1_DATABASE_ID"
+gh secret set D1_DATABASE_NAME --body "$D1_DATABASE_NAME"
 echo "✓ Cloudflare credentials added"
 echo ""
 
-# Frontend Secrets
-echo "Adding frontend secrets..."
-gh secret set VITE_API_URL --body "https://your-backend-workers-url.workers.dev"
-gh secret set VITE_GEMINI_API_KEY --body "AIzaSyCNqikNPkqFeJEeHCh8TcrU-Nlp2IakD7E"
-echo "✓ Frontend secrets added"
+# Resend Email
+echo "Adding Resend credentials..."
+gh secret set RESEND_API_KEY --body "$RESEND_API_KEY"
+if [ -n "${RESEND_AUDIENCE_ID:-}" ]; then
+  gh secret set RESEND_AUDIENCE_ID --body "$RESEND_AUDIENCE_ID"
+fi
+echo "✓ Resend credentials added"
 echo ""
 
 # Backend Secrets
 echo "Adding backend secrets..."
-gh secret set BACKEND_PORT --body "3000"
-gh secret set DB_HOST --body "your-production-database-host"
-gh secret set DB_PORT --body "5432"
-gh secret set DB_NAME --body "insight_edu"
-gh secret set DB_USER --body "your-database-username"
-gh secret set DB_PASSWORD --body "your-database-password"
-gh secret set JWT_SECRET --body "xaIZA7sAp7/voAhY6hlIElS0pqYw8wa3sGSNyMklSgY="
-gh secret set JWT_EXPIRES_IN --body "24h"
+gh secret set JWT_SECRET --body "$JWT_SECRET"
+gh secret set JWT_EXPIRES_IN --body "${JWT_EXPIRES_IN:-24h}"
 echo "✓ Backend secrets added"
 echo ""
 
-echo "✅ All secrets added successfully!"
+# Frontend Secrets
+echo "Adding frontend secrets..."
+gh secret set VITE_API_URL --body "$VITE_API_URL"
+gh secret set VITE_GEMINI_API_KEY --body "$VITE_GEMINI_API_KEY"
+echo "✓ Frontend secrets added"
 echo ""
-echo "⚠️  IMPORTANT: Update these secrets with your actual values:"
-echo "   - VITE_API_URL: Update after backend deployment"
-echo "   - DB_HOST: Your production database host"
-echo "   - DB_USER: Your database username"
-echo "   - DB_PASSWORD: Your database password"
-echo ""
-echo "To update a secret, run:"
-echo "   gh secret set SECRET_NAME --body 'new-value'"
 
+echo "✅ All secrets added successfully"

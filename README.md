@@ -58,14 +58,41 @@ npm install
 
 ### 3. Environment Setup
 
-Create a `.env` file in the `frontend` directory (use `.env.example` as a template):
+Create separate `.env` files for backend and frontend using the provided examples. Avoid keeping a root-level `.env` to prevent confusion.
 
-```env
-VITE_API_URL=http://localhost:8787/api
-VITE_GEMINI_API_KEY=<your-gemini-api-key>
+**Backend (`backend/.env`, see `backend/.env.example`):**
+```
+CLOUDFLARE_API_TOKEN=...
+CLOUDFLARE_ACCOUNT_ID=...
+D1_DATABASE_ID=...
+D1_DATABASE_NAME=insight-edu
+RESEND_API_KEY=...
+RESEND_AUDIENCE_ID=
+JWT_SECRET=...
+JWT_EXPIRES_IN=24h
 ```
 
-**⚠️ IMPORTANT:** Never commit `.env` files to version control. Use `.env.example` files to document required variables.
+Run backend locally with the env loaded, e.g.:
+```bash
+cd backend
+set -a && source .env && set +a
+npm run dev
+```
+
+**Frontend (`frontend/.env`, see `frontend/.env.example`):**
+```
+VITE_API_URL=http://localhost:8787/api
+VITE_GEMINI_API_KEY=...
+```
+
+**Sync secrets to GitHub (from repo root):**
+```bash
+./add-secrets.sh
+# Or specify env paths
+ENV_BACKEND=backend/.env ENV_FRONTEND=frontend/.env ./add-secrets.sh
+```
+
+**⚠️ IMPORTANT:** Never commit `.env` files. Use the `.env.example` templates to document required variables.
 
 ### 4. Run the Application
 

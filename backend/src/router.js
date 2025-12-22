@@ -42,7 +42,7 @@ export async function handleRequest(request, env, ctx) {
     }
 
     const token = authHeader.substring(7);
-    const jwtSecret = env.JWT_SECRET || 'test-secret-key';
+    const jwtSecret = env.JWT_SECRET || process?.env?.JWT_SECRET || 'test-secret-key';
 
     let user;
     try {

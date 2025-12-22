@@ -83,7 +83,7 @@ jobs:
 
       - name: Deploy to Cloudflare Workers
         working-directory: ./backend
-        run: npx wrangler deploy --env production
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -93,7 +93,7 @@ jobs:
         id: deployment
         working-directory: ./backend
         run: |
-          echo "url=https://insight-edu-backend-prod.$(echo ${{ secrets.CLOUDFLARE_ACCOUNT_ID }} | cut -c1-8).workers.dev" >> $GITHUB_OUTPUT
+          echo "url=https://insight-edu-backend.$(echo ${{ secrets.CLOUDFLARE_ACCOUNT_ID }} | cut -c1-8).workers.dev" >> $GITHUB_OUTPUT
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
@@ -107,6 +107,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-
 
 

@@ -162,6 +162,9 @@ export class MockD1 {
     if (sql.includes('FROM students WHERE id')) {
       return this.data.students.find((s) => s.id === args[0]);
     }
+    if (sql.includes('FROM students WHERE parent_id')) {
+      return this.data.students.find((s) => s.parent_id === args[0]);
+    }
     if (sql.includes('SELECT * FROM settings')) {
       return this.data.settings[0];
     }
@@ -315,6 +318,18 @@ export class MockD1 {
         rating: args[4],
       };
       this.data.behaviors.push(behavior);
+      return { success: true };
+    }
+    if (sql.includes('DELETE FROM teachers')) {
+      this.data.teachers = this.data.teachers.filter((t) => t.id !== args[0]);
+      return { success: true };
+    }
+    if (sql.includes('DELETE FROM users')) {
+      this.data.users = this.data.users.filter((u) => u.id !== args[0]);
+      return { success: true };
+    }
+    if (sql.includes('DELETE FROM students')) {
+      this.data.students = this.data.students.filter((s) => s.id !== args[0]);
       return { success: true };
     }
     if (sql.includes('UPDATE settings')) {

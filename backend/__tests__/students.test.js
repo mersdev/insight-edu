@@ -13,7 +13,13 @@ describe('Students API', () => {
   beforeEach(() => {
     mockEnv = createMockEnv();
     mockCtx = createMockContext();
-    mockEnv.RESEND_CLIENT = { emails: { send: jest.fn().mockResolvedValue({ data: { id: 'mock-email' } }) } };
+    mockEnv.RESEND_CLIENT = {
+      emails: { send: jest.fn().mockResolvedValue({ data: { id: 'mock-email' } }) },
+      contacts: {
+        create: jest.fn().mockResolvedValue({ data: { id: 'contact-parent' } }),
+        remove: jest.fn().mockResolvedValue({ data: { id: 'removed-parent' } }),
+      },
+    };
   });
 
   describe('GET /api/v1/admin/students', () => {
@@ -95,6 +101,9 @@ describe('Students API', () => {
       expect(mockEnv.RESEND_CLIENT.emails.send).toHaveBeenCalled();
       const emailPayload = mockEnv.RESEND_CLIENT.emails.send.mock.calls[0][0];
       expect(emailPayload.to[0]).toBe(parentEmail);
+      expect(mockEnv.RESEND_CLIENT.contacts.create).toHaveBeenCalled();
+      const contactPayload = mockEnv.RESEND_CLIENT.contacts.create.mock.calls[0][0];
+      expect(contactPayload.email).toBe(parentEmail);
     });
   });
 
@@ -117,6 +126,42 @@ describe('Students API', () => {
       const payload = sendSpy.mock.calls[0][0];
       expect(payload.to[0]).toBe('dehoulworker+ali@gmail.com');
       expect(payload.subject).toContain('Student Report');
+    });
+  });
+
+  describe('DELETE /api/v1/admin/students/:id', () => {
+    test('should remove parent Resend contact when last student is deleted', async () => {
+      const token = createToken('admin', 'admin@edu.com', 'HQ');
+      const studentId = `s_delete_${Date.now()}`;
+      const parentEmail = `dehoulworker+parent${studentId.toLowerCase()}@gmail.com`;
+
+      const createRequest = new Request('http://localhost/api/v1/admin/students', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          id: studentId,
+          name: 'Student To Delete',
+          classIds: [],
+          parentName: 'Delete Parent',
+          parentEmail,
+          attendance: 100,
+          atRisk: false,
+        }),
+      });
+
+      const createResponse = await worker.fetch(createRequest, mockEnv, mockCtx);
+      expect(createResponse.status).toBe(201);
+
+      mockEnv.RESEND_CLIENT.contacts.remove.mockClear();
+
+      const deleteRequest = new Request(`http://localhost/api/v1/admin/students/${studentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const deleteResponse = await worker.fetch(deleteRequest, mockEnv, mockCtx);
+      expect(deleteResponse.status).toBe(204);
+      expect(mockEnv.RESEND_CLIENT.contacts.remove).toHaveBeenCalledWith({ email: parentEmail });
     });
   });
 });
