@@ -120,6 +120,10 @@ describe('Teacher User - Complete Workflow', () => {
     it('should display student data', () => {
       studentReportPage.verifyStudentDataDisplayed();
     });
+
+    it('should show send report email button', () => {
+      studentReportPage.verifySendReportButton();
+    });
   });
 
   describe('Complete Teacher Workflow - End to End', () => {

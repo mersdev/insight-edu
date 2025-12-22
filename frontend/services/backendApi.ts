@@ -386,6 +386,18 @@ export const api = {
       throw new Error(`Failed to delete student: ${response.statusText}`);
     }
   },
+  sendStudentReportEmail: async (studentId: string, message?: string): Promise<{ status: string; to: string }> => {
+    const response = await fetch(`${TEACHER_BASE}/students/${studentId}/report-email`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ message }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to send student report email');
+    }
+    return toCamelCase(data);
+  },
 
   // Sessions
   fetchSessions: async (): Promise<Session[]> => {

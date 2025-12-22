@@ -67,7 +67,7 @@ describe('API Integration - Students', () => {
       const newStudent = {
         id: `s_test_${timestamp}`,
         name: 'Test Student',
-        parent_id: 'p_test',
+        parent_id: `p_test_${timestamp}`,
         class_ids: [],
         attendance: 100,
         at_risk: false,
@@ -89,13 +89,14 @@ describe('API Integration - Students', () => {
         expect(response.status).to.eq(201);
         expect(response.body).to.have.property('id');
         expect(response.body).to.have.property('name', newStudent.name);
-        expect(response.body).to.have.property('parentEmail', newStudent.parent_email);
+        const expectedParentEmail = 'dehoulworker+testparent@gmail.com';
+        expect(response.body).to.have.property('parentEmail', expectedParentEmail);
 
         cy.request({
           method: 'POST',
           url: `${apiUrl}/auth/login`,
           body: {
-            email: newStudent.parent_email,
+            email: expectedParentEmail,
             password: '123'
           }
         }).then((loginResponse) => {
@@ -123,13 +124,15 @@ describe('API Integration - Students', () => {
 
   describe('PUT /api/students/:id', () => {
     let studentId: string;
+    let parentId: string;
 
     beforeEach(() => {
       // Create a student to update
+      parentId = `p_update_${Date.now()}`;
       const newStudent = {
         id: `s_update_${Date.now()}`,
         name: 'Student To Update',
-        parentId: 'p_test',
+        parentId,
         classIds: [],
         attendance: 100,
         atRisk: false
@@ -151,7 +154,7 @@ describe('API Integration - Students', () => {
       const updatedStudent = {
         id: studentId,
         name: 'Updated Student Name',
-        parent_id: 'p_test',
+        parent_id: parentId,
         class_ids: [],
         attendance: 95,
         at_risk: false

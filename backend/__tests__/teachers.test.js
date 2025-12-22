@@ -4,6 +4,7 @@
 
 import worker from '../src/worker.js';
 import { createMockEnv, createMockContext, createToken } from './helpers/testUtils.js';
+import { jest } from '@jest/globals';
 
 describe('Teachers API', () => {
   let mockEnv;
@@ -12,6 +13,7 @@ describe('Teachers API', () => {
   beforeEach(() => {
     mockEnv = createMockEnv();
     mockCtx = createMockContext();
+    mockEnv.RESEND_CLIENT = { emails: { send: jest.fn().mockResolvedValue({ data: { id: 'mock-email' } }) } };
   });
 
   describe('GET /api/v1/admin/teachers', () => {
@@ -53,10 +55,9 @@ describe('Teachers API', () => {
   });
 
   describe('POST /api/v1/admin/teachers', () => {
-    test('should create a teacher user that can login', async () => {
+    test('should create a teacher user that can login and trigger email', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const teacherId = `t_test_${Date.now()}`;
-      const teacherEmail = `teacher.${Date.now()}@edu.com`;
 
       const request = new Request('http://localhost/api/v1/admin/teachers', {
         method: 'POST',
@@ -64,7 +65,7 @@ describe('Teachers API', () => {
         body: JSON.stringify({
           id: teacherId,
           name: 'Test Teacher',
-          email: teacherEmail,
+          email: 'ignored@example.com',
           subject: 'Mathematics',
         }),
       });
@@ -72,10 +73,12 @@ describe('Teachers API', () => {
       const response = await worker.fetch(request, mockEnv, mockCtx);
       expect(response.status).toBe(201);
 
+      const expectedEmail = `dehoulworker+testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
+
       const loginRequest = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          email: teacherEmail,
+          email: expectedEmail,
           password: '123',
         }),
       });
@@ -84,8 +87,11 @@ describe('Teachers API', () => {
       expect(loginResponse.status).toBe(200);
 
       const loginData = await loginResponse.json();
-      expect(loginData.user.email).toBe(teacherEmail);
+      expect(loginData.user.email).toBe(expectedEmail);
       expect(loginData.user.role).toBe('TEACHER');
+      expect(mockEnv.RESEND_CLIENT.emails.send).toHaveBeenCalled();
+      const emailPayload = mockEnv.RESEND_CLIENT.emails.send.mock.calls[0][0];
+      expect(emailPayload.to[0]).toBe(expectedEmail);
     });
   });
 });

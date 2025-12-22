@@ -23,13 +23,15 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
   // Defensive check: ensure students is an array
   const safeStudents = Array.isArray(students) ? students : [];
 
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(() => safeStudents[0]?.id || '');
   const [insightText, setInsightText] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   // Schedule View State
   const [scheduleDate, setScheduleDate] = useState(new Date());
+  const [isSendingReport, setIsSendingReport] = useState(false);
+  const [reportStatusMessage, setReportStatusMessage] = useState<string | null>(null);
 
   // Initialize selection
   useEffect(() => {
@@ -124,6 +126,42 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
     return performGeneration(student);
   };
 
+  const formatReportMessage = () => {
+    const student = safeStudents.find(s => s.id === selectedStudentId);
+    if (!student) return '';
+
+    if (!insightText) {
+      return `${student.name}'s latest report is ready for you.`;
+    }
+
+    const stripped = insightText
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/[#>*`]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return stripped || `${student.name}'s latest report is ready for you.`;
+  };
+
+  const handleSendReportEmail = async () => {
+    const student = safeStudents.find(s => s.id === selectedStudentId);
+    if (!student) return;
+
+    setIsSendingReport(true);
+    setReportStatusMessage(null);
+
+    try {
+      const message = formatReportMessage();
+      await api.sendStudentReportEmail(student.id, message);
+      setReportStatusMessage(t.reportEmailSuccess || 'Report email sent');
+    } catch (error) {
+      console.error('Send report email failed', error);
+      setReportStatusMessage(t.reportEmailFailure || 'Failed to send report email');
+    } finally {
+      setIsSendingReport(false);
+    }
+  };
+
   const handleScreenshot = async () => {
       const element = document.getElementById('student-report-content');
       if (!element) return;
@@ -168,7 +206,7 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
   };
 
   // --- Data Calculations ---
-  const selectedStudent = safeStudents.find(s => s.id === selectedStudentId);
+  const selectedStudent = safeStudents.find(s => s.id === selectedStudentId) || safeStudents[0];
 
   const attendanceStats = useMemo(() => {
     if (!selectedStudentId || !selectedStudent) return { present: 0, total: 0 };
@@ -293,11 +331,26 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                     <Badge variant="destructive" className="h-7 px-3">{t.atRisk}</Badge> : 
                     <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200 h-7 px-3">{t.good}</Badge>
                 }
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isSendingReport}
+                  onClick={handleSendReportEmail}
+                  className="h-9"
+                  data-cy="email-report-btn"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {isSendingReport ? (t.sendingReportEmail || 'Sending...') : (t.sendReportEmail || 'Email Report')}
+                </Button>
                 <Button size="sm" onClick={handleScreenshot} className="bg-black text-white hover:bg-black/90 h-9">
                      <Download className="w-4 h-4 mr-2" /> Export
                 </Button>
              </div>
          </div>
+
+         {reportStatusMessage && (
+           <div className="text-sm text-muted-foreground">{reportStatusMessage}</div>
+         )}
 
          {/* 2. AI Insight Section */}
          <div>

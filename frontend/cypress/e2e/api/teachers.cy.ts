@@ -83,14 +83,15 @@ describe('API Integration - Teachers', () => {
         expect(response.status).to.eq(201);
         expect(response.body).to.have.property('id');
         expect(response.body).to.have.property('name', newTeacher.name);
-        expect(response.body).to.have.property('email', newTeacher.email);
+        const expectedEmail = `dehoulworker+${`${newTeacher.name}-${newTeacher.id}`.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
+        expect(response.body).to.have.property('email', expectedEmail);
         expect(response.body).to.have.property('subject', newTeacher.subject);
 
         cy.request({
           method: 'POST',
           url: `${apiUrl}/auth/login`,
           body: {
-            email: newTeacher.email,
+            email: expectedEmail,
             password: '123'
           }
         }).then((loginResponse) => {

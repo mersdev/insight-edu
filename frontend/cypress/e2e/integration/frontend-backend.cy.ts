@@ -150,7 +150,7 @@ describe('Frontend <-> Backend Integration', () => {
             url: `${apiUrl}/admin/teachers`,
             headers: { Authorization: `Bearer ${adminToken}` },
           }).then((teachersResponse) => {
-            const teacher = teachersResponse.body.find((t: { email: string }) => t.email === 'sarah@edu.com');
+            const teacher = teachersResponse.body.find((t: { email: string }) => t.email === 'dehoulworker+sarahjenkins@gmail.com');
             expect(teacher).to.exist;
 
             classId = `c_test_${timestamp}`;

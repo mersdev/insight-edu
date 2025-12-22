@@ -178,11 +178,11 @@ After seeding the database, you can login with the following test accounts:
 - Password: `Admin123`
 
 **Teacher:**
-- Email: `sarah@edu.com`
+- Email: `dehoulworker+sarahjenkins@gmail.com`
 - Password: `123`
 
 **Parent:**
-- Email: `parent.ali@edu.com`
+- Email: `dehoulworker+ali@gmail.com`
 - Password: `123`
 
 **⚠️ SECURITY NOTE:** These are test credentials for development only. In production:

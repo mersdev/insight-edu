@@ -78,6 +78,14 @@ describe('Parent User - Complete Workflow', () => {
         }
       });
     });
+
+    it('should see option to email report', () => {
+      cy.fixture('users').then((users) => {
+        if (users.parentUser) {
+          studentReportPage.verifySendReportButton();
+        }
+      });
+    });
   });
 
   describe('Parent Cannot Access Other Pages', () => {

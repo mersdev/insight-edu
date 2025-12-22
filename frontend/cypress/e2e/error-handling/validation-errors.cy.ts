@@ -178,7 +178,7 @@ describe('Error Handling - Validation Errors', () => {
           teachersPage.fillTeacherForm({
             name: 'Duplicate Teacher',
             englishName: 'Duplicate',
-            email: 'sarah@edu.com', // Existing email
+            email: 'dehoulworker+sarahjenkins@gmail.com', // Existing email
             phone: '012-345 6789',
             subject: 'Math'
           });

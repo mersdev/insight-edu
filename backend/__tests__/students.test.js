@@ -4,6 +4,7 @@
 
 import worker from '../src/worker.js';
 import { createMockEnv, createMockContext, createToken } from './helpers/testUtils.js';
+import { jest } from '@jest/globals';
 
 describe('Students API', () => {
   let mockEnv;
@@ -12,6 +13,7 @@ describe('Students API', () => {
   beforeEach(() => {
     mockEnv = createMockEnv();
     mockCtx = createMockContext();
+    mockEnv.RESEND_CLIENT = { emails: { send: jest.fn().mockResolvedValue({ data: { id: 'mock-email' } }) } };
   });
 
   describe('GET /api/v1/admin/students', () => {
@@ -53,10 +55,9 @@ describe('Students API', () => {
   });
 
   describe('POST /api/v1/admin/students', () => {
-    test('should create a parent user that can login', async () => {
+    test('should create a parent user that can login and trigger email', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const studentId = `s_test_${Date.now()}`;
-      const parentEmail = `parent.${Date.now()}@edu.com`;
 
       const request = new Request('http://localhost/api/v1/admin/students', {
         method: 'POST',
@@ -66,7 +67,7 @@ describe('Students API', () => {
           name: 'Test Student',
           classIds: [],
           parentName: 'Test Parent',
-          parentEmail,
+          parentEmail: 'ignored@example.com',
           attendance: 100,
           atRisk: false,
         }),
@@ -78,7 +79,7 @@ describe('Students API', () => {
       const loginRequest = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          email: parentEmail,
+          email: 'dehoulworker+testparent@gmail.com',
           password: '123',
         }),
       });
@@ -87,8 +88,33 @@ describe('Students API', () => {
       expect(loginResponse.status).toBe(200);
 
       const loginData = await loginResponse.json();
-      expect(loginData.user.email).toBe(parentEmail);
+      expect(loginData.user.email).toBe('dehoulworker+testparent@gmail.com');
       expect(loginData.user.role).toBe('PARENT');
+      expect(mockEnv.RESEND_CLIENT.emails.send).toHaveBeenCalled();
+      const emailPayload = mockEnv.RESEND_CLIENT.emails.send.mock.calls[0][0];
+      expect(emailPayload.to[0]).toBe('dehoulworker+testparent@gmail.com');
+    });
+  });
+
+  describe('POST /api/v1/teacher/students/:id/report-email', () => {
+    test('should send student report email via Resend', async () => {
+      const token = createToken('u_t1', 'dehoulworker+sarahjenkins@gmail.com', 'TEACHER');
+      const sendSpy = jest.fn().mockResolvedValue({ data: { id: 'report-email' } });
+      mockEnv.RESEND_CLIENT = { emails: { send: sendSpy } };
+
+      const request = new Request('http://localhost/api/v1/teacher/students/s1/report-email', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: 'Summary body' }),
+      });
+
+      const response = await worker.fetch(request, mockEnv, mockCtx);
+      expect(response.status).toBe(200);
+
+      expect(sendSpy).toHaveBeenCalled();
+      const payload = sendSpy.mock.calls[0][0];
+      expect(payload.to[0]).toBe('dehoulworker+ali@gmail.com');
+      expect(payload.subject).toContain('Student Report');
     });
   });
 });

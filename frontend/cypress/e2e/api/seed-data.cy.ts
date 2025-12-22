@@ -44,8 +44,8 @@ describe('API Integration - Seed Data', () => {
       headers: authHeaders,
     }).then((response) => {
       const emails = response.body.map((teacher: { email: string }) => teacher.email);
-      expect(emails).to.include('sarah@edu.com');
-      expect(emails).to.include('david@edu.com');
+      expect(emails).to.include('dehoulworker+sarahjenkins@gmail.com');
+      expect(emails).to.include('dehoulworker+davidlee@gmail.com');
     });
 
     cy.request({

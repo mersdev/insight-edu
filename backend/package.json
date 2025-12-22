@@ -20,7 +20,8 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "itty-router": "^4.0.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "resend": "^4.8.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

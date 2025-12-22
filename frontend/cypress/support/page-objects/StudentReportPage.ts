@@ -32,6 +32,13 @@ export class StudentReportPage extends BasePage {
   }
 
   /**
+   * Verify send report email button is visible
+   */
+  verifySendReportButton(): void {
+    cy.get('[data-cy="email-report-btn"]').should('be.visible');
+  }
+
+  /**
    * Generate AI insights
    */
   generateAIInsights(): void {

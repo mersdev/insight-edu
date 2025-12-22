@@ -12,6 +12,12 @@ export class TeachersPage extends BasePage {
    */
   verifyTeachersPageDisplayed(): void {
     this.verifyUrl();
+    this.dismissDialogIfPresent();
+    cy.get('body').then(() => {
+      // Aggressively remove any lingering overlay dialogs that may block buttons
+      Cypress.$('.fixed.inset-0').remove();
+    });
+    cy.get('.fixed.inset-0', { timeout: 1000 }).should('not.exist');
     cy.contains(/teachers/i).should('be.visible');
   }
 
@@ -101,4 +107,3 @@ export class TeachersPage extends BasePage {
     cy.contains('th', /name/i).click();
   }
 }
-

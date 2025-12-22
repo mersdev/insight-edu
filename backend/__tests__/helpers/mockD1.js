@@ -28,7 +28,7 @@ export class MockD1 {
         {
           id: 'u_t1',
           name: 'Sarah Jenkins',
-          email: 'sarah@edu.com',
+          email: 'dehoulworker+sarahjenkins@gmail.com',
           password: '123',
           password_hash: null, // Set to null to use plain password comparison in tests
           role: 'TEACHER',
@@ -37,7 +37,7 @@ export class MockD1 {
         {
           id: 'u_p1',
           name: 'Mr. Ahmad',
-          email: 'parent.ali@edu.com',
+          email: 'dehoulworker+ali@gmail.com',
           password: '123',
           password_hash: null, // Set to null to use plain password comparison in tests
           role: 'PARENT',
@@ -64,7 +64,7 @@ export class MockD1 {
           name: 'Sarah Jenkins',
           english_name: 'Sarah',
           chinese_name: '-',
-          email: 'sarah@edu.com',
+          email: 'dehoulworker+sarahjenkins@gmail.com',
           subject: 'Mathematics',
           phone: '012-345 6789',
           description: 'Head of Mathematics Department.',
@@ -74,7 +74,7 @@ export class MockD1 {
           name: 'David Lee',
           english_name: 'David',
           chinese_name: '李',
-          email: 'david@edu.com',
+          email: 'dehoulworker+davidlee@gmail.com',
           subject: 'Science',
           phone: '016-789 0123',
           description: 'Science and Physics Teacher.',
@@ -110,7 +110,7 @@ export class MockD1 {
           parent_name: 'Mr. Ahmad',
           relationship: 'Father',
           emergency_contact: '012-111 2222',
-          parent_email: 'parent.ali@edu.com',
+          parent_email: 'dehoulworker+ali@gmail.com',
         },
         {
           id: 's2',
@@ -123,7 +123,7 @@ export class MockD1 {
           parent_name: 'Mrs. Wong',
           relationship: 'Mother',
           emergency_contact: '013-333 4444',
-          parent_email: 'parent.ben@edu.com',
+          parent_email: 'dehoulworker+ben@gmail.com',
         },
       ],
       sessions: [],
@@ -155,6 +155,12 @@ export class MockD1 {
     }
     if (sql.includes('FROM users WHERE id')) {
       return this.data.users.find((u) => u.id === args[0]);
+    }
+    if (sql.includes('FROM teachers WHERE id')) {
+      return this.data.teachers.find((t) => t.id === args[0]);
+    }
+    if (sql.includes('FROM students WHERE id')) {
+      return this.data.students.find((s) => s.id === args[0]);
     }
     if (sql.includes('SELECT * FROM settings')) {
       return this.data.settings[0];

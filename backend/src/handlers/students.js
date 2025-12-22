@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
+import { sendLoginEmail, formatNotificationEmail } from '../utils/email.js';
 
 const DEFAULT_PASSWORD = '123';
 const SALT_ROUNDS = 10;
@@ -22,7 +23,7 @@ export async function handleGetStudents({ db, corsHeaders }) {
   }
 }
 
-export async function handleCreateStudent({ body, db, corsHeaders }) {
+export async function handleCreateStudent({ body, db, env, corsHeaders }) {
   try {
     const {
       id,
@@ -46,36 +47,48 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
       );
     }
 
-    const trimmedParentEmail = parentEmail?.trim();
+    const baseParentName = parentName?.trim() || `${name} Parent`;
+    const parentDisplayName = baseParentName.toLowerCase().includes('parent')
+      ? baseParentName
+      : `${baseParentName} Parent`;
+    let loginParentEmail = formatNotificationEmail(parentDisplayName, 'PARENT');
     let resolvedParentId = parentId || null;
 
-    if (trimmedParentEmail) {
-      const existingUser = await db
-        .prepare('SELECT id, role FROM users WHERE email = ?')
-        .bind(trimmedParentEmail)
-        .first();
+    const userById = parentId
+      ? await db.prepare('SELECT id, role, email FROM users WHERE id = ?').bind(parentId).first()
+      : null;
+    const existingUserByEmail = await db
+      .prepare('SELECT id, role, email FROM users WHERE email = ?')
+      .bind(loginParentEmail)
+      .first();
 
-      if (existingUser && existingUser.role !== 'PARENT') {
+    const existingUser = userById || existingUserByEmail;
+
+    if (existingUser) {
+      if (existingUser.role !== 'PARENT') {
         return jsonResponse(
           { error: 'Validation Error', message: 'Parent email already belongs to a non-parent user' },
           409,
           corsHeaders
         );
       }
+      resolvedParentId = existingUser.id;
+      loginParentEmail = existingUser.email || loginParentEmail;
+    } else {
+      const generatedParentId = parentId && parentId !== 'p_new' ? parentId : `p_${id}`;
+      const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
 
-      if (existingUser) {
-        resolvedParentId = existingUser.id;
-      } else {
-        const generatedParentId = parentId && parentId !== 'p_new' ? parentId : `p_${id}`;
-        const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
-        const parentUserName = parentName?.trim() || `${name} Parent`;
+      await db
+        .prepare('INSERT INTO users (id, name, email, password, password_hash, role, must_change_password, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)')
+        .bind(generatedParentId, parentDisplayName, loginParentEmail, DEFAULT_PASSWORD, passwordHash, 'PARENT', 1)
+        .run();
 
-        await db
-          .prepare('INSERT INTO users (id, name, email, password, password_hash, role, must_change_password, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)')
-          .bind(generatedParentId, parentUserName, trimmedParentEmail, DEFAULT_PASSWORD, passwordHash, 'PARENT', 1)
-          .run();
+      resolvedParentId = generatedParentId;
 
-        resolvedParentId = generatedParentId;
+      try {
+        await sendLoginEmail({ env, name: parentDisplayName, role: 'PARENT', toEmail: loginParentEmail });
+      } catch (emailError) {
+        console.error('Parent login email error:', emailError);
       }
     }
 
@@ -92,7 +105,7 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
         parentName || null,
         relationship || null,
         emergencyContact || null,
-        trimmedParentEmail || null
+        loginParentEmail || null
       )
       .run();
 

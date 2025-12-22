@@ -305,11 +305,10 @@ describe('Error Handling - Edge Cases', () => {
       cy.contains('label', /english.*name/i).parent().find('input').type('Test', { force: true });
       cy.contains('label', /subject/i).parent().find('input').type('Math', { force: true });
 
-      // Reload before submitting
-      cy.reload();
-
-      // Should handle gracefully
-      cy.wait(2000);
+      // Reload before submitting (simulate refresh)
+      cy.visit('/#/teachers');
+      cy.wait(1500);
+      teachersPage.verifyTeachersPageDisplayed();
     });
   });
 });
