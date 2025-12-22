@@ -165,6 +165,11 @@ const isMissingContactError = (error) => {
 export async function createResendContact({ env, email, name, unsubscribed = false }) {
   if (!email) return null;
   const resend = getResendClient(env);
+  const audienceId =
+    env?.RESEND_AUDIENCE_ID ||
+    process?.env?.RESEND_AUDIENCE_ID ||
+    env?.RESEND_CLIENT?.audienceId ||
+    null;
 
   if (!resend?.contacts?.create) {
     throw new Error('Resend contacts client is not available');
@@ -174,6 +179,7 @@ export async function createResendContact({ env, email, name, unsubscribed = fal
 
   try {
     const response = await resend.contacts.create({
+      ...(audienceId ? { audienceId } : {}),
       email,
       firstName,
       lastName,
@@ -194,12 +200,33 @@ export async function createResendContact({ env, email, name, unsubscribed = fal
 
 export async function removeResendContact({ env, email, contactId }) {
   const resend = getResendClient(env);
+  const audienceId =
+    env?.RESEND_AUDIENCE_ID ||
+    process?.env?.RESEND_AUDIENCE_ID ||
+    env?.RESEND_CLIENT?.audienceId ||
+    null;
 
   if (!resend?.contacts?.remove) {
     throw new Error('Resend contacts client is not available');
   }
 
-  const identifier = contactId || (email ? { email } : null);
+  let identifier = contactId || (email ? { email, ...(audienceId ? { audienceId } : {}) } : null);
+
+  // If audience is unknown and we only have email, try to resolve contact first
+  if (!contactId && email && !audienceId && resend?.contacts?.get) {
+    try {
+      const fetched = await resend.contacts.get({ email });
+      if (fetched?.data?.id) {
+        identifier = fetched.data.id;
+      }
+    } catch (err) {
+      if (!isMissingContactError(err)) {
+        console.error('Resend contact lookup failed:', err);
+      }
+      // continue with best-effort removal using email
+    }
+  }
+
   if (!identifier) return null;
 
   try {

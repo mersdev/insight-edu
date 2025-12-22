@@ -72,10 +72,9 @@ JWT_SECRET=...
 JWT_EXPIRES_IN=24h
 ```
 
-Run backend locally with the env loaded, e.g.:
+Run backend locally (script auto-sources `.env`):
 ```bash
 cd backend
-set -a && source .env && set +a
 npm run dev
 ```
 
@@ -93,6 +92,10 @@ ENV_BACKEND=backend/.env ENV_FRONTEND=frontend/.env ./add-secrets.sh
 ```
 
 **⚠️ IMPORTANT:** Never commit `.env` files. Use the `.env.example` templates to document required variables.
+
+### Deployment Secrets (GitHub → Cloudflare)
+- Store `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `JWT_SECRET`, `RESEND_API_KEY`, and (optionally) `RESEND_AUDIENCE_ID` as GitHub Secrets.
+- The backend deploy workflow (`.github/workflows/deploy-backend.yml`) pushes those GitHub Secrets into Cloudflare Worker secrets before deploy.
 
 ### 4. Run the Application
 
