@@ -90,10 +90,10 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_AUDIENCE_ID: ${{ secrets.RESEND_AUDIENCE_ID || '' }}
         run: |
-          npx wrangler secret put JWT_SECRET --text "$JWT_SECRET"
-          npx wrangler secret put RESEND_API_KEY --text "$RESEND_API_KEY"
+          printf '%s' "$JWT_SECRET" | npx wrangler secret put JWT_SECRET
+          printf '%s' "$RESEND_API_KEY" | npx wrangler secret put RESEND_API_KEY
           if [ -n "${RESEND_AUDIENCE_ID}" ]; then
-            npx wrangler secret put RESEND_AUDIENCE_ID --text "$RESEND_AUDIENCE_ID"
+            printf '%s' "$RESEND_AUDIENCE_ID" | npx wrangler secret put RESEND_AUDIENCE_ID
           fi
 
       - name: Deploy to Cloudflare Workers
@@ -124,4 +124,3 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-

@@ -1,4 +1,4 @@
-# Insight EDUs
+# Insight EDU
 
 A comprehensive educational management system for tracking student performance, attendance, behavior, and generating AI-powered insights.
 
