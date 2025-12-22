@@ -35,7 +35,7 @@ export async function handleCreateTeacher({ body, db, env, corsHeaders }) {
       );
     }
 
-    const loginEmail = formatNotificationEmail(`${name}-${id}`, 'TEACHER');
+    const loginEmail = email?.trim() || formatNotificationEmail(`${name}-${id}`, 'TEACHER');
 
     const existingUser = await db
       .prepare('SELECT id, role FROM users WHERE email = ?')

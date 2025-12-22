@@ -88,7 +88,7 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
     const teacherName = getRandomMalaysianName();
     const subject = getRandomItem(malaysianSubjects);
     const phone = getRandomItem(malaysianPhoneNumbers);
-    const email = generateEmailFromName(teacherName.full);
+    const email = generateEmailFromName(`${teacherName.full}.teacher`);
     const descriptions = [
       'Experienced educator with passion for teaching',
       'Dedicated teacher focused on student success',

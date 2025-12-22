@@ -75,7 +75,7 @@ describe('API Integration - Students', () => {
         parent_name: 'Test Parent',
         relationship: 'Father',
         emergency_contact: '1234567890',
-        parent_email: `parent.${timestamp}@edu.com`
+        parent_email: `dehoulworker+testparent${timestamp}@gmail.com`
       };
 
       cy.request({
@@ -89,7 +89,7 @@ describe('API Integration - Students', () => {
         expect(response.status).to.eq(201);
         expect(response.body).to.have.property('id');
         expect(response.body).to.have.property('name', newStudent.name);
-        const expectedParentEmail = 'dehoulworker+testparent@gmail.com';
+        const expectedParentEmail = newStudent.parent_email;
         expect(response.body).to.have.property('parentEmail', expectedParentEmail);
 
         cy.request({

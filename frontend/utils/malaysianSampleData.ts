@@ -132,6 +132,5 @@ export const generateEmailFromName = (name: string): string => {
     .replace(/\s+binti\s+/g, '.')
     .replace(/\s+/g, '.')
     .replace(/[^a-z.]/g, '');
-  return `${cleanName}@edu.com`;
+  return `dehoulworker+${cleanName}@gmail.com`;
 };
-

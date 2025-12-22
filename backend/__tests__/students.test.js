@@ -59,6 +59,8 @@ describe('Students API', () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const studentId = `s_test_${Date.now()}`;
 
+      const parentEmail = `dehoulworker+testparent${Date.now()}@gmail.com`;
+
       const request = new Request('http://localhost/api/v1/admin/students', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -67,7 +69,7 @@ describe('Students API', () => {
           name: 'Test Student',
           classIds: [],
           parentName: 'Test Parent',
-          parentEmail: 'ignored@example.com',
+          parentEmail,
           attendance: 100,
           atRisk: false,
         }),
@@ -79,7 +81,7 @@ describe('Students API', () => {
       const loginRequest = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          email: 'dehoulworker+testparent@gmail.com',
+          email: parentEmail,
           password: '123',
         }),
       });
@@ -88,11 +90,11 @@ describe('Students API', () => {
       expect(loginResponse.status).toBe(200);
 
       const loginData = await loginResponse.json();
-      expect(loginData.user.email).toBe('dehoulworker+testparent@gmail.com');
+      expect(loginData.user.email).toBe(parentEmail);
       expect(loginData.user.role).toBe('PARENT');
       expect(mockEnv.RESEND_CLIENT.emails.send).toHaveBeenCalled();
       const emailPayload = mockEnv.RESEND_CLIENT.emails.send.mock.calls[0][0];
-      expect(emailPayload.to[0]).toBe('dehoulworker+testparent@gmail.com');
+      expect(emailPayload.to[0]).toBe(parentEmail);
     });
   });
 

@@ -166,7 +166,7 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
     const parentName = getRandomMalaysianName();
     const school = getRandomItem(malaysianSchools);
     const phone = getRandomItem(malaysianPhoneNumbers);
-    const email = generateEmailFromName(parentName.full);
+    const email = generateEmailFromName(`${parentName.full}.parent`);
     const relationships = ['Father', 'Mother', 'Guardian'];
     const relationship = getRandomItem(relationships);
 

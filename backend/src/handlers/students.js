@@ -51,7 +51,8 @@ export async function handleCreateStudent({ body, db, env, corsHeaders }) {
     const parentDisplayName = baseParentName.toLowerCase().includes('parent')
       ? baseParentName
       : `${baseParentName} Parent`;
-    let loginParentEmail = formatNotificationEmail(parentDisplayName, 'PARENT');
+    const providedParentEmail = parentEmail?.trim();
+    let loginParentEmail = providedParentEmail || formatNotificationEmail(parentDisplayName, 'PARENT');
     let resolvedParentId = parentId || null;
 
     const userById = parentId

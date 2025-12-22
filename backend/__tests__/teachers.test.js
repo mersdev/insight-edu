@@ -58,6 +58,7 @@ describe('Teachers API', () => {
     test('should create a teacher user that can login and trigger email', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const teacherId = `t_test_${Date.now()}`;
+      const expectedEmail = `dehoulworker+testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
 
       const request = new Request('http://localhost/api/v1/admin/teachers', {
         method: 'POST',
@@ -65,15 +66,13 @@ describe('Teachers API', () => {
         body: JSON.stringify({
           id: teacherId,
           name: 'Test Teacher',
-          email: 'ignored@example.com',
+          email: expectedEmail,
           subject: 'Mathematics',
         }),
       });
 
       const response = await worker.fetch(request, mockEnv, mockCtx);
       expect(response.status).toBe(201);
-
-      const expectedEmail = `dehoulworker+testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
 
       const loginRequest = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',

@@ -65,7 +65,7 @@ describe('API Integration - Teachers', () => {
       const newTeacher = {
         id: `t_test_${Date.now()}`,
         name: 'Test Teacher',
-        email: `test.teacher.${Date.now()}@edu.com`,
+        email: `dehoulworker+testteacher${Date.now()}@gmail.com`,
         subject: 'Mathematics',
         englishName: 'Test Teacher',
         chineseName: '测试老师',
@@ -83,7 +83,7 @@ describe('API Integration - Teachers', () => {
         expect(response.status).to.eq(201);
         expect(response.body).to.have.property('id');
         expect(response.body).to.have.property('name', newTeacher.name);
-        const expectedEmail = `dehoulworker+${`${newTeacher.name}-${newTeacher.id}`.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
+        const expectedEmail = newTeacher.email;
         expect(response.body).to.have.property('email', expectedEmail);
         expect(response.body).to.have.property('subject', newTeacher.subject);
 
