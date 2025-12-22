@@ -148,14 +148,12 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
   };
 
   const handleAddClick = () => {
-    if (classes.length === 0) {
-      setErrorDialog(t.classRequired);
-      return;
-    }
-    // Default to first class if available, but keep array format
+    const defaultClassId = classes[0]?.id;
+
+    // Default to the first class when available; otherwise start empty but still open the form
     setNewStudent({
         name: '',
-        classIds: [classes[0].id],
+        classIds: defaultClassId ? [defaultClassId] : [],
         school: '', parentName: '', relationship: 'Father', emergencyContact: '', parentEmail: ''
     });
     setDialogOpen(true);
@@ -221,7 +219,7 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
       setStudents([...safeStudents, student]);
       setDialogOpen(false);
     } else {
-        setErrorDialog("Please select at least one class.");
+        setErrorDialog(t.classRequired);
     }
   };
   
@@ -825,16 +823,22 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
            </div>
            <div className="space-y-2">
              <label className="block text-sm font-medium mb-1">{t.selectClasses} *</label>
-             <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
-                 {classes.map(c => (
-                     <div key={c.id} className="flex items-center gap-2 p-1 hover:bg-muted/50 rounded cursor-pointer" onClick={() => toggleClassSelection(c.id)}>
-                         <div className={`w-4 h-4 border rounded flex items-center justify-center ${newStudent.classIds?.includes(c.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>
-                             {newStudent.classIds?.includes(c.id) && <Check className="w-3 h-3" />}
-                         </div>
-                         <span className="text-sm">{c.name}</span>
-                     </div>
-                 ))}
-             </div>
+             {classes.length === 0 ? (
+                <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md p-3">
+                  {t.classRequired}
+                </p>
+             ) : (
+                <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
+                    {classes.map(c => (
+                        <div key={c.id} className="flex items-center gap-2 p-1 hover:bg-muted/50 rounded cursor-pointer" onClick={() => toggleClassSelection(c.id)}>
+                            <div className={`w-4 h-4 border rounded flex items-center justify-center ${newStudent.classIds?.includes(c.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>
+                                {newStudent.classIds?.includes(c.id) && <Check className="w-3 h-3" />}
+                            </div>
+                            <span className="text-sm">{c.name}</span>
+                        </div>
+                    ))}
+                </div>
+             )}
            </div>
 
            {/* Divider */}

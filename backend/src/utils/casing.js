@@ -7,15 +7,27 @@ export function toCamelCase(obj) {
   for (const [key, value] of Object.entries(obj)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 
-    if (key === 'class_ids' && typeof value === 'string') {
+    // Parse JSON stored columns so the API returns structured data
+    const jsonColumns = {
+      class_ids: [],
+      default_schedule: null,
+      target_student_ids: [],
+      insights: [],
+    };
+
+    let parsedValue = value;
+    if (typeof value === 'string' && Object.prototype.hasOwnProperty.call(jsonColumns, key)) {
       try {
-        camelObj[camelKey] = JSON.parse(value);
+        parsedValue = JSON.parse(value);
       } catch (e) {
-        camelObj[camelKey] = [];
+        parsedValue = jsonColumns[key];
       }
-    } else {
-      camelObj[camelKey] = typeof value === 'object' && value !== null ? toCamelCase(value) : value;
     }
+
+    camelObj[camelKey] =
+      parsedValue !== null && typeof parsedValue === 'object'
+        ? toCamelCase(parsedValue)
+        : parsedValue;
   }
   return camelObj;
 }

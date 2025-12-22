@@ -162,6 +162,9 @@ export class MockD1 {
     if (sql.includes('FROM students WHERE id')) {
       return this.data.students.find((s) => s.id === args[0]);
     }
+    if (sql.includes('FROM classes WHERE id')) {
+      return this.data.classes.find((c) => c.id === args[0]);
+    }
     if (sql.includes('FROM students WHERE parent_id')) {
       return this.data.students.find((s) => s.parent_id === args[0]);
     }

@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Toolti
 import { Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select, Badge, Dropdown, DropdownItem } from '../../components/ui';
 import { generateScheduleSessions } from '../../constants';
 import { ClassGroup, Teacher, Student, Session, Score, AttendanceRecord, Location } from '../../types';
-import { api } from '../../services/api';
+import { api } from '../../services/backendApi';
 import { getRandomItem, classNames } from '../../utils/malaysianSampleData';
 
 interface ClassesProps {
@@ -84,14 +84,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
   };
 
   const handleAddClick = () => {
-    if (teachers.length === 0) {
-      setErrorDialog(t.teacherRequired);
-      return;
-    }
-    if (locations.length === 0) {
-        setErrorDialog(t.locationRequired);
-        return;
-    }
     setNewClass({ 
         name: '', 
         grade: '', 
@@ -141,8 +133,8 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
       console.log('Generated sessions:', generatedSessions.length);
 
       // Create all sessions in parallel instead of sequentially
-      await Promise.all(generatedSessions.map(s => api.createSession(s)));
-      setSessions([...sessions, ...generatedSessions]);
+      const createdSessions = await Promise.all(generatedSessions.map(s => api.createSession(s)));
+      setSessions([...sessions, ...createdSessions]);
 
       console.log('All done, closing dialog');
       setDialogOpen(false);
@@ -785,8 +777,8 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
               <Sparkles className="h-4 w-4" />
               {t.autoFill}
             </Button>
-            <div className="flex gap-2">
-              <Button type="button" onClick={handleSave}>{t.save}</Button>
+           <div className="flex gap-2">
+             <Button type="button" onClick={handleSave}>{t.save}</Button>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{t.cancel}</Button>
             </div>
           </div>
@@ -823,9 +815,19 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
                 value={newClass.teacherId}
                 onChange={(e) => setNewClass({...newClass, teacherId: e.target.value})}
                 required
-             >
-                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-             </Select>
+                disabled={teachers.length === 0}
+              >
+                {teachers.length === 0 ? (
+                  <option value="">{t.teacherRequired}</option>
+                ) : (
+                  teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
+                )}
+              </Select>
+              {teachers.length === 0 && (
+                <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
+                  {t.teacherRequired}
+                </p>
+              )}
            </div>
            <div>
              <label className="block text-sm font-medium mb-1.5">
@@ -835,9 +837,19 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
                 value={newClass.locationId}
                 onChange={(e) => setNewClass({...newClass, locationId: e.target.value})}
                 required
-             >
-                {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-             </Select>
+                disabled={locations.length === 0}
+              >
+                {locations.length === 0 ? (
+                  <option value="">{t.locationRequired}</option>
+                ) : (
+                  locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)
+                )}
+              </Select>
+              {locations.length === 0 && (
+                <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
+                  {t.locationRequired}
+                </p>
+              )}
            </div>
            <div className="grid grid-cols-2 gap-4">
              <div>

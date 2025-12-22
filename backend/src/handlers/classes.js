@@ -1,5 +1,34 @@
 import { jsonResponse } from '../utils/response.js';
-import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
+import { toCamelCase } from '../utils/casing.js';
+
+const EMPTY_SCHEDULE = { dayOfWeek: null, time: null };
+
+function normalizeDefaultSchedule(schedule) {
+  let scheduleValue = schedule;
+
+  if (typeof schedule === 'string') {
+    try {
+      scheduleValue = JSON.parse(schedule);
+    } catch {
+      scheduleValue = null;
+    }
+  }
+
+  if (!scheduleValue || typeof scheduleValue !== 'object') {
+    return { ...EMPTY_SCHEDULE };
+  }
+
+  return {
+    dayOfWeek: scheduleValue.dayOfWeek ?? null,
+    time: scheduleValue.time ?? null,
+  };
+}
+
+function mapClassRecord(record) {
+  const camelRecord = toCamelCase(record);
+  camelRecord.defaultSchedule = normalizeDefaultSchedule(camelRecord.defaultSchedule);
+  return camelRecord;
+}
 
 export async function handleGetClasses({ db, corsHeaders }) {
   try {
@@ -7,7 +36,8 @@ export async function handleGetClasses({ db, corsHeaders }) {
       .prepare('SELECT * FROM classes ORDER BY id')
       .all();
 
-    return jsonResponse(toCamelCaseArray(classes.results || []), 200, corsHeaders);
+    const parsedClasses = (classes.results || []).map(mapClassRecord);
+    return jsonResponse(parsedClasses, 200, corsHeaders);
   } catch (error) {
     console.error('Get classes error:', error);
     return jsonResponse(
@@ -21,6 +51,7 @@ export async function handleGetClasses({ db, corsHeaders }) {
 export async function handleCreateClass({ body, db, corsHeaders }) {
   try {
     const { id, name, teacherId, locationId, grade, defaultSchedule } = body;
+    const normalizedDefaultSchedule = normalizeDefaultSchedule(defaultSchedule);
 
     if (!id || !name || !teacherId || !grade) {
       return jsonResponse(
@@ -32,7 +63,7 @@ export async function handleCreateClass({ body, db, corsHeaders }) {
 
     await db
       .prepare('INSERT INTO classes (id, name, teacher_id, location_id, grade, default_schedule) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(id, name, teacherId, locationId || null, grade, defaultSchedule ? JSON.stringify(defaultSchedule) : null)
+      .bind(id, name, teacherId, locationId || null, grade, JSON.stringify(normalizedDefaultSchedule))
       .run();
 
     const created = await db
@@ -40,7 +71,7 @@ export async function handleCreateClass({ body, db, corsHeaders }) {
       .bind(id)
       .first();
 
-    return jsonResponse(toCamelCase(created), 201, corsHeaders);
+    return jsonResponse(mapClassRecord(created), 201, corsHeaders);
   } catch (error) {
     console.error('Create class error:', error);
     return jsonResponse(
@@ -67,7 +98,7 @@ export async function handleGetClass({ params, db, corsHeaders }) {
       );
     }
 
-    return jsonResponse(toCamelCase(classItem), 200, corsHeaders);
+    return jsonResponse(mapClassRecord(classItem), 200, corsHeaders);
   } catch (error) {
     console.error('Get class error:', error);
     return jsonResponse(
@@ -83,17 +114,12 @@ export async function handleUpdateClass({ params, body, db, corsHeaders }) {
   try {
     const { name, teacherId, locationId, grade, defaultSchedule } = body;
 
-    await db
-      .prepare('UPDATE classes SET name = ?, teacher_id = ?, location_id = ?, grade = ?, default_schedule = ? WHERE id = ?')
-      .bind(name, teacherId, locationId, grade, defaultSchedule ? JSON.stringify(defaultSchedule) : null, classId)
-      .run();
-
-    const updated = await db
+    const existing = await db
       .prepare('SELECT * FROM classes WHERE id = ?')
       .bind(classId)
       .first();
 
-    if (!updated) {
+    if (!existing) {
       return jsonResponse(
         { error: 'Not Found', message: 'Class not found' },
         404,
@@ -101,7 +127,29 @@ export async function handleUpdateClass({ params, body, db, corsHeaders }) {
       );
     }
 
-    return jsonResponse(toCamelCase(updated), 200, corsHeaders);
+    const normalizedDefaultSchedule =
+      defaultSchedule === undefined
+        ? normalizeDefaultSchedule(existing.default_schedule)
+        : normalizeDefaultSchedule(defaultSchedule);
+
+    await db
+      .prepare('UPDATE classes SET name = ?, teacher_id = ?, location_id = ?, grade = ?, default_schedule = ? WHERE id = ?')
+      .bind(
+        name ?? existing.name,
+        teacherId ?? existing.teacher_id,
+        locationId ?? existing.location_id,
+        grade ?? existing.grade,
+        JSON.stringify(normalizedDefaultSchedule),
+        classId
+      )
+      .run();
+
+    const updated = await db
+      .prepare('SELECT * FROM classes WHERE id = ?')
+      .bind(classId)
+      .first();
+
+    return jsonResponse(mapClassRecord(updated), 200, corsHeaders);
   } catch (error) {
     console.error('Update class error:', error);
     return jsonResponse(

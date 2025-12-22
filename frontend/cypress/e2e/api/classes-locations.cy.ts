@@ -77,14 +77,15 @@ describe('API Integration - Classes and Locations', () => {
       }).then((response) => {
         expect(response.status).to.eq(200);
         expect(response.body).to.be.an('array');
-        
-        if (response.body.length > 0) {
-          const classGroup = response.body[0];
+
+        response.body.forEach((classGroup) => {
           expect(classGroup).to.have.property('id');
           expect(classGroup).to.have.property('name');
           expect(classGroup).to.have.property('teacherId');
           expect(classGroup).to.have.property('locationId');
-        }
+          expect(classGroup).to.have.nested.property('defaultSchedule.dayOfWeek');
+          expect(classGroup).to.have.nested.property('defaultSchedule.time');
+        });
       });
     });
   });
@@ -153,6 +154,57 @@ describe('API Integration - Classes and Locations', () => {
         expect(response.body).to.have.property('grade', newClass.grade);
         expect(response.body).to.have.property('teacherId', newClass.teacherId);
         expect(response.body).to.have.property('locationId', newClass.locationId);
+        expect(response.body).to.have.nested.property('defaultSchedule.dayOfWeek', newClass.defaultSchedule.dayOfWeek);
+        expect(response.body).to.have.nested.property('defaultSchedule.time', newClass.defaultSchedule.time);
+
+        cy.request({
+          method: 'GET',
+          url: `${apiUrl}/admin/classes/${response.body.id}`,
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }).then((getResponse) => {
+          expect(getResponse.status).to.eq(200);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.dayOfWeek', newClass.defaultSchedule.dayOfWeek);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.time', newClass.defaultSchedule.time);
+        });
+      });
+    });
+
+    it('should normalize default schedule when omitted', () => {
+      const timestamp = Date.now();
+      const newClass = {
+        id: `c_test_${timestamp}_nosched`,
+        name: `Test Class Without Schedule ${timestamp}`,
+        grade: 'Grade 5',
+        teacherId: teacherId,
+        locationId: locationId
+      };
+
+      cy.request({
+        method: 'POST',
+        url: `${apiUrl}/admin/classes`,
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: newClass
+      }).then((response) => {
+        expect(response.status).to.eq(201);
+        expect(response.body).to.have.property('id');
+        expect(response.body).to.have.nested.property('defaultSchedule.dayOfWeek', null);
+        expect(response.body).to.have.nested.property('defaultSchedule.time', null);
+
+        cy.request({
+          method: 'GET',
+          url: `${apiUrl}/admin/classes/${response.body.id}`,
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }).then((getResponse) => {
+          expect(getResponse.status).to.eq(200);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.dayOfWeek', null);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.time', null);
+        });
       });
     });
   });
@@ -190,4 +242,3 @@ describe('API Integration - Classes and Locations', () => {
     });
   });
 });
-
