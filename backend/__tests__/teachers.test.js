@@ -13,13 +13,6 @@ describe('Teachers API', () => {
   beforeEach(() => {
     mockEnv = createMockEnv();
     mockCtx = createMockContext();
-    mockEnv.RESEND_CLIENT = {
-      emails: { send: jest.fn().mockResolvedValue({ data: { id: 'mock-email' } }) },
-      contacts: {
-        create: jest.fn().mockResolvedValue({ data: { id: 'contact-teacher' } }),
-        remove: jest.fn().mockResolvedValue({ data: { id: 'removed-teacher' } }),
-      },
-    };
   });
 
   describe('GET /api/v1/admin/teachers', () => {
@@ -94,15 +87,9 @@ describe('Teachers API', () => {
       const loginData = await loginResponse.json();
       expect(loginData.user.email).toBe(expectedEmail);
       expect(loginData.user.role).toBe('TEACHER');
-      expect(mockEnv.RESEND_CLIENT.emails.send).toHaveBeenCalled();
-      const emailPayload = mockEnv.RESEND_CLIENT.emails.send.mock.calls[0][0];
-      expect(emailPayload.to[0]).toBe(expectedEmail);
-      expect(mockEnv.RESEND_CLIENT.contacts.create).toHaveBeenCalled();
-      const contactPayload = mockEnv.RESEND_CLIENT.contacts.create.mock.calls[0][0];
-      expect(contactPayload.email).toBe(expectedEmail);
     });
 
-    test('should remove Resend contact when deleting a teacher', async () => {
+    test('should remove teacher user when deleted', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const teacherId = `t_delete_${Date.now()}`;
       const expectedEmail = `dehoulworker+testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
@@ -121,8 +108,6 @@ describe('Teachers API', () => {
       const createResponse = await worker.fetch(createRequest, mockEnv, mockCtx);
       expect(createResponse.status).toBe(201);
 
-      mockEnv.RESEND_CLIENT.contacts.remove.mockClear();
-
       const deleteRequest = new Request(`http://localhost/api/v1/admin/teachers/${teacherId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
@@ -130,7 +115,15 @@ describe('Teachers API', () => {
 
       const deleteResponse = await worker.fetch(deleteRequest, mockEnv, mockCtx);
       expect(deleteResponse.status).toBe(204);
-      expect(mockEnv.RESEND_CLIENT.contacts.remove).toHaveBeenCalledWith({ email: expectedEmail });
+      const loginRequest = new Request('http://localhost/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: expectedEmail,
+          password: '123',
+        }),
+      });
+      const loginResponse = await worker.fetch(loginRequest, mockEnv, mockCtx);
+      expect(loginResponse.status).toBe(401);
     });
   });
 });

@@ -11,7 +11,6 @@ import { handleGetAttendance, handleCreateAttendance } from './handlers/attendan
 import { handleGetScores, handleCreateScore } from './handlers/scores.js';
 import { handleGetBehaviors, handleCreateBehavior } from './handlers/behaviors.js';
 import { handleGetStudentInsight, handleSaveStudentInsight } from './handlers/studentInsights.js';
-import { handleSendStudentReportEmail } from './handlers/notifications.js';
 
 const API_PREFIX = '/api/v1';
 const ADMIN_PREFIX = `${API_PREFIX}/admin`;
@@ -73,7 +72,6 @@ const PARAM_ROUTES = [
   { method: 'PUT', pattern: new RegExp(`^${TEACHER_PREFIX}/sessions/([^/]+)/status$`), handler: handleUpdateSessionStatus },
   { method: 'DELETE', pattern: new RegExp(`^${TEACHER_PREFIX}/sessions/([^/]+)$`), handler: handleDeleteSession },
   { method: 'GET', pattern: new RegExp(`^${TEACHER_PREFIX}/student-insights/([^/]+)$`), handler: handleGetStudentInsight },
-  { method: 'POST', pattern: new RegExp(`^${TEACHER_PREFIX}/students/([^/]+)/report-email$`), handler: handleSendStudentReportEmail },
 ];
 
 export function getRouteKey(method, pathname) {
