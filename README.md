@@ -16,6 +16,8 @@ A comprehensive educational management system for tracking student performance, 
 
 - **Node.js** >= 18.x
 - **Wrangler** (Cloudflare Workers CLI)
+  - Use `npx wrangler` to run CLI commands from the local `backend/node_modules/.bin` if you don’t have a global install.
+  - To add `wrangler` to your PATH, run `npm install -g wrangler`.
 - **Google Gemini API Key** (for AI insights)
 
 ## 🛠️ Tech Stack
@@ -92,6 +94,28 @@ ENV_BACKEND=backend/.env ENV_FRONTEND=frontend/.env ./add-secrets.sh
 ```
 
 **⚠️ IMPORTANT:** Never commit `.env` files. Use the `.env.example` templates to document required variables.
+
+## 🔄 Resetting the Database
+
+### Local (development)
+
+```bash
+cd backend
+npm run db:reset
+```
+
+This runs the local D1 reset helper, re-runs the schema (`init.sql`), and reseeds the database so you can start from a clean slate.
+
+### Remote (Cloudflare D1)
+
+```bash
+cd backend
+npx wrangler d1 execute insight-edu --remote --file=scripts/d1-reset.sql
+npx wrangler d1 execute insight-edu --remote --file=init.sql
+npx wrangler d1 execute insight-edu --remote --file=seed.sql
+```
+
+Run the three commands in order to drop all tables, recreate the schema, and reseed the production database. Make sure your `wrangler` config has access to the Cloudflare account that owns the `insight-edu` D1 database.
 
 ### Deployment Secrets (GitHub → Cloudflare)
 - Store `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `JWT_SECRET`, `RESEND_API_KEY`, and (optionally) `RESEND_AUDIENCE_ID` as GitHub Secrets.
@@ -298,7 +322,7 @@ If port 8787 or 5173 is already in use:
 
 ```bash
 # Wrangler picks a new port, or set one explicitly:
-wrangler dev --port 8788
+npx wrangler dev --port 8788
 ```
 
 ### Test Failures
