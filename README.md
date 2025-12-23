@@ -68,8 +68,6 @@ CLOUDFLARE_API_TOKEN=...
 CLOUDFLARE_ACCOUNT_ID=...
 D1_DATABASE_ID=...
 D1_DATABASE_NAME=insight-edu
-RESEND_API_KEY=...
-RESEND_AUDIENCE_ID=
 JWT_SECRET=...
 JWT_EXPIRES_IN=24h
 ```
@@ -117,8 +115,22 @@ npx wrangler d1 execute insight-edu --remote --file=seed.sql
 
 Run the three commands in order to drop all tables, recreate the schema, and reseed the production database. Make sure your `wrangler` config has access to the Cloudflare account that owns the `insight-edu` D1 database.
 
+## 📲 WhatsApp Messaging
+
+This project now handles notifications by asking the HQ Admin to open `wa.me/+60<phone>` links from the dashboard instead of sending emails from the backend.
+
+### Login credentials for teachers and parents
+
+- In the **Teachers** table, the new WhatsApp action on each row opens `https://wa.me/+60<phone>` (the phone you entered for the teacher) and populates a template message with the login email, temporary password (`123`), and the Insight EDU login URL (`https://insight-edu-frontend.pages.dev`). Make sure every teacher has a Malaysian mobile number in the format `01X-XXX XXXX` so the link is formatted as `+60` followed by the digits.
+- When you add a student, the student detail view shows a WhatsApp button near the parent contact info. It targets the parent's emergency contact number and uses the same message template so you can text the temporary password without leaving the dashboard.
+
+### Sending reports to parents
+
+- On the Student Report page, click **Send Report via WhatsApp**. The UI captures the visible dashboard as a screenshot (an automatic download is triggered so you can attach it manually) and opens the parent’s WhatsApp chat through `wa.me/+60<emergency_contact>`.
+- The outgoing message already contains the short AI-Insight summary that is shown on screen as well as instructions to paste the downloaded screenshot before sending the final report.
+
 ### Deployment Secrets (GitHub → Cloudflare)
-- Store `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `JWT_SECRET`, `RESEND_API_KEY`, and (optionally) `RESEND_AUDIENCE_ID` as GitHub Secrets.
+- Store `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `JWT_SECRET` as GitHub Secrets.
 - The backend deploy workflow (`.github/workflows/deploy-backend.yml`) pushes those GitHub Secrets into Cloudflare Worker secrets before deploy.
 
 ### 4. Run the Application

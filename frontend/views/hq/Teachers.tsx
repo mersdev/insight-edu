@@ -5,6 +5,7 @@ import { Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, T
 import { Teacher, ClassGroup, User } from '../../types';
 import { api } from '../../services/backendApi';
 import { getRandomMalaysianName, getRandomItem, malaysianSubjects, malaysianPhoneNumbers, generateEmailFromName } from '../../utils/malaysianSampleData';
+import { buildLoginWhatsAppMessage, buildWhatsAppLink, openWhatsAppLink } from '../../utils/whatsapp';
 
 interface TeachersProps {
   t: any;
@@ -60,9 +61,9 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
 
   const handleAdd = async () => {
     // Phone Validation
-    const phoneRegex = /^01\d\s?-?\s?\d{3,4}\s\d{4}$/;
+    const phoneRegex = /^01\d[-\s]?\d{7,8}(?:\s*\/\s*01\d[-\s]?\d{7,8})?$/;
     if (newTeacher.phone && !phoneRegex.test(newTeacher.phone)) {
-        setErrorDialog('Phone number must match format 01X-XXX XXXX or 01X - XXXX XXXX');
+        setErrorDialog('Phone number must match 01X-XXXXXXX (or 01X-XXXXXXXX) and optional second number separated by "/"');
         return;
     }
 
@@ -81,7 +82,31 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
       setTeachers([...teachers, teacher]);
       setNewTeacher({ name: '', email: '', subject: '', englishName: '', chineseName: '', phone: '', description: '' });
       setDialogOpen(false);
+      if (teacher.phone) {
+        handleSendLoginWhatsApp(teacher);
+      }
     }
+  };
+
+  const handleSendLoginWhatsApp = (teacher: Teacher) => {
+    if (!teacher.phone) {
+      setErrorDialog(t.whatsAppPhoneMissing || 'Add a phone number to send WhatsApp messages.');
+      return;
+    }
+
+    const message = buildLoginWhatsAppMessage({
+      name: teacher.name || 'Teacher',
+      role: 'TEACHER',
+      email: teacher.email,
+    });
+
+    const link = buildWhatsAppLink(teacher.phone, message);
+    if (!link) {
+      setErrorDialog(t.whatsAppPhoneMissing || 'Add a phone number to send WhatsApp messages.');
+      return;
+    }
+
+    openWhatsAppLink(link);
   };
 
   const handleAutoFillTeacher = () => {
@@ -209,9 +234,16 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
                     </div>
                     </TableCell>
                     <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(teacher.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(teacher.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
                         <Trash2 className="h-4 w-4" />
-                    </Button>
+                      </Button>
+                    </div>
                     </TableCell>
                 </TableRow>
                );
@@ -286,9 +318,9 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
              <Input 
                 value={newTeacher.phone} 
                 onChange={(e) => setNewTeacher({...newTeacher, phone: e.target.value})} 
-                placeholder="01X-XXX XXXX" 
+                placeholder="01X-XXXXXXX" 
              />
-             <p className="text-xs text-muted-foreground mt-1">Format: 01X-XXX XXXX</p>
+             <p className="text-xs text-muted-foreground mt-1">Format: 01X-XXXXXXX</p>
            </div>
            <div className="md:col-span-2 space-y-2">
              <label className="block text-sm font-medium mb-1">{t.subject} *</label>

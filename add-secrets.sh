@@ -45,7 +45,6 @@ require_var CLOUDFLARE_API_TOKEN "$ENV_BACKEND"
 require_var CLOUDFLARE_ACCOUNT_ID "$ENV_BACKEND"
 require_var D1_DATABASE_ID "$ENV_BACKEND"
 require_var D1_DATABASE_NAME "$ENV_BACKEND"
-require_var RESEND_API_KEY "$ENV_BACKEND"
 require_var JWT_SECRET "$ENV_BACKEND"
 require_var VITE_API_URL "$ENV_FRONTEND"
 require_var VITE_GEMINI_API_KEY "$ENV_FRONTEND"
@@ -57,15 +56,6 @@ gh secret set CLOUDFLARE_ACCOUNT_ID --body "$CLOUDFLARE_ACCOUNT_ID"
 gh secret set D1_DATABASE_ID --body "$D1_DATABASE_ID"
 gh secret set D1_DATABASE_NAME --body "$D1_DATABASE_NAME"
 echo "✓ Cloudflare credentials added"
-echo ""
-
-# Resend Email
-echo "Adding Resend credentials..."
-gh secret set RESEND_API_KEY --body "$RESEND_API_KEY"
-if [ -n "${RESEND_AUDIENCE_ID:-}" ]; then
-  gh secret set RESEND_AUDIENCE_ID --body "$RESEND_AUDIENCE_ID"
-fi
-echo "✓ Resend credentials added"
 echo ""
 
 # Backend Secrets

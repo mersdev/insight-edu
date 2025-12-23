@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
-import { sendLoginEmail, formatNotificationEmail, createResendContact, removeResendContact } from '../utils/email.js';
+import { formatNotificationEmail } from '../utils/loginEmail.js';
 
 const DEFAULT_PASSWORD = '123';
 const SALT_ROUNDS = 10;
@@ -23,7 +23,7 @@ export async function handleGetStudents({ db, corsHeaders }) {
   }
 }
 
-export async function handleCreateStudent({ body, db, env, corsHeaders }) {
+export async function handleCreateStudent({ body, db, corsHeaders }) {
   try {
     const {
       id,
@@ -85,18 +85,6 @@ export async function handleCreateStudent({ body, db, env, corsHeaders }) {
         .run();
 
       resolvedParentId = generatedParentId;
-
-      try {
-        await sendLoginEmail({ env, name: parentDisplayName, role: 'PARENT', toEmail: loginParentEmail });
-      } catch (emailError) {
-        console.error('Parent login email error:', emailError);
-      }
-    }
-
-    try {
-      await createResendContact({ env, email: loginParentEmail, name: parentDisplayName });
-    } catch (contactError) {
-      console.error('Parent contact sync error:', contactError);
     }
 
     await db
@@ -189,7 +177,7 @@ export async function handleUpdateStudent({ params, body, db, corsHeaders }) {
   }
 }
 
-export async function handleDeleteStudent({ params, db, env, corsHeaders }) {
+export async function handleDeleteStudent({ params, db, corsHeaders }) {
   const studentId = params.id;
   try {
     const student = await db
@@ -213,11 +201,6 @@ export async function handleDeleteStudent({ params, db, env, corsHeaders }) {
       .run();
 
     if (parentId) {
-      const parentUser = await db
-        .prepare('SELECT id, email FROM users WHERE id = ?')
-        .bind(parentId)
-        .first();
-
       const anotherStudent = await db
         .prepare('SELECT id FROM students WHERE parent_id = ? LIMIT 1')
         .bind(parentId)
@@ -228,14 +211,6 @@ export async function handleDeleteStudent({ params, db, env, corsHeaders }) {
           .prepare('DELETE FROM users WHERE id = ?')
           .bind(parentId)
           .run();
-
-        if (parentUser?.email) {
-          try {
-            await removeResendContact({ env, email: parentUser.email });
-          } catch (contactError) {
-            console.error('Parent contact removal error:', contactError);
-          }
-        }
       }
     }
 

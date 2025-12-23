@@ -32,10 +32,12 @@ export class StudentReportPage extends BasePage {
   }
 
   /**
-   * Verify send report email button is visible
+   * Verify send report WhatsApp button is visible
    */
   verifySendReportButton(): void {
-    cy.get('[data-cy="email-report-btn"]').should('be.visible');
+    cy.get('[data-cy="whatsapp-report-btn"]')
+      .should('be.visible')
+      .and('contain.text', 'WhatsApp');
   }
 
   /**

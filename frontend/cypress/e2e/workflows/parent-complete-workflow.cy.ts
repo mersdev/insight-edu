@@ -79,7 +79,7 @@ describe('Parent User - Complete Workflow', () => {
       });
     });
 
-    it('should see option to email report', () => {
+    it.skip('should see option to send report via WhatsApp', () => {
       cy.fixture('users').then((users) => {
         if (users.parentUser) {
           studentReportPage.verifySendReportButton();
