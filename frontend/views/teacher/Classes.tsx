@@ -369,7 +369,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                         onClick={() => handleOpenPerformance(session)}
                         className="w-full text-xs h-10 bg-black text-white hover:bg-black/90 shadow-sm"
                     >
-                        Student Performance
+                       Performance
                     </Button>
                     <Button 
                         size="sm" 
@@ -378,7 +378,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                         onClick={() => handleOpenReschedule(session)}
                         className="w-full text-xs h-10"
                     >
-                        Reschedule / Cancel
+                        Reschedule
                     </Button>
                </div>
             </Card>

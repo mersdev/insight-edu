@@ -34,10 +34,10 @@ INSERT INTO classes (id, name, teacher_id, location_id, grade, default_schedule)
 
 -- Insert students
 INSERT INTO students (id, name, parent_id, class_ids, attendance, at_risk, school, parent_name, relationship, emergency_contact, parent_email) VALUES
-('s1', 'Ali Ahmad', 'u_p1', '["c1", "c2"]', 95, false, 'City High School', 'Mr. Ahmad', 'Father', '012-111 2222', 'dehoulworker+ali@gmail.com'),
-('s2', 'Ben Wong', 'u_p2', '["c1"]', 88, false, 'Valley International', 'Mrs. Wong', 'Mother', '013-333 4444', 'dehoulworker+ben@gmail.com'),
-('s3', 'Charlie Davis', 'u_p3', '["c2"]', 65, true, 'North Academy', 'Ms. Davis', 'Mother', '019-555 6666', 'dehoulworker+charlie@gmail.com'),
-('s4', 'Goh Shu Ting', 'u_p4', '["c1", "c2"]', 92, false, 'International School', 'Ms. Goh', 'Mother', '014-777 8888', 'dehoulworker+goh@gmail.com');
+('s1', 'Ali Ahmad', 'u_p1', '["c1", "c2"]', 95, false, 'City High School', 'Mr. Ahmad', 'Father', '016-5709826', 'dehoulworker+ali@gmail.com'),
+('s2', 'Ben Wong', 'u_p2', '["c1"]', 88, false, 'Valley International', 'Mrs. Wong', 'Mother', '013-3334444', 'dehoulworker+ben@gmail.com'),
+('s3', 'Charlie Davis', 'u_p3', '["c2"]', 65, true, 'North Academy', 'Ms. Davis', 'Mother', '019-5556666', 'dehoulworker+charlie@gmail.com'),
+('s4', 'Goh Shu Ting', 'u_p4', '["c1", "c2"]', 92, false, 'International School', 'Ms. Goh', 'Mother', '014-7778888', 'dehoulworker+goh@gmail.com');
 
 -- Insert sessions for class c1
 INSERT INTO sessions (id, class_id, date, start_time, type, status) VALUES

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, cn, Select, Card, Input, Dialog } from '../../components/ui';
 import { Student, ClassGroup, Session, AttendanceRecord, BehaviorRating } from '../../types';
-import { UserCheck, UserX, CalendarClock, ChevronLeft, ChevronRight, Star, Check, ArrowLeft, RotateCcw } from 'lucide-react';
+import { UserCheck, UserX, CalendarClock, ChevronLeft, ChevronRight, Check, ArrowLeft, RotateCcw } from 'lucide-react';
 import { api } from '../../services/backendApi';
 
 interface ClassRatingProps {
@@ -21,30 +21,6 @@ interface ClassRatingProps {
 type RatingCategory = 'Attention' | 'Participation' | 'Homework' | 'Behavior' | 'Practice';
 const CATEGORIES: RatingCategory[] = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
 const LEAVE_REASONS = ['Sick Leave', 'Personal Leave', 'School Event', 'Unexcused', 'Other'];
-
-// Helper for Black/White Star Rating
-const StarRatingInput = ({ value, onChange, disabled }: { value: number, onChange: (val: number) => void, disabled?: boolean }) => {
-    return (
-        <div className={cn("flex items-center gap-3", disabled && "opacity-50 pointer-events-none")}>
-            {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                    key={star}
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onChange(star); }}
-                    className="focus:outline-none transition-transform active:scale-90 hover:scale-110 p-1"
-                >
-                    <Star 
-                        className={cn(
-                            "w-8 h-8 transition-all", 
-                            star <= value ? "fill-black text-black" : "text-gray-200 fill-transparent"
-                        )} 
-                        strokeWidth={1.5}
-                    />
-                </button>
-            ))}
-        </div>
-    );
-};
 
 export const ClassRating: React.FC<ClassRatingProps> = ({ 
     t, students, classes, selectedClassId, onSelectClass, 
@@ -242,6 +218,14 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
         category: category,
         rating: value
     });
+  };
+
+  const handleNumericRatingChange = (studentId: string, category: RatingCategory, rawValue: string) => {
+      if (!rawValue) return;
+      const parsed = Math.round(Number(rawValue));
+      if (Number.isNaN(parsed)) return;
+      const clamped = Math.max(1, Math.min(5, parsed));
+      void handleRating(studentId, category, clamped);
   };
 
   const handleReason = (studentId: string, reason: string) => {
@@ -469,21 +453,33 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
                   {/* Rating Content */}
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                       {isPresent && (
-                          <Card className="p-6 space-y-6 border-gray-100 shadow-sm">
-                              {CATEGORIES.map(cat => (
-                                  <div key={cat} className="space-y-2">
-                                      <div className="flex justify-between items-center">
-                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t[cat.toLowerCase()] || cat}</label>
-                                         <span className="text-lg font-bold text-black">{r[cat] || 0}</span>
+                          <Card className="p-6 space-y-4 border-gray-100 shadow-sm">
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                  {CATEGORIES.map(cat => (
+                                      <div key={cat} className="space-y-1">
+                                          <div className="flex items-center justify-between">
+                                              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                                  {t[cat.toLowerCase()] || cat}
+                                              </label>
+                                              <span className="text-sm font-bold text-black">
+                                                  {r[cat] ?? 0}/5
+                                              </span>
+                                          </div>
+                                          <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+                                              <Input
+                                                  type="number"
+                                                  min={1}
+                                                  max={5}
+                                                  step={1}
+                                                  inputMode="numeric"
+                                                  value={r[cat] ?? ''}
+                                                  onChange={(e) => handleNumericRatingChange(student.id, cat, e.target.value)}
+                                                  className="w-full border-0 bg-transparent px-0 py-0 text-center text-xl font-semibold focus-visible:ring-0"
+                                              />
+                                          </div>
                                       </div>
-                                      <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg">
-                                          <StarRatingInput 
-                                              value={r[cat] || 0}
-                                              onChange={(val) => handleRating(student.id, cat, val)}
-                                          />
-                                      </div>
-                                  </div>
-                              ))}
+                                  ))}
+                              </div>
                           </Card>
                       )}
 

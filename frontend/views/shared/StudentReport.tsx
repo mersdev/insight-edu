@@ -293,24 +293,24 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
   if (!selectedStudent) return <div className="p-8 text-center text-muted-foreground">{safeStudents.length === 0 ? t.noStudentFound : t.pleaseSelectStudent}</div>;
 
   return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-      
-      {/* Student Selector (For Teachers/HQ or Parents with multiple kids) */}
-      <div className="w-full">
-         <Select 
-            className="w-full bg-white border-gray-200"
-            value={selectedStudentId}
-            onChange={(e) => { setSelectedStudentId(e.target.value); }}
-         >
-            {safeStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-         </Select>
-      </div>
+    <div className="space-y-6 pb-20 animate-in fade-in duration-500 w-full">
+      <div className="w-full max-w-6xl mx-auto space-y-6 px-4 sm:px-6">
+        {/* Student Selector (For Teachers/HQ or Parents with multiple kids) */}
+        <div className="w-full">
+           <Select 
+              className="w-full bg-white border-gray-200"
+              value={selectedStudentId}
+              onChange={(e) => { setSelectedStudentId(e.target.value); }}
+           >
+              {safeStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+           </Select>
+        </div>
 
-      {/* Main Report Content Container */}
-      <div id="student-report-content" className="space-y-6 bg-background p-1 md:p-0">
-         
-         {/* 1. Header */}
-         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4">
+        {/* Main Report Content Container */}
+        <div id="student-report-content" className="space-y-6 bg-background px-4 py-5 md:px-0 md:py-0 w-full">
+          
+           {/* 1. Header */}
+         <div className="flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
              <div>
                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{selectedStudent.name}</h2>
                  <div className="text-muted-foreground flex items-center gap-2 mt-1">
@@ -326,7 +326,7 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                      ))}
                  </div>
              </div>
-             <div className="flex flex-row md:flex-col items-center md:items-end gap-3 w-full md:w-auto justify-between md:justify-start">
+             <div className="flex flex-wrap items-center gap-3 justify-end w-full md:w-auto">
                 {selectedStudent.atRisk ? 
                     <Badge variant="destructive" className="h-7 px-3">{t.atRisk}</Badge> : 
                     <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200 h-7 px-3">{t.good}</Badge>
@@ -336,13 +336,13 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                   variant="outline"
                   disabled={isSendingReport}
                   onClick={handleSendReportEmail}
-                  className="h-9"
+                  className="h-9 flex-shrink-0"
                   data-cy="email-report-btn"
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   {isSendingReport ? (t.sendingReportEmail || 'Sending...') : (t.sendReportEmail || 'Email Report')}
                 </Button>
-                <Button size="sm" onClick={handleScreenshot} className="bg-black text-white hover:bg-black/90 h-9">
+                <Button size="sm" onClick={handleScreenshot} className="bg-black text-white hover:bg-black/90 h-9 flex-shrink-0">
                      <Download className="w-4 h-4 mr-2" /> Export
                 </Button>
              </div>
@@ -364,7 +364,7 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
          </div>
 
          {/* 3. KPIs */}
-         <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
              <Card className="p-4 flex flex-col items-center justify-center text-center border shadow-sm">
                  <div className="text-2xl md:text-3xl font-bold mb-1">{attendanceStats.present}/{attendanceStats.total}</div>
                  <div className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-wider">ATTENDANCE (PRESENT/TOTAL)</div>
