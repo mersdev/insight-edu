@@ -11,6 +11,7 @@ import { api } from '../../services/backendApi';
 import { AIInsightSection } from '../../components/AIInsightSection';
 import { generateStudentInsights } from '../../services/geminiService';
 import { getRandomMalaysianName, getRandomItem, malaysianSchools, malaysianPhoneNumbers, generateEmailFromName } from '../../utils/malaysianSampleData';
+import { buildLoginWhatsAppMessage, buildWhatsAppLink, openWhatsAppLink } from '../../utils/whatsapp';
 
 interface StudentsProps {
   t: any;
@@ -181,9 +182,9 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
 
   const handleSave = async () => {
     // Phone Validation
-    const phoneRegex = /^01\d\s?-?\s?\d{3,4}\s\d{4}$/;
+    const phoneRegex = /^01\d[-\s]?\d{7,8}(?:\s*\/\s*01\d[-\s]?\d{7,8})?$/;
     if (newStudent.emergencyContact && !phoneRegex.test(newStudent.emergencyContact)) {
-        setErrorDialog('Emergency contact must match format 01X-XXX XXXX or 01X - XXXX XXXX');
+        setErrorDialog('Emergency contact must match 01X-XXXXXXX (or 01X-XXXXXXXX) and optional second number separated by "/"');
         return;
     }
 
@@ -218,9 +219,37 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
 
       setStudents([...safeStudents, student]);
       setDialogOpen(false);
+      if (student.emergencyContact) {
+        handleSendParentLoginWhatsApp(student);
+      }
     } else {
         setErrorDialog(t.classRequired);
     }
+  };
+
+  const handleSendParentLoginWhatsApp = (student: Student) => {
+    const phone = student.emergencyContact;
+    if (!phone) {
+      setErrorDialog(t.whatsAppPhoneMissing || 'Add a phone number to send WhatsApp messages.');
+      return;
+    }
+
+    const parentName = student.parentName || 'Parent';
+    const parentEmail = student.parentEmail || 'the parent email on file';
+
+    const message = buildLoginWhatsAppMessage({
+      name: parentName,
+      role: 'PARENT',
+      email: parentEmail,
+    });
+
+    const link = buildWhatsAppLink(phone, message);
+    if (!link) {
+      setErrorDialog(t.whatsAppPhoneMissing || 'Add a phone number to send WhatsApp messages.');
+      return;
+    }
+
+    openWhatsAppLink(link);
   };
   
   const handleSaveClasses = async () => {
@@ -770,7 +799,7 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                          </div>
                          <div className="space-y-1 md:col-span-2">
                              <label className="text-muted-foreground text-xs uppercase font-semibold">{t.parentEmailLabel}</label>
-                             <div className="font-semibold flex items-center gap-2 text-base">
+                             <div className="flex items-center gap-1 font-semibold text-base">
                                 <Mail className="w-4 h-4" /> {selectedStudent.parentEmail || 'N/A'}
                              </div>
                          </div>
@@ -870,9 +899,9 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
              <Input 
                 value={newStudent.emergencyContact} 
                 onChange={(e) => setNewStudent({...newStudent, emergencyContact: e.target.value})} 
-                placeholder="01X-XXX XXXX" 
+                placeholder="01X-XXXXXXX" 
              />
-             <p className="text-xs text-muted-foreground mt-1">Format: 01X-XXX XXXX</p>
+             <p className="text-xs text-muted-foreground mt-1">Format: 01X-XXXXXXX</p>
            </div>
            <div className="space-y-2">
              <label className="block text-sm font-medium mb-1">{t.parentEmail} (Optional)</label>

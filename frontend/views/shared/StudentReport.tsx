@@ -7,6 +7,7 @@ import { generateStudentInsights } from '../../services/geminiService';
 import { api } from '../../services/backendApi';
 import { AIInsightSection } from '../../components/AIInsightSection';
 import { User, Student, ClassGroup, Score, BehaviorRating, Session, AttendanceRecord } from '../../types';
+import { buildReportWhatsAppMessage, buildWhatsAppLink, openWhatsAppLink } from '../../utils/whatsapp';
 
 interface StudentReportProps {
   t: any;
@@ -143,31 +144,59 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
     return stripped || `${student.name}'s latest report is ready for you.`;
   };
 
-  const handleSendReportEmail = async () => {
+  const handleSendReportWhatsApp = async () => {
     const student = safeStudents.find(s => s.id === selectedStudentId);
     if (!student) return;
 
     setIsSendingReport(true);
     setReportStatusMessage(null);
 
+    const parentPhone = student.emergencyContact;
+    if (!parentPhone) {
+      setReportStatusMessage(t.reportWhatsAppPhoneMissing || 'Parent phone number is missing.');
+      setIsSendingReport(false);
+      return;
+    }
+
     try {
-      const message = formatReportMessage();
-      await api.sendStudentReportEmail(student.id, message);
-      setReportStatusMessage(t.reportEmailSuccess || 'Report email sent');
+      await captureReportScreenshot(student.name || 'Report', true);
+    } catch (screenshotError) {
+      console.error('Screenshot capture failed', screenshotError);
+      // Continue even if screenshot failed so the WhatsApp message can still be sent
+    }
+
+    try {
+      const summary = formatReportMessage();
+      const message = buildReportWhatsAppMessage({
+        studentName: student.name,
+        summary,
+      });
+      const link = buildWhatsAppLink(parentPhone, message);
+      if (!link) {
+        throw new Error('Invalid WhatsApp phone number');
+      }
+      openWhatsAppLink(link);
+      setReportStatusMessage(t.reportWhatsAppSuccess || 'Report opened in WhatsApp');
     } catch (error) {
-      console.error('Send report email failed', error);
-      setReportStatusMessage(t.reportEmailFailure || 'Failed to send report email');
+      console.error('Send report via WhatsApp failed', error);
+      setReportStatusMessage(t.reportWhatsAppFailure || 'Failed to open WhatsApp report message');
     } finally {
       setIsSendingReport(false);
     }
   };
 
-  const handleScreenshot = async () => {
+  const captureReportScreenshot = async (label: string, download = false) => {
       const element = document.getElementById('student-report-content');
-      if (!element) return;
+      if (!element) return null;
 
       const originalOverflow = element.style.overflow;
       const originalMaxHeight = element.style.maxHeight;
+      const hiddenButtons: Array<{ element: HTMLButtonElement; visibility: string }> = [];
+      const screenshotButtons = Array.from(element.querySelectorAll<HTMLButtonElement>('button'));
+      screenshotButtons.forEach((btn) => {
+        hiddenButtons.push({ element: btn, visibility: btn.style.visibility });
+        btn.style.visibility = 'hidden';
+      });
 
       try {
         element.style.overflow = 'visible';
@@ -180,16 +209,28 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
           ignoreElements: (el: Element) => el.id === 'student-report-schedule'
         });
         const data = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.href = data;
-        link.download = `Student_Report_${selectedStudent?.name || 'Export'}.png`;
-        link.click();
-      } catch (err) {
-        console.error('Screenshot failed', err);
-        alert('Failed to capture screenshot. Please try again.');
+        if (download) {
+          const link = document.createElement('a');
+          link.href = data;
+          link.download = `Student_Report_${label || 'Export'}.png`;
+          link.click();
+        }
+        return data;
       } finally {
         element.style.overflow = originalOverflow;
         element.style.maxHeight = originalMaxHeight;
+        hiddenButtons.forEach(({ element: btn, visibility }) => {
+          btn.style.visibility = visibility;
+        });
+      }
+  };
+
+  const handleScreenshot = async () => {
+      try {
+        await captureReportScreenshot(selectedStudent?.name || 'Export', true);
+      } catch (err) {
+        console.error('Screenshot failed', err);
+        alert('Failed to capture screenshot. Please try again.');
       }
   };
 
@@ -335,12 +376,14 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                   size="sm"
                   variant="outline"
                   disabled={isSendingReport}
-                  onClick={handleSendReportEmail}
+                  onClick={handleSendReportWhatsApp}
                   className="h-9 flex-shrink-0"
-                  data-cy="email-report-btn"
+                  data-cy="whatsapp-report-btn"
                 >
-                  <Mail className="w-4 h-4 mr-2" />
-                  {isSendingReport ? (t.sendingReportEmail || 'Sending...') : (t.sendReportEmail || 'Email Report')}
+                  <Phone className="w-4 h-4 mr-2" />
+                  {isSendingReport
+                    ? (t.sendingReport || 'Preparing WhatsApp message...')
+                    : (t.sendReport || 'Send Report via WhatsApp')}
                 </Button>
                 <Button size="sm" onClick={handleScreenshot} className="bg-black text-white hover:bg-black/90 h-9 flex-shrink-0">
                      <Download className="w-4 h-4 mr-2" /> Export

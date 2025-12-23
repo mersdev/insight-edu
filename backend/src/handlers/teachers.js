@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
-import { sendLoginEmail, formatNotificationEmail, createResendContact, removeResendContact } from '../utils/email.js';
+import { formatNotificationEmail } from '../utils/loginEmail.js';
 
 const DEFAULT_PASSWORD = '123';
 const SALT_ROUNDS = 10;
@@ -23,7 +23,7 @@ export async function handleGetTeachers({ db, corsHeaders }) {
   }
 }
 
-export async function handleCreateTeacher({ body, db, env, corsHeaders }) {
+export async function handleCreateTeacher({ body, db, corsHeaders }) {
   try {
     const { id, name, englishName, chineseName, email, subject, phone, description } = body;
 
@@ -63,17 +63,7 @@ export async function handleCreateTeacher({ body, db, env, corsHeaders }) {
         .bind(id, name, loginEmail, DEFAULT_PASSWORD, passwordHash, 'TEACHER', 1)
         .run();
 
-      try {
-        await sendLoginEmail({ env, name, role: 'TEACHER', toEmail: loginEmail });
-      } catch (emailError) {
-        console.error('Teacher login email error:', emailError);
-      }
-    }
-
-    try {
-      await createResendContact({ env, email: loginEmail, name });
-    } catch (contactError) {
-      console.error('Teacher contact sync error:', contactError);
+      // WhatsApp notifications are triggered from the frontend instead of backend emails.
     }
 
     const created = await db
@@ -153,7 +143,7 @@ export async function handleUpdateTeacher({ params, body, db, corsHeaders }) {
   }
 }
 
-export async function handleDeleteTeacher({ params, db, env, corsHeaders }) {
+export async function handleDeleteTeacher({ params, db, corsHeaders }) {
   const teacherId = params.id;
   try {
     const existing = await db
@@ -178,14 +168,6 @@ export async function handleDeleteTeacher({ params, db, env, corsHeaders }) {
       .prepare('DELETE FROM users WHERE id = ?')
       .bind(teacherId)
       .run();
-
-    if (existing.email) {
-      try {
-        await removeResendContact({ env, email: existing.email });
-      } catch (contactError) {
-        console.error('Teacher contact removal error:', contactError);
-      }
-    }
 
     return new Response(null, { status: 204, headers: corsHeaders });
   } catch (error) {
