@@ -628,5 +628,6 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
          )}
       </div>
     </div>
+  </div>
   );
 };
