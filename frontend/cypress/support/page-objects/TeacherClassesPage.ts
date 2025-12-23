@@ -68,11 +68,8 @@ export class TeacherClassesPage extends BasePage {
    * Rate student behavior
    */
   rateStudentBehavior(studentName: string, category: string, rating: number): void {
-    cy.contains('tr', studentName).within(() => {
-      // Click on the star rating for the category
-      cy.get(`[data-category="${category}"]`).within(() => {
-        cy.get('button').eq(rating - 1).click();
-      });
+    cy.get(`[data-student-name="${studentName}"]`).within(() => {
+      cy.get(`[data-category="${category}"]`).contains(`${rating}`).click();
     });
   }
 
@@ -97,4 +94,3 @@ export class TeacherClassesPage extends BasePage {
     cy.get('aside').contains(/reports/i).click({ force: true });
   }
 }
-

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Clock, MoreHorizontal, CalendarClock, XCircle, Star, UserCheck } from 'lucide-react';
+import { Calendar, Clock, MoreHorizontal, CalendarClock, XCircle, UserCheck } from 'lucide-react';
 import { Card, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select, Badge, Button, Dropdown, DropdownItem, Dialog, Input, cn } from '../../components/ui';
 import { ClassGroup, Session, Student, BehaviorRating } from '../../types';
 import { api } from '../../services/backendApi';
@@ -15,30 +15,6 @@ interface TeacherClassesProps {
   behaviors: BehaviorRating[];
   setBehaviors: (behaviors: BehaviorRating[]) => void;
 }
-
-// Helper: Star Rating Component with Black Stars
-const StarRatingInput = ({ value, onChange }: { value: number, onChange: (val: number) => void }) => {
-    return (
-        <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                    key={star}
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onChange(star); }}
-                    className="focus:outline-none transition-transform active:scale-95 p-1 hover:scale-110"
-                >
-                    <Star 
-                        className={cn(
-                            "w-6 h-6 transition-all", 
-                            star <= value ? "fill-black text-black" : "text-gray-200 fill-transparent"
-                        )} 
-                        strokeWidth={1.5}
-                    />
-                </button>
-            ))}
-        </div>
-    );
-};
 
 export const TeacherClasses: React.FC<TeacherClassesProps> = ({
   t, classes, selectedClassId, onSelectClass, sessions, setSessions, students, behaviors, setBehaviors
@@ -447,8 +423,13 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
             className="max-w-2xl"
         >
             <div className="space-y-4 py-2">
-                {sessionStudents.map(student => (
-                    <Card key={student.id} className="p-4 border shadow-sm">
+                        {sessionStudents.map(student => (
+                            <Card
+                                key={student.id}
+                                className="p-4 border shadow-sm"
+                                data-student-id={student.id}
+                                data-student-name={student.name}
+                            >
                         <div className="flex items-center gap-3 mb-4 border-b pb-3">
                             <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center font-bold">
                                 {student.name.charAt(0)}
@@ -460,12 +441,29 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                         </div>
                         <div className="space-y-3">
                             {categories.map(cat => (
-                                <div key={cat} className="flex items-center justify-between">
-                                    <label className="text-sm font-medium text-muted-foreground w-1/3">{cat}</label>
-                                    <StarRatingInput 
-                                        value={tempBehaviors[student.id]?.[cat] || 0}
-                                        onChange={(val) => updateRating(student.id, cat, val)}
-                                    />
+                                <div key={cat} data-category={cat} className="space-y-1">
+                                    <label className="text-sm font-medium text-muted-foreground">{cat}</label>
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {[1, 2, 3, 4, 5].map(value => {
+                                            const isSelected = tempBehaviors[student.id]?.[cat] === value;
+                                            return (
+                                                <button
+                                                    key={value}
+                                                    type="button"
+                                                    onClick={() => updateRating(student.id, cat, value)}
+                                                    className={cn(
+                                                        "h-10 w-full rounded-lg border text-base font-semibold transition",
+                                                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+                                                        isSelected
+                                                            ? "bg-black text-white border-black"
+                                                            : "bg-white text-black border-gray-200 hover:border-black"
+                                                    )}
+                                                >
+                                                    {value}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ))}
                         </div>
