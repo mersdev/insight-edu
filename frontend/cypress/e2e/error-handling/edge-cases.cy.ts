@@ -122,7 +122,11 @@ describe('Error Handling - Edge Cases', () => {
       cy.contains('label', /full.*name/i).parent().find('input').type("O'Brien-Smith (测试)", { force: true });
       cy.get('input[type="email"]').type(`test.${Date.now()}@edu.com`, { force: true });
       cy.contains('label', /english.*name/i).parent().find('input').type("O'Brien", { force: true });
-      cy.contains('label', /subject/i).parent().find('input').type('Math & Science', { force: true });
+      cy.get('[data-cy="teacher-subject-field"]').within(() => {
+        cy.get('[data-cy="teacher-subject-input"]').clear({ force: true }).type('Math', { force: true });
+        cy.get('[data-cy="subject-dropdown-option"]', { timeout: 2000 }).should('have.length.greaterThan', 0);
+        cy.contains('[data-cy="subject-dropdown-option"]', 'Math', { matchCase: false }).click({ force: true });
+      });
 
       // Should accept special characters
       cy.wait(500);
@@ -303,7 +307,11 @@ describe('Error Handling - Edge Cases', () => {
       cy.contains('label', /full.*name/i).parent().find('input').type('Test Teacher', { force: true });
       cy.get('input[type="email"]').type(`test.${Date.now()}@edu.com`, { force: true });
       cy.contains('label', /english.*name/i).parent().find('input').type('Test', { force: true });
-      cy.contains('label', /subject/i).parent().find('input').type('Math', { force: true });
+      cy.get('[data-cy="teacher-subject-field"]').within(() => {
+        cy.get('[data-cy="teacher-subject-input"]').clear({ force: true }).type('Math', { force: true });
+        cy.get('[data-cy="subject-dropdown-option"]', { timeout: 2000 }).should('have.length.greaterThan', 0);
+        cy.contains('[data-cy="subject-dropdown-option"]', 'Math', { matchCase: false }).click({ force: true });
+      });
 
       // Reload before submitting (simulate refresh)
       cy.visit('/#/teachers');

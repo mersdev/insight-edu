@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Trash2, Plus, Mail, BookOpen, Search, ArrowUpDown, UserCheck, UserX, Sparkles } from 'lucide-react';
 import { Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select, Badge } from '../../components/ui';
 import { Teacher, ClassGroup, User } from '../../types';
@@ -14,6 +14,27 @@ interface TeachersProps {
   classes: ClassGroup[];
 }
 
+const SUBJECT_DROPDOWN_OPTIONS = [
+  'Bahasa Melayu',
+  'English',
+  'Mathematics',
+  'Science',
+  'History',
+  'Islam / Moral',
+  'Physical and Health',
+  'Art',
+  'Chinese',
+  'Tamil',
+  'ICT and Technology',
+  'Biology',
+  'Chemistry',
+  'Physics',
+  'Additional Mathematics',
+  'Geography',
+  'Account',
+  'Economics',
+] as const;
+
 export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, classes }) => {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
@@ -21,11 +42,21 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
     name: '', email: '', subject: '', englishName: '', chineseName: '', phone: '', description: '' 
   });
   const [users, setUsers] = useState<User[]>([]);
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [isSubjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const subjectDropdownRef = useRef<HTMLDivElement | null>(null);
   
   // Search and Sort State
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [subjectFilter, setSubjectFilter] = useState<string>('ALL');
+
+  const filteredSubjectOptions = useMemo(() => {
+    const query = subjectSearch.trim().toLowerCase();
+    return query
+      ? SUBJECT_DROPDOWN_OPTIONS.filter((subject) => subject.toLowerCase().includes(query))
+      : SUBJECT_DROPDOWN_OPTIONS;
+  }, [subjectSearch]);
 
   useEffect(() => {
      const fetchUsers = async () => {
@@ -44,6 +75,39 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
     const unique = new Set(teachers.map(t => t.subject).filter(Boolean));
     return Array.from(unique).sort();
   }, [teachers]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (subjectDropdownRef.current && !subjectDropdownRef.current.contains(event.target as Node)) {
+        setSubjectDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSubjectInputChange = (value: string) => {
+    setSubjectSearch(value);
+    setNewTeacher((prev) => ({ ...prev, subject: value }));
+    setSubjectDropdownOpen(true);
+  };
+
+  const handleSubjectSelect = (subject: string) => {
+    setSubjectSearch(subject);
+    setNewTeacher((prev) => ({ ...prev, subject }));
+    setSubjectDropdownOpen(false);
+  };
+
+  const handleOpenDialog = () => {
+    setDialogOpen(true);
+    setSubjectDropdownOpen(false);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSubjectDropdownOpen(false);
+  };
 
   const handleDelete = async (id: string) => {
     // Constraint Check: Is teacher assigned to any class?
@@ -81,7 +145,8 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
 
       setTeachers([...teachers, teacher]);
       setNewTeacher({ name: '', email: '', subject: '', englishName: '', chineseName: '', phone: '', description: '' });
-      setDialogOpen(false);
+      setSubjectSearch('');
+      handleCloseDialog();
       if (teacher.phone) {
         handleSendLoginWhatsApp(teacher);
       }
@@ -132,6 +197,8 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
       phone: phone,
       description: getRandomItem(descriptions),
     });
+    setSubjectSearch(subject);
+    setSubjectDropdownOpen(false);
   };
   
   const toggleSort = () => {
@@ -152,7 +219,7 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
       <div className="flex items-center justify-between flex-wrap gap-2">
          <h1 className="text-3xl font-bold tracking-tight">{t.teachers}</h1>
          <div className="flex gap-2">
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={handleOpenDialog}>
                 <Plus className="mr-2 h-4 w-4" /> {t.add}
             </Button>
          </div>
@@ -259,7 +326,7 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
 
       <Dialog
         isOpen={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
+        onClose={handleCloseDialog}
         title={t.addNewTeacher}
         footer={
           <div className="flex items-center justify-between w-full">
@@ -273,7 +340,7 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
             </Button>
             <div className="flex gap-2">
               <Button onClick={handleAdd}>{t.save}</Button>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>{t.cancel}</Button>
+              <Button variant="outline" onClick={handleCloseDialog}>{t.cancel}</Button>
             </div>
           </div>
         }
@@ -322,13 +389,40 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
              />
              <p className="text-xs text-muted-foreground mt-1">Format: 01X-XXXXXXX</p>
            </div>
-           <div className="md:col-span-2 space-y-2">
-             <label className="block text-sm font-medium mb-1">{t.subject} *</label>
-             <Input 
-                value={newTeacher.subject} 
-                onChange={(e) => setNewTeacher({...newTeacher, subject: e.target.value})} 
-                placeholder={t.subjectPlaceholder} 
-             />
+           <div
+             className="md:col-span-2 space-y-2 relative"
+             ref={subjectDropdownRef}
+             data-cy="teacher-subject-field"
+           >
+            <label className="block text-sm font-medium mb-1">{t.subject} *</label>
+            <Input 
+               value={subjectSearch} 
+               onChange={(e) => handleSubjectInputChange(e.target.value)} 
+               placeholder={t.subjectPlaceholder} 
+               autoComplete="off"
+               onFocus={() => setSubjectDropdownOpen(true)}
+               onClick={() => setSubjectDropdownOpen(true)}
+               data-cy="teacher-subject-input"
+            />
+             {isSubjectDropdownOpen && (
+               <div className="absolute left-0 right-0 z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-background shadow-lg">
+                 {filteredSubjectOptions.length > 0 ? (
+                   filteredSubjectOptions.map((subject) => (
+                     <button
+                       key={subject}
+                       type="button"
+                       data-cy="subject-dropdown-option"
+                       className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-primary/10 focus:bg-primary/10 focus:outline-none"
+                       onClick={() => handleSubjectSelect(subject)}
+                     >
+                       {subject}
+                     </button>
+                   ))
+                 ) : (
+                   <div className="px-3 py-2 text-xs text-muted-foreground">No subjects found.</div>
+                 )}
+               </div>
+             )}
            </div>
            <div className="md:col-span-2 space-y-2">
              <label className="block text-sm font-medium mb-1">{t.description} (Optional)</label>

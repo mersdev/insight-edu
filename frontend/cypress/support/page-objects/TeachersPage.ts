@@ -58,7 +58,11 @@ export class TeachersPage extends BasePage {
     }
 
     if (teacher.subject) {
-      cy.contains('label', /subject/i).parent().find('input').clear({ force: true }).type(teacher.subject, { force: true });
+      cy.get('[data-cy="teacher-subject-field"]').within(() => {
+      cy.get('[data-cy="teacher-subject-input"]').clear({ force: true }).type(teacher.subject, { force: true });
+      cy.get('[data-cy="subject-dropdown-option"]', { timeout: 2000 }).should('have.length.greaterThan', 0);
+      cy.contains('[data-cy="subject-dropdown-option"]', teacher.subject, { matchCase: false }).click({ force: true });
+      });
     }
   }
 

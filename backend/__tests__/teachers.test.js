@@ -66,20 +66,22 @@ describe('Teachers API', () => {
           id: teacherId,
           name: 'Test Teacher',
           email: expectedEmail,
-          subject: 'Mathematics',
+          subject: 'Islam / Moral',
         }),
       });
 
-      const response = await worker.fetch(request, mockEnv, mockCtx);
-      expect(response.status).toBe(201);
+    const response = await worker.fetch(request, mockEnv, mockCtx);
+    expect(response.status).toBe(201);
+    const createdTeacher = await response.json();
+    expect(createdTeacher.subject).toBe('Islam / Moral');
 
-      const loginRequest = new Request('http://localhost/api/v1/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: expectedEmail,
-          password: '123',
-        }),
-      });
+    const loginRequest = new Request('http://localhost/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: expectedEmail,
+        password: '123',
+      }),
+    });
 
       const loginResponse = await worker.fetch(loginRequest, mockEnv, mockCtx);
       expect(loginResponse.status).toBe(200);
@@ -101,7 +103,7 @@ describe('Teachers API', () => {
           id: teacherId,
           name: 'Delete Teacher',
           email: expectedEmail,
-          subject: 'Mathematics',
+          subject: 'Account',
         }),
       });
 
