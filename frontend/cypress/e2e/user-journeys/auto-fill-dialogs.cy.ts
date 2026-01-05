@@ -96,8 +96,8 @@ describe('Auto-Fill Functionality for Dialogs', () => {
       cy.contains('button', /auto-fill/i).click();
       
       // Verify fields are filled
-      cy.get('input[placeholder*="Grade 10"]').should('not.have.value', '');
-      cy.get('input[placeholder*="10"]').should('not.have.value', '');
+      cy.get('input[placeholder*="Form 4"]').should('not.have.value', '');
+      cy.get('select').first().should('not.have.value', '');
     });
   });
 
@@ -122,4 +122,3 @@ describe('Auto-Fill Functionality for Dialogs', () => {
     });
   });
 });
-

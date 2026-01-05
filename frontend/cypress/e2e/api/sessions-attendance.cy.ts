@@ -77,7 +77,7 @@ describe('API Integration - Sessions and Attendance', () => {
             englishName: `Teacher ${timestamp}`,
             email: `teacher.${timestamp}@test.com`,
             phone: '012-345 6789',
-            subject: 'Math'
+              subject: 'Mathematics'
           }
         }).then((teacherResponse) => {
           const teacherId = teacherResponse.body.id;
@@ -90,7 +90,7 @@ describe('API Integration - Sessions and Attendance', () => {
             body: {
               id: `c_test_${timestamp}`,
               name: `Test Class ${timestamp}`,
-              grade: 'Grade 5',
+              grade: 'Standard 5',
               teacherId: teacherId,
               locationId: locationId
             }
@@ -233,7 +233,7 @@ describe('API Integration - Sessions and Attendance', () => {
             body: {
               id: `c_att_${timestamp}`,
               name: `Attendance Class ${timestamp}`,
-              grade: 'Grade 6',
+              grade: 'Standard 6',
               teacherId: teacherId,
               locationId: locationId
             }
@@ -317,4 +317,3 @@ describe('API Integration - Sessions and Attendance', () => {
     });
   });
 });
-

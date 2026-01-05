@@ -104,6 +104,15 @@ npm run db:reset
 
 This runs the local D1 reset helper, re-runs the schema (`init.sql`), and reseeds the database so you can start from a clean slate.
 
+### Apply incremental migrations
+
+```bash
+cd backend
+npx wrangler d1 execute insight-edu --local --file=migrations/004_teacher_schedule_updates.sql
+```
+
+Run this after pulling schema changes so the local D1 instance receives the latest alterations (new `subjects`, `levels`, and `duration_minutes` columns). For Cloudflare-hosted environments swap `--local` for `--remote` and ensure the target database matches the name in `wrangler.toml`.
+
 ### Remote (Cloudflare D1)
 
 ```bash
@@ -189,6 +198,13 @@ cd frontend
 npm run test:e2e
 ```
 
+**Run a single E2E spec:**
+
+```bash
+cd frontend
+npx cypress run --spec "cypress/e2e/api/behaviors-scores.cy.ts"
+```
+
 **Interactive Testing:**
 
 ```bash
@@ -244,11 +260,11 @@ After seeding the database, you can login with the following test accounts:
 - Password: `Admin123`
 
 **Teacher:**
-- Email: `dehoulworker+sarahjenkins@gmail.com`
+- Email: `sarahjenkins@edu.com`
 - Password: `123`
 
 **Parent:**
-- Email: `dehoulworker+ali@gmail.com`
+- Email: `ahmad@edu.com`
 - Password: `123`
 
 **⚠️ SECURITY NOTE:** These are test credentials for development only. In production:
@@ -355,3 +371,7 @@ For issues and questions, please open an issue on GitHub.
 ---
 
 Built with ❤️ for educational excellence
+
+
+LSGH Development Sdn Bhd - Rm500.00 / 8 hours
+1468 - 1472

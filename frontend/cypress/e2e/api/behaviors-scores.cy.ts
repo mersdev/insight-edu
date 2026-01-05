@@ -99,7 +99,7 @@ describe('API Integration - Behaviors and Scores', () => {
             body: {
               id: `c_beh_${timestamp}`,
               name: `Behavior Class ${timestamp}`,
-              grade: 'Grade 7',
+              grade: 'Form 1',
               teacherId: teacherId,
               locationId: locationId
             }

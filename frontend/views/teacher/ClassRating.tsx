@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, cn, Select, Card, Input, Dialog } from '../../components/ui';
-import { Student, ClassGroup, Session, AttendanceRecord, BehaviorRating } from '../../types';
+import { Student, ClassGroup, Session, AttendanceRecord, BehaviorRating, RatingCategory } from '../../types';
 import { UserCheck, UserX, CalendarClock, ChevronLeft, ChevronRight, Check, ArrowLeft, RotateCcw } from 'lucide-react';
 import { api } from '../../services/backendApi';
 
@@ -16,17 +16,18 @@ interface ClassRatingProps {
   setAttendance: (records: AttendanceRecord[]) => void;
   behaviors: BehaviorRating[];
   setBehaviors: (records: BehaviorRating[]) => void;
+  ratingCategories: RatingCategory[];
 }
 
-type RatingCategory = 'Attention' | 'Participation' | 'Homework' | 'Behavior' | 'Practice';
-const CATEGORIES: RatingCategory[] = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+const DEFAULT_BEHAVIOR_CATEGORIES = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
 const LEAVE_REASONS = ['Sick Leave', 'Personal Leave', 'School Event', 'Unexcused', 'Other'];
 
 export const ClassRating: React.FC<ClassRatingProps> = ({ 
     t, students, classes, selectedClassId, onSelectClass, 
     sessions, setSessions, 
     attendance, setAttendance,
-    behaviors, setBehaviors
+    behaviors, setBehaviors,
+    ratingCategories
 }) => {
   
   // View State: SELECTION -> RATING -> COMPLETED
@@ -49,8 +50,8 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
   // --- Derived Data ---
   
   // 1. Filter Sessions by Class
-  const classSessions = useMemo(() => 
-    sessions
+const classSessions = useMemo(() => 
+  sessions
       .filter(s => s.classId === selectedClassId)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
   [sessions, selectedClassId]);
@@ -65,6 +66,10 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
       });
       return Array.from(months).sort().reverse(); // Newest months first
   }, [classSessions]);
+
+  const categories = ratingCategories.length > 0
+    ? ratingCategories.map((category) => category.name)
+    : DEFAULT_BEHAVIOR_CATEGORIES;
 
   // 3. Filter Sessions by Selected Month
   const filteredSessions = useMemo(() => {
@@ -124,7 +129,7 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
         Object.keys(loadedRatings).forEach(sId => {
              const r = loadedRatings[sId];
              if (r.attendance === 'present') {
-                 CATEGORIES.forEach(cat => {
+                 categories.forEach(cat => {
                      if (r[cat] === undefined) r[cat] = 5;
                  });
              }
@@ -194,11 +199,10 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
                   attendance: 'present', 
                   absenceReason: undefined,
                   // Default ratings if not present
-                  Attention: studentData.Attention ?? 5, 
-                  Participation: studentData.Participation ?? 5, 
-                  Homework: studentData.Homework ?? 5, 
-                  Behavior: studentData.Behavior ?? 5, 
-                  Practice: studentData.Practice ?? 5 
+                  ...categories.reduce((acc, category) => ({
+                    ...acc,
+                    [category]: studentData[category] ?? 5,
+                  }), {} as Record<string, number>)
               } 
           };
       });
@@ -211,12 +215,20 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
       [studentId]: { ...(prev[studentId] || {}), [category]: value }
     }));
     
+    const storedSession = api.getStoredSession();
+    const teacherId = storedSession?.user?.id;
+    if (!teacherId) {
+      console.error('Teacher session missing, cannot attribute behavior rating.');
+      return;
+    }
+
     await api.recordBehavior({
         studentId,
         sessionId: selectedSessionId,
         date: new Date().toISOString(),
         category: category,
-        rating: value
+        rating: value,
+        teacherId
     });
   };
 
@@ -455,7 +467,7 @@ export const ClassRating: React.FC<ClassRatingProps> = ({
                       {isPresent && (
                           <Card className="p-6 space-y-4 border-gray-100 shadow-sm">
                               <div className="grid gap-4 sm:grid-cols-2">
-                                  {CATEGORIES.map(cat => (
+                                  {categories.map(cat => (
                                       <div key={cat} className="space-y-1">
                                           <div className="flex items-center justify-between">
                                               <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">

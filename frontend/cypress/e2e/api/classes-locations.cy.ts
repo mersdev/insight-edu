@@ -83,8 +83,9 @@ describe('API Integration - Classes and Locations', () => {
           expect(classGroup).to.have.property('name');
           expect(classGroup).to.have.property('teacherId');
           expect(classGroup).to.have.property('locationId');
-          expect(classGroup).to.have.nested.property('defaultSchedule.dayOfWeek');
+          expect(classGroup).to.have.nested.property('defaultSchedule.days').that.is.an('array');
           expect(classGroup).to.have.nested.property('defaultSchedule.time');
+          expect(classGroup).to.have.nested.property('defaultSchedule.durationMinutes');
         });
       });
     });
@@ -131,12 +132,13 @@ describe('API Integration - Classes and Locations', () => {
       const newClass = {
         id: `c_test_${timestamp}`,
         name: `Test Class ${timestamp}`,
-        grade: 'Grade 5',
+        grade: 'Standard 5',
         teacherId: teacherId,
         locationId: locationId,
         defaultSchedule: {
-          dayOfWeek: 'Monday',
-          time: '10:00'
+          days: ['Monday'],
+          time: '10:00',
+          durationMinutes: 90
         }
       };
 
@@ -154,8 +156,9 @@ describe('API Integration - Classes and Locations', () => {
         expect(response.body).to.have.property('grade', newClass.grade);
         expect(response.body).to.have.property('teacherId', newClass.teacherId);
         expect(response.body).to.have.property('locationId', newClass.locationId);
-        expect(response.body).to.have.nested.property('defaultSchedule.dayOfWeek', newClass.defaultSchedule.dayOfWeek);
+        expect(response.body).to.have.nested.property('defaultSchedule.days').that.deep.equals(newClass.defaultSchedule.days);
         expect(response.body).to.have.nested.property('defaultSchedule.time', newClass.defaultSchedule.time);
+        expect(response.body).to.have.nested.property('defaultSchedule.durationMinutes', newClass.defaultSchedule.durationMinutes);
 
         cy.request({
           method: 'GET',
@@ -165,8 +168,9 @@ describe('API Integration - Classes and Locations', () => {
           }
         }).then((getResponse) => {
           expect(getResponse.status).to.eq(200);
-          expect(getResponse.body).to.have.nested.property('defaultSchedule.dayOfWeek', newClass.defaultSchedule.dayOfWeek);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.days').that.deep.equals(newClass.defaultSchedule.days);
           expect(getResponse.body).to.have.nested.property('defaultSchedule.time', newClass.defaultSchedule.time);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.durationMinutes', newClass.defaultSchedule.durationMinutes);
         });
       });
     });
@@ -176,7 +180,7 @@ describe('API Integration - Classes and Locations', () => {
       const newClass = {
         id: `c_test_${timestamp}_nosched`,
         name: `Test Class Without Schedule ${timestamp}`,
-        grade: 'Grade 5',
+        grade: 'Standard 5',
         teacherId: teacherId,
         locationId: locationId
       };
@@ -191,8 +195,9 @@ describe('API Integration - Classes and Locations', () => {
       }).then((response) => {
         expect(response.status).to.eq(201);
         expect(response.body).to.have.property('id');
-        expect(response.body).to.have.nested.property('defaultSchedule.dayOfWeek', null);
+        expect(response.body).to.have.nested.property('defaultSchedule.days').that.deep.equals([]);
         expect(response.body).to.have.nested.property('defaultSchedule.time', null);
+        expect(response.body).to.have.nested.property('defaultSchedule.durationMinutes', 60);
 
         cy.request({
           method: 'GET',
@@ -202,8 +207,9 @@ describe('API Integration - Classes and Locations', () => {
           }
         }).then((getResponse) => {
           expect(getResponse.status).to.eq(200);
-          expect(getResponse.body).to.have.nested.property('defaultSchedule.dayOfWeek', null);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.days').that.deep.equals([]);
           expect(getResponse.body).to.have.nested.property('defaultSchedule.time', null);
+          expect(getResponse.body).to.have.nested.property('defaultSchedule.durationMinutes', 60);
         });
       });
     });

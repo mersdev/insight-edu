@@ -58,8 +58,8 @@ describe('Error Handling - Validation Errors', () => {
                         body: {
                           id: `t_test_${timestamp}`,
                           name: `Cypress Teacher ${timestamp}`,
-                          email: `cypress.teacher.${timestamp}@edu.com`,
-                          subject: 'Math',
+            email: `cypress.teacher.${timestamp}@test.com`,
+                          subject: 'Mathematics',
                         },
                       })
                       .then((response) => response.body);
@@ -96,7 +96,7 @@ describe('Error Handling - Validation Errors', () => {
                           body: {
                             id: `c_test_${timestamp}`,
                             name: `Cypress Class ${timestamp}`,
-                            grade: '10',
+                            grade: 'Form 4',
                             teacherId: teacher.id,
                             locationId: location.id,
                           },
@@ -175,12 +175,12 @@ describe('Error Handling - Validation Errors', () => {
           cy.wait(500);
 
           // Try to create teacher with existing email
-          teachersPage.fillTeacherForm({
+            teachersPage.fillTeacherForm({
             name: 'Duplicate Teacher',
             englishName: 'Duplicate',
-            email: 'dehoulworker+sarahjenkins@gmail.com', // Existing email
+            email: 'sarahjenkins@edu.com', // Existing email
             phone: '012-345 6789',
-            subject: 'Math'
+            subjects: ['Mathematics']
           });
 
           teachersPage.submitTeacherForm();

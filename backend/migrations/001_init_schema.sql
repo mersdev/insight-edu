@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS teachers (
   chinese_name TEXT,
   email TEXT NOT NULL,
   subject TEXT NOT NULL,
+  subjects TEXT DEFAULT '[]',
+  levels TEXT DEFAULT '[]',
   phone TEXT,
   description TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -74,6 +76,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   start_time TIME NOT NULL,
+  duration_minutes INTEGER DEFAULT 60,
   type TEXT NOT NULL CHECK (type IN ('REGULAR', 'SPECIAL')),
   status TEXT NOT NULL CHECK (status IN ('SCHEDULED', 'CANCELLED', 'COMPLETED')),
   target_student_ids TEXT

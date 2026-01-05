@@ -37,6 +37,8 @@ export class TeachersPage extends BasePage {
     name: string;
     email: string;
     subject?: string;
+    subjects?: string[];
+    levels?: string[];
     englishName?: string;
     chineseName?: string;
     phone?: string;
@@ -57,11 +59,22 @@ export class TeachersPage extends BasePage {
       cy.contains('label', /phone/i).parent().find('input').clear({ force: true }).type(teacher.phone, { force: true });
     }
 
-    if (teacher.subject) {
+    const subjectsToAdd = teacher.subjects ?? (teacher.subject ? [teacher.subject] : []);
+    subjectsToAdd.forEach((subject) => {
       cy.get('[data-cy="teacher-subject-field"]').within(() => {
-      cy.get('[data-cy="teacher-subject-input"]').clear({ force: true }).type(teacher.subject, { force: true });
-      cy.get('[data-cy="subject-dropdown-option"]', { timeout: 2000 }).should('have.length.greaterThan', 0);
-      cy.contains('[data-cy="subject-dropdown-option"]', teacher.subject, { matchCase: false }).click({ force: true });
+        cy.get('[data-cy="teacher-subject-input"]').clear({ force: true }).type(subject, { force: true });
+        cy.get('[data-cy="subject-dropdown-option"]', { timeout: 2000 }).should('have.length.greaterThan', 0);
+        cy.contains('[data-cy="subject-dropdown-option"]', subject, { matchCase: false }).click({ force: true });
+      });
+    });
+
+    if (teacher.levels) {
+      teacher.levels.forEach((level) => {
+        cy.get('[data-cy="teacher-level-field"]').within(() => {
+          cy.get('[data-cy="teacher-level-input"]').clear({ force: true }).type(level, { force: true });
+          cy.get('[data-cy="level-dropdown-option"]', { timeout: 2000 }).should('have.length.greaterThan', 0);
+          cy.contains('[data-cy="level-dropdown-option"]', level, { matchCase: false }).click({ force: true });
+        });
       });
     }
   }

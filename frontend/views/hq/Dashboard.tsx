@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
 import { Users, AlertCircle, TrendingUp, MapPin, School, Calendar, Activity, Star, Download, ChevronRight, BookOpen } from 'lucide-react';
 import { Card, Button, Badge, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
-import { Student, ClassGroup, Location, Session, BehaviorRating, AttendanceRecord } from '../../types';
+import { Student, ClassGroup, Location, Session, BehaviorRating, AttendanceRecord, RatingCategory } from '../../types';
 import { AIInsightSection } from '../../components/AIInsightSection';
 import { generateDashboardInsights } from '../../services/geminiService';
 import { api } from '../../services/backendApi';
@@ -14,9 +14,12 @@ interface HQDashboardProps {
   students: Student[];
   classes: ClassGroup[];
   locations: Location[];
+  ratingCategories: RatingCategory[];
 }
 
-export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, locations }) => {
+const DEFAULT_BEHAVIOR_CATEGORIES = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+
+export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, locations, ratingCategories }) => {
   const [insightText, setInsightText] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -259,7 +262,9 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
 
   // 4. Behavior Category Analysis
   const categoryData = useMemo(() => {
-    const categories = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+    const categories = ratingCategories.length > 0
+      ? ratingCategories.map((category) => category.name)
+      : DEFAULT_BEHAVIOR_CATEGORIES;
     return categories.map(cat => {
         const catBehaviors = behaviors.filter(b => b.category === cat);
         const avg = catBehaviors.length > 0 
@@ -267,7 +272,7 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
             : 0;
         return { name: cat, value: avg };
     });
-  }, [behaviors]);
+  }, [behaviors, ratingCategories]);
 
   // --- Selected Location Report Data ---
   const selectedLocation = locations.find(l => l.id === selectedLocationId);

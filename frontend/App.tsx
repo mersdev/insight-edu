@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { User, Teacher, ClassGroup, Student, Score, BehaviorRating, Session, AttendanceRecord, Location } from './types';
+import { User, Teacher, ClassGroup, Student, Score, BehaviorRating, Session, AttendanceRecord, Location, RatingCategory } from './types';
 import { TRANSLATIONS } from './constants';
 import { Navigation } from './components/Navigation';
 import { Toast } from './components/Toast';
@@ -16,6 +16,7 @@ import { Teachers } from './views/hq/Teachers';
 import { Students } from './views/hq/Students';
 import { Classes } from './views/hq/Classes';
 import { Locations } from './views/hq/Locations';
+import { SettingsPage } from './views/hq/Settings';
 import { ScoreInput } from './views/teacher/ScoreInput';
 import { TeacherClasses } from './views/teacher/Classes'; // New Import
 import { StudentReport } from './views/shared/StudentReport';
@@ -45,6 +46,7 @@ const AppContent: React.FC = () => {
   const [scores, setScores] = useState<Score[]>([]);
   const [behaviors, setBehaviors] = useState<BehaviorRating[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [ratingCategories, setRatingCategories] = useState<RatingCategory[]>([]);
 
   // Teacher View State
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -68,6 +70,17 @@ const AppContent: React.FC = () => {
   const t = TRANSLATIONS[lang];
   const navigate = useNavigate();
   const location = useLocation();
+
+  const refreshRatingCategories = useCallback(async () => {
+    try {
+      const categories = await api.fetchRatingCategories();
+      setRatingCategories(categories);
+      return categories;
+    } catch (error) {
+      console.error('Failed to fetch rating categories:', error);
+      return [];
+    }
+  }, []);
 
   // Restore session on app initialization
   useEffect(() => {
@@ -123,6 +136,9 @@ const AppContent: React.FC = () => {
           setScores(sc);
           setBehaviors(beh);
           setLocations(loc);
+          await refreshRatingCategories();
+          // Use backend sessions as-is (no auto-generation)
+          setSessions(sess);
         } catch (error) {
           console.error('Failed to fetch data:', error);
           // If unauthorized, logout
@@ -132,7 +148,7 @@ const AppContent: React.FC = () => {
         }
     };
     initData();
-  }, [user, mustChangePassword]);
+  }, [user, mustChangePassword, refreshRatingCategories]);
 
   // Filter Classes for Teacher (Match by Email as UserID might differ from TeacherID)
   const teacherClasses = useMemo(() => {
@@ -143,6 +159,12 @@ const AppContent: React.FC = () => {
     const teacher = safeTeachers.find(t => t.email === user.email);
     return teacher ? safeClasses.filter(c => c.teacherId === teacher.id) : [];
   }, [user, teachers, classes]);
+
+  const currentTeacher = useMemo(() => {
+    if (!user || user.role !== 'TEACHER') return null;
+    const safeTeachers = Array.isArray(teachers) ? teachers : [];
+    return safeTeachers.find(t => t.email === user.email) || null;
+  }, [user, teachers]);
 
   // Auto-select class logic
   useEffect(() => {
@@ -291,10 +313,10 @@ const AppContent: React.FC = () => {
       )}
 
       <main className={cn(
-        "flex-1 transition-all duration-300 ease-in-out p-4 md:p-8 pt-20 md:pt-8",
+        "flex-1 transition-all duration-300 ease-in-out p-4 md:p-8 pt-20 md:pt-8 overflow-x-hidden",
         user ? (isSidebarCollapsed ? "md:ml-16" : "md:ml-64") : ""
       )}>
-        <div className="max-w-7xl mx-auto">
+        <div className={cn("mx-auto w-full", location.pathname === "/reports" ? "max-w-full" : "max-w-7xl")}>
             <Routes>
                 {/* Public Route */}
                 <Route path="/login" element={!user ? <Login onLogin={handleLogin} lang={lang} toggleLang={() => setLang(l => l === 'en' ? 'zh' : 'en')} /> : <Navigate to="/" />} />
@@ -329,7 +351,7 @@ const AppContent: React.FC = () => {
                 {/* HQ Routes */}
                 <Route path="/dashboard" element={
                     <ProtectedRoute user={user}>
-                        {user?.role === 'HQ' ? <HQDashboard t={t} students={students} classes={classes} locations={locations} /> : <Navigate to="/" />}
+                        {user?.role === 'HQ' ? <HQDashboard t={t} students={students} classes={classes} locations={locations} ratingCategories={ratingCategories} /> : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
                 <Route path="/teachers" element={
@@ -339,17 +361,33 @@ const AppContent: React.FC = () => {
                 } />
                 <Route path="/students" element={
                     <ProtectedRoute user={user}>
-                        {user?.role === 'HQ' ? <Students t={t} students={students} setStudents={setStudents} classes={classes} scores={scores} sessions={sessions} attendance={attendance} behaviors={behaviors} /> : <Navigate to="/" />}
+                        {user?.role === 'HQ' ? <Students t={t} students={students} setStudents={setStudents} classes={classes} scores={scores} sessions={sessions} attendance={attendance} behaviors={behaviors} teachers={teachers} ratingCategories={ratingCategories} /> : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
                 <Route path="/classes" element={
                     <ProtectedRoute user={user}>
-                        {user?.role === 'HQ' ? <Classes t={t} classes={classes} setClasses={setClasses} teachers={teachers} students={students} sessions={sessions} setSessions={setSessions} attendance={attendance} scores={scores} locations={locations} /> : <Navigate to="/" />}
+                        {user?.role === 'HQ' ? <Classes t={t} classes={classes} setClasses={setClasses} teachers={teachers} students={students} sessions={sessions} setSessions={setSessions} locations={locations} /> : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
                 <Route path="/locations" element={
                     <ProtectedRoute user={user}>
                         {user?.role === 'HQ' ? <Locations t={t} locations={locations} setLocations={setLocations} classes={classes} /> : <Navigate to="/" />}
+                    </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                    <ProtectedRoute user={user}>
+                        {user?.role === 'HQ' ? (
+                            <SettingsPage
+                                t={t}
+                                students={students}
+                                sessions={sessions}
+                                teachers={teachers}
+                                behaviors={behaviors}
+                                setBehaviors={setBehaviors}
+                                ratingCategories={ratingCategories}
+                                refreshRatingCategories={refreshRatingCategories}
+                            />
+                        ) : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
 
@@ -359,10 +397,11 @@ const AppContent: React.FC = () => {
                          {user?.role === 'TEACHER' ? <ScoreInput 
                             t={t} 
                             students={students} 
-                            classes={teacherClasses} 
-                            selectedClassId={selectedClassId}
-                            onSelectClass={setSelectedClassId}
-                            onShowToast={setToastMessage}
+                         classes={teacherClasses} 
+                          selectedClassId={selectedClassId}
+                          onSelectClass={setSelectedClassId}
+                          onShowToast={setToastMessage}
+                          teacher={currentTeacher}
                          /> : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
@@ -372,12 +411,15 @@ const AppContent: React.FC = () => {
                             t={t} 
                             classes={teacherClasses} 
                             selectedClassId={selectedClassId}
-                            onSelectClass={setSelectedClassId}
-                            sessions={sessions}
-                            setSessions={setSessions}
-                            students={students}
-                            behaviors={behaviors}
-                            setBehaviors={setBehaviors}
+                         onSelectClass={setSelectedClassId}
+                         sessions={sessions}
+                         setSessions={setSessions}
+                         students={students}
+                         behaviors={behaviors}
+                         setBehaviors={setBehaviors}
+                         attendance={attendance}
+                         setAttendance={setAttendance}
+                         ratingCategories={ratingCategories}
                          /> : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
@@ -385,16 +427,18 @@ const AppContent: React.FC = () => {
                 {/* Shared/Parent Routes */}
                 <Route path="/reports" element={
                     <ProtectedRoute user={user}>
-                         <StudentReport 
-                           user={user!} 
-                           t={t} 
-                           students={user?.role === 'PARENT' ? students.filter(s => s.parentId === user.id) : students} 
-                           classes={classes} 
-                           scores={scores} 
-                           behaviors={behaviors}
-                           sessions={sessions}
-                           attendance={attendance}
-                         />
+                        <StudentReport 
+                          user={user!} 
+                          t={t} 
+                          students={user?.role === 'PARENT' ? students.filter(s => s.parentId === user.id) : students} 
+                          classes={classes} 
+                          scores={scores} 
+                          behaviors={behaviors}
+                          sessions={sessions}
+                          attendance={attendance}
+                          teachers={teachers}
+                          ratingCategories={ratingCategories}
+                        />
                     </ProtectedRoute>
                 } />
 

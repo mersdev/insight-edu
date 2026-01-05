@@ -20,7 +20,7 @@ export async function handleGetSessions({ db, corsHeaders }) {
 
 export async function handleCreateSession({ body, db, corsHeaders }) {
   try {
-    const { id, classId, date, startTime, type, status, targetStudentIds } = body;
+    const { id, classId, date, startTime, durationMinutes, type, status, targetStudentIds } = body;
 
     if (!id || !classId || !date || !startTime || !type || !status) {
       return jsonResponse(
@@ -31,8 +31,17 @@ export async function handleCreateSession({ body, db, corsHeaders }) {
     }
 
     await db
-      .prepare('INSERT INTO sessions (id, class_id, date, start_time, type, status, target_student_ids) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, classId, date, startTime, type, status, targetStudentIds ? JSON.stringify(targetStudentIds) : null)
+      .prepare('INSERT INTO sessions (id, class_id, date, start_time, duration_minutes, type, status, target_student_ids) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(
+        id,
+        classId,
+        date,
+        startTime,
+        typeof durationMinutes === 'number' && !Number.isNaN(durationMinutes) ? durationMinutes : 60,
+        type,
+        status,
+        targetStudentIds ? JSON.stringify(targetStudentIds) : null
+      )
       .run();
 
     const created = await db
@@ -81,11 +90,20 @@ export async function handleGetSession({ params, db, corsHeaders }) {
 export async function handleUpdateSession({ params, body, db, corsHeaders }) {
   const sessionId = params.id;
   try {
-    const { classId, date, startTime, type, status, targetStudentIds } = body;
+    const { classId, date, startTime, durationMinutes, type, status, targetStudentIds } = body;
 
     await db
-      .prepare('UPDATE sessions SET class_id = ?, date = ?, start_time = ?, type = ?, status = ?, target_student_ids = ? WHERE id = ?')
-      .bind(classId, date, startTime, type, status, targetStudentIds ? JSON.stringify(targetStudentIds) : null, sessionId)
+      .prepare('UPDATE sessions SET class_id = ?, date = ?, start_time = ?, duration_minutes = ?, type = ?, status = ?, target_student_ids = ? WHERE id = ?')
+      .bind(
+        classId,
+        date,
+        startTime,
+        typeof durationMinutes === 'number' && !Number.isNaN(durationMinutes) ? durationMinutes : 60,
+        type,
+        status,
+        targetStudentIds ? JSON.stringify(targetStudentIds) : null,
+        sessionId
+      )
       .run();
 
     const updated = await db

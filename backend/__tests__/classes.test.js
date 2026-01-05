@@ -47,9 +47,9 @@ describe('Classes API', () => {
 
       const mathClass = data.find((c) => c.id === 'c1');
       expect(mathClass).toBeDefined();
-      expect(mathClass.name).toBe('Grade 10 Mathematics A');
+      expect(mathClass.name).toBe('Form 4 Mathematics A');
       expect(mathClass.teacherId).toBe('t1');
-      expect(mathClass.defaultSchedule).toEqual({ dayOfWeek: 'Monday', time: '09:00' });
+      expect(mathClass.defaultSchedule).toEqual({ days: ['Monday'], time: '09:00', durationMinutes: 60 });
     });
   });
 
@@ -67,17 +67,17 @@ describe('Classes API', () => {
         body: JSON.stringify({
           id: classId,
           name: 'API Created Class',
-          grade: '11',
+          grade: 'Form 5',
           teacherId: 't1',
           locationId: 'l1',
-          defaultSchedule: { dayOfWeek: 'Friday', time: '14:30' },
+          defaultSchedule: { days: ['Friday'], time: '14:30', durationMinutes: 90 },
         }),
       });
 
       const response = await worker.fetch(request, mockEnv, mockCtx);
       expect(response.status).toBe(201);
       const created = await response.json();
-      expect(created.defaultSchedule).toEqual({ dayOfWeek: 'Friday', time: '14:30' });
+      expect(created.defaultSchedule).toEqual({ days: ['Friday'], time: '14:30', durationMinutes: 90 });
 
       const getRequest = new Request(`http://localhost/api/v1/admin/classes/${classId}`, {
         method: 'GET',
@@ -87,7 +87,7 @@ describe('Classes API', () => {
       const getResponse = await worker.fetch(getRequest, mockEnv, mockCtx);
       expect(getResponse.status).toBe(200);
       const persisted = await getResponse.json();
-      expect(persisted.defaultSchedule).toEqual({ dayOfWeek: 'Friday', time: '14:30' });
+      expect(persisted.defaultSchedule).toEqual({ days: ['Friday'], time: '14:30', durationMinutes: 90 });
     });
 
     test('should return a normalized default schedule when not provided', async () => {
@@ -103,7 +103,7 @@ describe('Classes API', () => {
         body: JSON.stringify({
           id: classId,
           name: 'API Class Without Schedule',
-          grade: '12',
+        grade: 'Form 6',
           teacherId: 't1',
           locationId: 'l1',
         }),
@@ -112,7 +112,7 @@ describe('Classes API', () => {
       const response = await worker.fetch(request, mockEnv, mockCtx);
       expect(response.status).toBe(201);
       const created = await response.json();
-      expect(created.defaultSchedule).toEqual({ dayOfWeek: null, time: null });
+      expect(created.defaultSchedule).toEqual({ days: [], time: null, durationMinutes: 60 });
 
       const getRequest = new Request(`http://localhost/api/v1/admin/classes/${classId}`, {
         method: 'GET',
@@ -122,7 +122,7 @@ describe('Classes API', () => {
       const getResponse = await worker.fetch(getRequest, mockEnv, mockCtx);
       expect(getResponse.status).toBe(200);
       const persisted = await getResponse.json();
-      expect(persisted.defaultSchedule).toEqual({ dayOfWeek: null, time: null });
+      expect(persisted.defaultSchedule).toEqual({ days: [], time: null, durationMinutes: 60 });
     });
   });
 });

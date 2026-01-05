@@ -29,18 +29,28 @@ export interface Student {
   relationship?: string;
   emergencyContact?: string;
   parentEmail?: string;
+  address?: string;
 }
 
 export interface Teacher {
   id: string;
   name: string;
   email: string;
-  subject: string;
+  subject?: string;
+  subjects: string[];
+  levels: string[];
   // New Fields
   englishName?: string;
   chineseName?: string;
   phone?: string;
   description?: string;
+}
+
+export interface RatingCategory {
+  id: number;
+  name: string;
+  description?: string | null;
+  createdAt?: string;
 }
 
 export interface ClassGroup {
@@ -50,8 +60,9 @@ export interface ClassGroup {
   locationId: string;
   grade: string;
   defaultSchedule?: {
-    dayOfWeek: string; // 'Monday', 'Tuesday', etc.
-    time: string; // '14:00'
+    days: string[]; // e.g. ['Monday', 'Wednesday']
+    time: string | null;
+    durationMinutes: number;
   }
 }
 
@@ -63,6 +74,7 @@ export interface Session {
   type: 'REGULAR' | 'SPECIAL';
   status: 'SCHEDULED' | 'CANCELLED' | 'COMPLETED';
   targetStudentIds?: string[]; // If empty, applies to all
+  durationMinutes?: number;
 }
 
 export interface AttendanceRecord {
@@ -79,14 +91,17 @@ export interface Score {
   subject: string;
   value: number; // 0-100
   type: 'EXAM' | 'HOMEWORK' | 'QUIZ' | 'PRESENTATION' | 'LAB';
+  teacherId?: string;
 }
 
 export interface BehaviorRating {
+  id?: number;
   studentId: string;
   sessionId?: string; // Added to link behavior to a specific session
   date: string;
-  category: 'Attention' | 'Participation' | 'Homework' | 'Behavior' | 'Practice';
+  category: string;
   rating: number; // 1-5
+  teacherId?: string;
 }
 
 export interface Insight {

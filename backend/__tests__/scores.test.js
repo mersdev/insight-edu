@@ -30,5 +30,37 @@ describe('Scores API', () => {
       expect(Array.isArray(data)).toBe(true);
     });
   });
-});
 
+  describe('POST /api/v1/teacher/scores', () => {
+    test('should create a score record and return it', async () => {
+      const token = createToken('t1', 'sarahjenkins@edu.com', 'TEACHER');
+      const newScore = {
+        studentId: 's1',
+        date: '2025-05-01',
+        subject: 'Mathematics',
+        value: 94,
+        type: 'EXAM',
+        teacherId: 't1',
+      };
+
+      const request = new Request('http://localhost/api/v1/teacher/scores', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newScore),
+      });
+
+      const response = await worker.fetch(request, mockEnv, mockCtx);
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body).toMatchObject({
+        studentId: newScore.studentId,
+        subject: newScore.subject,
+        value: newScore.value,
+        type: newScore.type,
+      });
+    });
+  });
+});

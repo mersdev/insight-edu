@@ -62,10 +62,11 @@ describe('API Integration - Teachers', () => {
 
   describe('POST /api/teachers', () => {
     it('should create a new teacher with valid data and allow login', () => {
+      const timestamp = Date.now();
       const newTeacher = {
-        id: `t_test_${Date.now()}`,
+        id: `t_test_${timestamp}`,
         name: 'Test Teacher',
-        email: `dehoulworker+testteacher${Date.now()}@gmail.com`,
+        email: `testteacher${timestamp}@test.com`,
         subject: 'Mathematics',
         englishName: 'Test Teacher',
         chineseName: '测试老师',
@@ -108,7 +109,7 @@ describe('API Integration - Teachers', () => {
         body: {
           id: 't_test',
           name: 'Test',
-          email: 'test@edu.com'
+          email: 'test@test.com'
         },
         failOnStatusCode: false
       }).then((response) => {
@@ -125,7 +126,7 @@ describe('API Integration - Teachers', () => {
       const newTeacher = {
         id: `t_delete_${Date.now()}`,
         name: 'Teacher To Delete',
-        email: `delete.${Date.now()}@edu.com`,
+        email: `delete.${Date.now()}@test.com`,
         subject: 'Science'
       };
 

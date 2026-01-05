@@ -150,27 +150,28 @@ describe('Frontend <-> Backend Integration', () => {
             url: `${apiUrl}/admin/teachers`,
             headers: { Authorization: `Bearer ${adminToken}` },
           }).then((teachersResponse) => {
-            const teacher = teachersResponse.body.find((t: { email: string }) => t.email === 'dehoulworker+sarahjenkins@gmail.com');
+            const teacher = teachersResponse.body.find((t: { email: string }) => t.email === 'sarahjenkins@edu.com');
             expect(teacher).to.exist;
 
             classId = `c_test_${timestamp}`;
 
-            cy.request({
-              method: 'POST',
-              url: `${apiUrl}/admin/classes`,
-              headers: { Authorization: `Bearer ${adminToken}` },
-              body: {
-                id: classId,
-                name: className,
-                grade: '10',
-                teacherId: teacher.id,
-                locationId,
-                defaultSchedule: {
-                  dayOfWeek: 'Monday',
-                  time: '09:00',
+              cy.request({
+                method: 'POST',
+                url: `${apiUrl}/admin/classes`,
+                headers: { Authorization: `Bearer ${adminToken}` },
+                body: {
+                  id: classId,
+                  name: className,
+                  grade: 'Form 4',
+                  teacherId: teacher.id,
+                  locationId,
+                  defaultSchedule: {
+                    days: ['Monday'],
+                    time: '09:00',
+                    durationMinutes: 60,
+                  },
                 },
-              },
-            }).then(() => {
+              }).then(() => {
               targetStudentName = `Cypress Student ${timestamp}`;
               studentId = `s_test_${timestamp}`;
 

@@ -1,7 +1,8 @@
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase } from '../utils/casing.js';
 
-const EMPTY_SCHEDULE = { dayOfWeek: null, time: null };
+const EMPTY_SCHEDULE = { days: [], time: null, durationMinutes: 60 };
+const VALID_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function normalizeDefaultSchedule(schedule) {
   let scheduleValue = schedule;
@@ -18,9 +19,28 @@ function normalizeDefaultSchedule(schedule) {
     return { ...EMPTY_SCHEDULE };
   }
 
+  const rawDays = Array.isArray(scheduleValue.days)
+    ? scheduleValue.days
+    : typeof scheduleValue.dayOfWeek === 'string'
+      ? [scheduleValue.dayOfWeek]
+      : [];
+
+  const cleanedDays = Array.from(new Set(rawDays))
+    .map((day) => (typeof day === 'string' ? day.trim() : ''))
+    .filter((day) => VALID_DAYS.includes(day));
+
+  const time = typeof scheduleValue.time === 'string' && scheduleValue.time.trim()
+    ? scheduleValue.time.trim()
+    : null;
+
+  const durationMinutes = typeof scheduleValue.durationMinutes === 'number' && !Number.isNaN(scheduleValue.durationMinutes)
+    ? Math.max(0, scheduleValue.durationMinutes)
+    : 60;
+
   return {
-    dayOfWeek: scheduleValue.dayOfWeek ?? null,
-    time: scheduleValue.time ?? null,
+    days: cleanedDays,
+    time,
+    durationMinutes,
   };
 }
 

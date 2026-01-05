@@ -9,7 +9,8 @@ import { handleGetStudents, handleCreateStudent, handleUpdateStudent, handleDele
 import { handleGetSessions, handleCreateSession, handleGetSession, handleUpdateSession, handleUpdateSessionStatus, handleDeleteSession } from './handlers/sessions.js';
 import { handleGetAttendance, handleCreateAttendance } from './handlers/attendance.js';
 import { handleGetScores, handleCreateScore } from './handlers/scores.js';
-import { handleGetBehaviors, handleCreateBehavior } from './handlers/behaviors.js';
+import { handleGetBehaviors, handleCreateBehavior, handleUpdateBehavior, handleDeleteBehavior } from './handlers/behaviors.js';
+import { handleGetRatingCategories, handleCreateRatingCategory, handleUpdateRatingCategory, handleDeleteRatingCategory } from './handlers/ratingCategories.js';
 import { handleGetStudentInsight, handleSaveStudentInsight } from './handlers/studentInsights.js';
 
 const API_PREFIX = '/api/v1';
@@ -44,8 +45,13 @@ export const AUTH_ROUTES = new Map([
   [`POST ${TEACHER_PREFIX}/attendance`, handleCreateAttendance],
   [`GET ${TEACHER_PREFIX}/scores`, handleGetScores],
   [`POST ${TEACHER_PREFIX}/scores`, handleCreateScore],
+  [`GET ${ADMIN_PREFIX}/behaviors`, handleGetBehaviors],
+  [`POST ${ADMIN_PREFIX}/behaviors`, handleCreateBehavior],
   [`GET ${TEACHER_PREFIX}/behaviors`, handleGetBehaviors],
   [`POST ${TEACHER_PREFIX}/behaviors`, handleCreateBehavior],
+  [`GET ${ADMIN_PREFIX}/rating-categories`, handleGetRatingCategories],
+  [`POST ${ADMIN_PREFIX}/rating-categories`, handleCreateRatingCategory],
+  [`GET ${TEACHER_PREFIX}/rating-categories`, handleGetRatingCategories],
   [`POST ${TEACHER_PREFIX}/student-insights`, handleSaveStudentInsight],
 ]);
 
@@ -63,6 +69,8 @@ const PARAM_ROUTES = [
   { method: 'DELETE', pattern: new RegExp(`^${ADMIN_PREFIX}/classes/([^/]+)$`), handler: handleDeleteClass },
   { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/students/([^/]+)$`), handler: handleUpdateStudent },
   { method: 'DELETE', pattern: new RegExp(`^${ADMIN_PREFIX}/students/([^/]+)$`), handler: handleDeleteStudent },
+  { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/behaviors/([^/]+)$`), handler: handleUpdateBehavior },
+  { method: 'DELETE', pattern: new RegExp(`^${ADMIN_PREFIX}/behaviors/([^/]+)$`), handler: handleDeleteBehavior },
   { method: 'GET', pattern: new RegExp(`^${ADMIN_PREFIX}/sessions/([^/]+)$`), handler: handleGetSession },
   { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/sessions/([^/]+)$`), handler: handleUpdateSession },
   { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/sessions/([^/]+)/status$`), handler: handleUpdateSessionStatus },
@@ -72,6 +80,9 @@ const PARAM_ROUTES = [
   { method: 'PUT', pattern: new RegExp(`^${TEACHER_PREFIX}/sessions/([^/]+)/status$`), handler: handleUpdateSessionStatus },
   { method: 'DELETE', pattern: new RegExp(`^${TEACHER_PREFIX}/sessions/([^/]+)$`), handler: handleDeleteSession },
   { method: 'GET', pattern: new RegExp(`^${TEACHER_PREFIX}/student-insights/([^/]+)$`), handler: handleGetStudentInsight },
+  { method: 'GET', pattern: new RegExp(`^${ADMIN_PREFIX}/student-insights/([^/]+)$`), handler: handleGetStudentInsight },
+  { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/rating-categories/([^/]+)$`), handler: handleUpdateRatingCategory },
+  { method: 'DELETE', pattern: new RegExp(`^${ADMIN_PREFIX}/rating-categories/([^/]+)$`), handler: handleDeleteRatingCategory },
 ];
 
 export function getRouteKey(method, pathname) {

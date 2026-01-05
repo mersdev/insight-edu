@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Trash2, Plus, MapPin, Search, ArrowUpDown, Sparkles } from 'lucide-react';
+import { Trash2, Plus, MapPin, Search, ArrowUpDown, Sparkles, Edit3 } from 'lucide-react';
 import { Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge } from '../../components/ui';
 import { Location, ClassGroup } from '../../types';
 import { api } from '../../services/backendApi';
@@ -19,6 +19,7 @@ export const Locations: React.FC<LocationsProps> = ({ t, locations, setLocations
   const [newLocation, setNewLocation] = useState<Partial<Location>>({ 
     name: '', address: '' 
   });
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   
   // Search and Sort State
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,22 +39,56 @@ export const Locations: React.FC<LocationsProps> = ({ t, locations, setLocations
     }
   };
 
-  const handleAdd = async () => {
-    if (newLocation.name) {
-      const location = await api.createLocation({
-        id: `l${Date.now()}`,
-        name: newLocation.name,
-        address: newLocation.address || ''
-      } as Location);
-
-      setLocations([...locations, location]);
-      setNewLocation({ name: '', address: '' });
-      setDialogOpen(false);
+  const handleSaveLocation = async () => {
+    const trimmedName = newLocation.name?.trim();
+    if (!trimmedName) {
+      setErrorDialog('Location name is required.');
+      return;
     }
+
+    try {
+      if (editingLocation) {
+        const updated = await api.updateLocation({
+          ...editingLocation,
+          name: trimmedName,
+          address: newLocation.address?.trim() || ''
+        });
+        setLocations(locations.map((loc) => (loc.id === updated.id ? updated : loc)));
+      } else {
+        const location = await api.createLocation({
+          id: `l${Date.now()}`,
+          name: trimmedName,
+          address: newLocation.address?.trim() || ''
+        } as Location);
+        setLocations([...locations, location]);
+      }
+      closeLocationDialog();
+    } catch (error) {
+      console.error('Failed to save location', error);
+      setErrorDialog('Unable to save location. Please try again.');
+    }
+  };
+
+  const openLocationDialog = (location?: Location) => {
+    if (location) {
+      setEditingLocation(location);
+      setNewLocation({ name: location.name, address: location.address || '' });
+    } else {
+      setEditingLocation(null);
+      setNewLocation({ name: '', address: '' });
+    }
+    setDialogOpen(true);
+  };
+
+  const closeLocationDialog = () => {
+    setDialogOpen(false);
+    setEditingLocation(null);
+    setNewLocation({ name: '', address: '' });
   };
 
   const handleAutoFillLocation = () => {
     const location = getRandomItem(malaysianLocations);
+    setEditingLocation(null);
     setNewLocation({
       name: location.name,
       address: location.address,
@@ -76,7 +111,7 @@ export const Locations: React.FC<LocationsProps> = ({ t, locations, setLocations
       <div className="flex items-center justify-between flex-wrap gap-2">
          <h1 className="text-3xl font-bold tracking-tight">{t.locations}</h1>
          <div className="flex gap-2">
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={() => openLocationDialog()}>
                 <Plus className="mr-2 h-4 w-4" /> {t.add}
             </Button>
          </div>
@@ -133,9 +168,19 @@ export const Locations: React.FC<LocationsProps> = ({ t, locations, setLocations
                             </div>
                         </TableCell>
                         <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(loc.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openLocationDialog(loc)}
+                              className="text-primary hover:text-primary hover:bg-primary/10"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(loc.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                     </TableRow>
                 );
@@ -151,8 +196,8 @@ export const Locations: React.FC<LocationsProps> = ({ t, locations, setLocations
 
       <Dialog
         isOpen={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
-        title={t.addNewLocation}
+        onClose={closeLocationDialog}
+        title={editingLocation ? `${t.edit} Location` : t.addNewLocation}
         footer={
           <div className="flex items-center justify-between w-full">
             <Button
@@ -164,8 +209,8 @@ export const Locations: React.FC<LocationsProps> = ({ t, locations, setLocations
               {t.autoFill}
             </Button>
             <div className="flex gap-2">
-              <Button onClick={handleAdd}>{t.save}</Button>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>{t.cancel}</Button>
+              <Button onClick={handleSaveLocation}>{editingLocation ? 'Update' : t.save}</Button>
+              <Button variant="outline" onClick={closeLocationDialog}>{t.cancel}</Button>
             </div>
           </div>
         }

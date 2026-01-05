@@ -1,8 +1,10 @@
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
+import { ensureDefaultLocations } from '../utils/defaultLocations.js';
 
 export async function handleGetLocations({ db, corsHeaders }) {
   try {
+    await ensureDefaultLocations(db);
     const locations = await db
       .prepare('SELECT * FROM locations ORDER BY id')
       .all();

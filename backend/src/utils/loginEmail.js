@@ -5,6 +5,6 @@ const sanitizeName = (value = '') => {
 
 export const formatNotificationEmail = (name = '', role = '') => {
   const suffix = role ? `-${role.toLowerCase()}` : '';
-  const localPart = `dehoulworker+${sanitizeName(`${name}${suffix}`)}`;
-  return `${localPart}@gmail.com`;
+  const localPart = sanitizeName(`${name}${suffix}`);
+  return `${localPart}@edu.com`;
 };

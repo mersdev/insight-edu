@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save, Edit2 } from 'lucide-react';
 import { Button, Card, Input, Dialog, Select, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
-import { Student, ClassGroup, Score } from '../../types';
+import { Student, ClassGroup, Score, Teacher } from '../../types';
 import { api } from '../../services/backendApi';
 
 interface ScoreInputProps {
@@ -12,12 +12,15 @@ interface ScoreInputProps {
   selectedClassId: string;
   onSelectClass: (id: string) => void;
   onShowToast: (message: string) => void;
+  teacher?: Teacher | null;
 }
 
-export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, selectedClassId, onSelectClass, onShowToast }) => {
+export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, selectedClassId, onSelectClass, onShowToast, teacher }) => {
   const [scoreColumns, setScoreColumns] = useState(['Exam 1']);
+  const [columnTypes, setColumnTypes] = useState<Record<string, Score['type']>>({ 'Exam 1': 'EXAM' });
   const [isAddColOpen, setAddColOpen] = useState(false);
   const [newColName, setNewColName] = useState('');
+  const [newColType, setNewColType] = useState<Score['type']>('EXAM');
 
   // State for scores: { studentId: { colName: value } }
   const [scores, setScores] = useState<Record<string, Record<string, string>>>({});
@@ -39,28 +42,54 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
 
         // Filter scores for students in the selected class
         const classStudentIds = classStudents.map(s => s.id);
-        const classScores = allScores.filter(score => classStudentIds.includes(score.studentId));
+        const classScores = allScores.filter(score => {
+          if (!classStudentIds.includes(score.studentId)) return false;
+          if (teacher?.id) {
+            return score.teacherId === teacher.id;
+          }
+          return true;
+        });
 
-        // Get today's date
-        const today = new Date().toISOString().split('T')[0];
-
-        // Group scores by student and subject
-        const scoresMap: Record<string, Record<string, string>> = {};
+        // Group scores by student and subject, keeping the most recent entry per subject
+        const scoresMap: Record<string, Record<string, { value: string; date?: string }>> = {};
         const subjectsSet = new Set<string>();
+        const subjectTypeMap: Record<string, Score['type']> = {};
 
         classScores.forEach(score => {
-          // Only load today's scores
-          if (score.date === today) {
-            if (!scoresMap[score.studentId]) {
-              scoresMap[score.studentId] = {};
-            }
-            scoresMap[score.studentId][score.subject] = score.value.toString();
-            subjectsSet.add(score.subject);
+          if (!scoresMap[score.studentId]) {
+            scoresMap[score.studentId] = {};
+          }
+
+          const existing = scoresMap[score.studentId][score.subject];
+          const isNewer = existing?.date
+            ? new Date(score.date || 0).getTime() >= new Date(existing.date || 0).getTime()
+            : true;
+
+          if (!existing || isNewer) {
+            scoresMap[score.studentId][score.subject] = {
+              value: score.value.toString(),
+              date: score.date,
+            };
+          }
+          subjectsSet.add(score.subject);
+          if (!subjectTypeMap[score.subject]) {
+            subjectTypeMap[score.subject] = score.type || 'EXAM';
           }
         });
 
         // Update state
-        setScores(scoresMap);
+        const flattenedScores: Record<string, Record<string, string>> = {};
+        Object.entries(scoresMap).forEach(([studentId, subjectMap]) => {
+          flattenedScores[studentId] = {};
+          Object.entries(subjectMap).forEach(([subject, entry]) => {
+            flattenedScores[studentId][subject] = entry.value;
+          });
+        });
+        setScores(flattenedScores);
+        setColumnTypes((prev) => ({
+          ...prev,
+          ...subjectTypeMap,
+        }));
 
         // Update columns if we have subjects from loaded scores
         if (subjectsSet.size > 0) {
@@ -77,7 +106,7 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
     if (selectedClassId && classStudents.length > 0) {
       loadScores();
     }
-  }, [selectedClassId, classStudents.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedClassId, classStudents.length, teacher?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trigger Toast when entering Read Mode
   useEffect(() => {
@@ -89,7 +118,9 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
   const handleAddColumn = () => {
     if (newColName) {
       setScoreColumns([...scoreColumns, newColName]);
+      setColumnTypes(prev => ({ ...prev, [newColName]: newColType }));
       setNewColName('');
+      setNewColType('EXAM');
       setAddColOpen(false);
     }
   };
@@ -118,6 +149,13 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
   const handleSaveScores = async () => {
     try {
       const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const storedSession = api.getStoredSession();
+      const teacherId = teacher?.id || storedSession?.user?.id;
+      if (!teacherId) {
+        onShowToast("Unable to identify the current tutor.");
+        return;
+      }
+
       const scoresToSave: Score[] = [];
 
       // Transform the scores object into an array of Score objects
@@ -130,7 +168,8 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
               date: currentDate,
               subject: columnName,
               value: parseInt(value, 10),
-              type: getScoreType(columnName)
+              type: columnTypes[columnName] || getScoreType(columnName),
+              teacherId
             });
           }
         });
@@ -180,27 +219,6 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
             </div>
         )}
 
-        {/* Controls - EDIT MODE (Top) */}
-        {!isLoading && viewMode === 'EDIT' && (
-            <div className="flex gap-3 mb-6 animate-in slide-in-from-top-2 fade-in duration-300">
-                 <Button
-                    variant="outline"
-                    className="flex-1 h-12 bg-white border-gray-200 text-foreground hover:bg-gray-50 rounded-xl shadow-sm"
-                    onClick={handleSaveScores}
-                 >
-                    <Save className="w-4 h-4 mr-2" />
-                    {t.saveScore}
-                 </Button>
-                 <Button
-                    onClick={() => setAddColOpen(true)}
-                    className="flex-1 h-12 bg-black text-white hover:bg-black/90 rounded-xl shadow-sm"
-                 >
-                    <Plus className="mr-2 h-4 w-4" />
-                    {t.addCol}
-                 </Button>
-            </div>
-        )}
-
         {/* --- DESKTOP TABLE VIEW --- */}
         {!isLoading && (
         <div className="hidden md:block">
@@ -211,7 +229,12 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                             <TableHead className="w-[300px]">Student Name</TableHead>
                             {scoreColumns.map((col) => (
                                 <TableHead key={col} className="min-w-[150px] text-right">
-                                    {col}
+                                    <div className="flex items-center justify-end gap-2">
+                                      <span>{col}</span>
+                                      <Badge variant="secondary" className="uppercase text-[10px] tracking-wide">
+                                        {columnTypes[col] || 'EXAM'}
+                                      </Badge>
+                                    </div>
                                 </TableHead>
                             ))}
                         </TableRow>
@@ -273,7 +296,12 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                              const scoreVal = scores[student.id]?.[col] || '';
                              return (
                                  <div key={col} className="flex items-center justify-between gap-4">
-                                     <label className="text-base text-gray-600 font-medium">{col}</label>
+                                     <label className="text-base text-gray-600 font-medium flex items-center gap-2">
+                                        <span>{col}</span>
+                                        <Badge variant="secondary" className="uppercase text-[10px] tracking-wide">
+                                          {columnTypes[col] || 'EXAM'}
+                                        </Badge>
+                                     </label>
                                      <div className="relative w-40 sm:w-48">
                                         {viewMode === 'EDIT' ? (
                                             <div className="flex items-center bg-gray-100 rounded-xl px-4 h-12 w-full relative transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5">
@@ -310,6 +338,27 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
         </div>
         )}
 
+        {/* Controls - EDIT MODE (Below table, mobile-first) */}
+        {!isLoading && viewMode === 'EDIT' && (
+            <div className="grid gap-3 mt-6 animate-in slide-in-from-top-2 fade-in duration-300 sm:grid-cols-2">
+                 <Button
+                    onClick={() => setAddColOpen(true)}
+                    className="h-14 bg-black text-white hover:bg-black/90 rounded-2xl shadow-sm w-full flex items-center justify-center font-semibold"
+                 >
+                    <Plus className="mr-3 h-5 w-5" />
+                    {t.addCol}
+                 </Button>
+                 <Button
+                    variant="outline"
+                    className="h-14 bg-white border-gray-200 text-foreground hover:bg-gray-50 rounded-2xl shadow-sm w-full flex items-center justify-center font-semibold"
+                    onClick={handleSaveScores}
+                 >
+                    <Save className="w-5 h-5 mr-3" />
+                    {t.saveScore}
+                 </Button>
+            </div>
+        )}
+
         {/* Controls - READ MODE (Bottom Sticky) */}
         {!isLoading && viewMode === 'READ' && (
              <div className="fixed bottom-16 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 z-30 md:static md:bg-transparent md:border-none md:p-0 md:mt-8 animate-in slide-in-from-bottom-4 duration-300">
@@ -329,7 +378,15 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
             footer={<><Button variant="ghost" onClick={() => setAddColOpen(false)}>{t.cancel}</Button><Button onClick={handleAddColumn}>{t.add}</Button></>}>
             <div className="py-4">
             <label className="block text-sm font-medium mb-2">{t.columnName}</label>
-            <Input value={newColName} onChange={(e) => setNewColName(e.target.value)} placeholder={t.columnNamePlaceholder} autoFocus />
+            <Input value={newColName} onChange={(e) => setNewColName(e.target.value)} placeholder={t.columnNamePlaceholder} autoFocus className="mb-3" />
+            <label className="block text-sm font-medium mb-2">Type</label>
+            <Select value={newColType} onChange={(e) => setNewColType(e.target.value as Score['type'])} className="w-full">
+              <option value="EXAM">Exam</option>
+              <option value="HOMEWORK">Homework</option>
+              <option value="QUIZ">Quiz</option>
+              <option value="LAB">Lab</option>
+              <option value="PRESENTATION">Presentation</option>
+            </Select>
             </div>
         </Dialog>
     </div>

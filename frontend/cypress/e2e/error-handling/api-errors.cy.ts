@@ -95,7 +95,7 @@ describe('Error Handling - API Errors', () => {
         win.localStorage.setItem('userSession', JSON.stringify({
           id: 'expired-user',
           name: 'Expired User',
-          email: 'expired@edu.com',
+        email: 'expired@test.com',
           role: 'HQ'
         }));
       });

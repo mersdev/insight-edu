@@ -147,11 +147,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, lang, toggleLang }) => {
                             <span className="text-[10px] font-bold text-foreground group-hover:text-black mb-0.5">HQ</span>
                             <span className="text-[10px] text-muted-foreground">Admin</span>
                         </button>
-                        <button type="button" onClick={() => demoLogin('dehoulworker+sarahjenkins@gmail.com', '123')} className="flex flex-col items-center justify-center py-2 px-1 border rounded-lg hover:bg-gray-50 transition-all text-center group bg-white shadow-sm">
+                        <button type="button" onClick={() => demoLogin('sarahjenkins@edu.com', '123')} className="flex flex-col items-center justify-center py-2 px-1 border rounded-lg hover:bg-gray-50 transition-all text-center group bg-white shadow-sm">
                             <span className="text-[10px] font-bold text-foreground group-hover:text-black mb-0.5">Teacher</span>
                             <span className="text-[10px] text-muted-foreground">Sarah</span>
                         </button>
-                        <button type="button" onClick={() => demoLogin('dehoulworker+ali@gmail.com', '123')} className="flex flex-col items-center justify-center py-2 px-1 border rounded-lg hover:bg-gray-50 transition-all text-center group bg-white shadow-sm">
+                        <button type="button" onClick={() => demoLogin('ahmad@edu.com', '123')} className="flex flex-col items-center justify-center py-2 px-1 border rounded-lg hover:bg-gray-50 transition-all text-center group bg-white shadow-sm">
                             <span className="text-[10px] font-bold text-foreground group-hover:text-black mb-0.5">Parent</span>
                             <span className="text-[10px] text-muted-foreground">Ali's Dad</span>
                         </button>

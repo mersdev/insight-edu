@@ -29,6 +29,7 @@ describe('User Journey - Reports Viewing', () => {
       // Verify reports page loads
       cy.hash().should('eq', '#/reports');
       cy.contains(/reports/i).should('be.visible');
+      cy.contains(/post class feedback/i).should('be.visible');
     });
 
     it('should display student performance data', () => {
@@ -123,4 +124,3 @@ describe('User Journey - Reports Viewing', () => {
     });
   });
 });
-

@@ -1,7 +1,7 @@
 
 
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Users, GraduationCap, School, LogOut, User as UserIcon, Globe, ChevronLeft, ChevronRight, ClipboardList, FileText, CalendarDays, MapPin } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, School, LogOut, User as UserIcon, Globe, ChevronLeft, ChevronRight, ClipboardList, FileText, CalendarDays, MapPin, Settings } from 'lucide-react';
 import { User } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { Button, cn } from './ui';
@@ -39,6 +39,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           { path: '/students', label: t.students, icon: GraduationCap },
           { path: '/classes', label: t.classes, icon: School },
           { path: '/locations', label: t.locations, icon: MapPin },
+          { path: '/settings', label: t.settings, icon: Settings },
         ];
       case 'TEACHER':
         return [
