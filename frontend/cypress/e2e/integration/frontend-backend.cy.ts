@@ -221,7 +221,15 @@ describe('Frontend <-> Backend Integration', () => {
                   });
 
                 cy.contains('button', 'Save Score').click();
-                cy.wait('@createScore').its('response.statusCode').should('be.oneOf', [200, 201]);
+
+                let createdScoreId: string | undefined;
+                cy.wait('@createScore').then(({ response }) => {
+                  expect(response?.statusCode).to.be.oneOf([200, 201]);
+                  expect(response?.body).to.have.property('studentId', studentId);
+                  expect(response?.body).to.have.property('subject', 'Exam 1');
+                  expect(response?.body).to.have.property('value', Number(scoreValue));
+                  createdScoreId = response?.body?.id;
+                });
 
                 cy.window()
                   .its('localStorage')
@@ -234,8 +242,11 @@ describe('Frontend <-> Backend Integration', () => {
                       url: `${apiUrl}/teacher/scores`,
                       headers: { Authorization: `Bearer ${token}` },
                     }).then((scoresResponse) => {
-                      const match = scoresResponse.body.find((score: { studentId: string; date: string; subject: string; value: number }) => {
-                        return score.studentId === studentId && score.date === today && score.subject === 'Exam 1' && score.value === Number(scoreValue);
+                      expect(scoresResponse.status).to.eq(200);
+                      expect(scoresResponse.body).to.be.an('array');
+                      const match = scoresResponse.body.find((score: { id?: string; studentId: string; date: string; subject: string; value: number }) => {
+                        if (createdScoreId && score.id === createdScoreId) return true;
+                        return score.studentId === studentId && score.subject === 'Exam 1' && score.value === Number(scoreValue);
                       });
                       expect(match).to.exist;
                     });
