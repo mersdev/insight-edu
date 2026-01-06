@@ -1,6 +1,8 @@
 
 import { ClassGroup, Student, Teacher, Score, BehaviorRating, Role, Session } from './types';
 
+export const DEFAULT_BEHAVIOR_CATEGORIES = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+
 // Hardcoded Public Holidays (YYYY-MM-DD) until 2029
 export const PUBLIC_HOLIDAYS = [
   // 2024
@@ -37,6 +39,7 @@ export const TRANSLATIONS = {
     students: 'Students',
     classes: 'Class',
     locations: 'Locations',
+    settings: 'Settings',
     reports: 'Reports',
     input: 'Score Input',
     rating: 'Class Rating',
@@ -80,6 +83,7 @@ export const TRANSLATIONS = {
     selectStudent: 'Select a student to view report',
     noData: 'No data available',
     view: 'View',
+    viewStudentReport: 'View Student Report',
     // New Fields
     fullName: 'Full Name',
     englishName: 'English Name',
@@ -151,6 +155,7 @@ export const TRANSLATIONS = {
     phonePlaceholder: "+1 234 567 890",
     subjectPlaceholder: "e.g. Mathematics",
     descPlaceholder: "Brief bio or notes",
+    levels: "Standard / Form",
     deleteTeacherConfirm: "Are you sure you want to delete this teacher?",
     userCreated: "User account created with password '123'",
     hasAccount: "Has Account",
@@ -171,11 +176,22 @@ export const TRANSLATIONS = {
     manageClasses: "Manage Classes",
     enrolledClasses: "Enrolled Classes",
     selectClasses: "Select Classes",
+    locationAddress: "Location / Address",
+    noLocationInfo: "Location / Address not provided",
+    optional: "Optional",
+    examBreakdownBySubject: "Exam Breakdown by Subject",
+    historicalExamScores: "Historical Exam Scores",
+    examTypeBreakdown: "Exam Type Breakdown",
+    averageScore: "Average Score",
+    noExamData: "No exam scores available",
+    typeLabel: "Type",
+    teacherLabel: "Teacher",
+    records: "records",
     // Classes
     addNewClass: "Add New Class",
     className: "Class Name",
-    classNamePlaceholder: "e.g. Grade 10 Math A",
-    gradePlaceholder: "e.g. 10",
+    classNamePlaceholder: "e.g. Form 4 Math A",
+    gradePlaceholder: "e.g. Form 4",
     assignedTeacher: "Assigned Teacher",
     unassigned: "Unassigned",
     deleteClassConfirm: "Are you sure you want to delete this class?",
@@ -183,6 +199,9 @@ export const TRANSLATIONS = {
     time: "Time",
     addSpecialSession: "Add Special Session",
     selectDay: "Select Day",
+    weeklyDays: "Weekly Days",
+    sessionDuration: "Session Duration",
+    durationHelp: "Enter hours (e.g. 1, 1.5, 2) to set how long each session runs.",
     // Sessions
     monday: "Monday",
     tuesday: "Tuesday",
@@ -263,11 +282,36 @@ export const TRANSLATIONS = {
     noStudentFound: "No student data found.",
     pleaseSelectStudent: "Please select a student.",
     sessionsSchedule: "Sessions Schedule",
+    sessionsScheduleFallback: "No sessions scheduled for {current}. Showing {available} instead.",
     adminDetails: "Admin / Emergency Details",
     parentNameLabel: "PARENT NAME",
     emergencyContactLabel: "EMERGENCY CONTACT",
     parentEmailLabel: "PARENT EMAIL",
-    aiAnalysis: "AI Analysis",
+    aiAnalysis: "Learning Suggestions",
+    attendanceSectionTitle: "Attendance",
+    attendanceDescription: "Shows days present, total classes, and attendance rate.",
+    attendanceDaysLabel: "Days Present",
+    attendanceTotalLabel: "Total Scheduled Classes",
+    attendanceRateLabel: "Attendance Rate",
+    schoolExamTitle: "School Exam Scores (Mid-year, Final)",
+    schoolExamDesc: "Highlights school exam performances.",
+    latestExamLabel: "Latest Exam",
+    tutoringQuizTitle: "Centre Quiz / Assessment Scores",
+    tutoringQuizDesc: "Quiz and assessment scores captured at the centre.",
+    latestAssessmentLabel: "Latest Quiz / Assessment",
+    noTutoringAssessments: "No quiz or assessment records available.",
+    postClassFeedbackTitle: "Post-Class Feedback",
+    postClassFeedbackDesc: "Average post-class feedback ratings.",
+    feedbackCoverageLabel: "Feedback Count",
+    feedbackPercentLabel: "Feedback Percentage",
+    learningIndicatorTitle: "Learning Indicator Scores",
+    learningIndicatorDesc: "Vocabulary, grammar, and topic mastery indicators.",
+    learningSuggestionsHint: "Automatically generated insights with actionable next steps.",
+    highLowLabel: "High / Low",
+    assessmentCoverageLabel: "Assessment Coverage",
+    aiPositiveLabel: "Strength",
+    aiNegativeLabel: "Needs Attention",
+    aiOverallLabel: "Summary",
     classRatingTrend: "Class Rating Trend",
     behaviorBreakdown: "Behavior Breakdown",
     noSessionsFound: "No sessions found for this month.",
@@ -290,6 +334,7 @@ export const TRANSLATIONS = {
     students: '学生管理',
     classes: '班级',
     locations: '地点管理',
+    settings: '设置',
     reports: '报告',
     input: '成绩录入',
     rating: '班级评分',
@@ -333,6 +378,7 @@ export const TRANSLATIONS = {
     selectStudent: '选择学生查看报告',
     noData: '暂无数据',
     view: '查看',
+    viewStudentReport: '查看学生报告',
     // New Fields
     fullName: '全名',
     englishName: '英文名',
@@ -403,6 +449,7 @@ export const TRANSLATIONS = {
     emailPlaceholder_teacher: "teacher@example.com",
     phonePlaceholder: "+1 234 567 890",
     subjectPlaceholder: "例如：数学",
+    levels: "Standard / Form",
     descPlaceholder: "简介或备注",
     deleteTeacherConfirm: "确定要删除这位教师吗？",
     userCreated: "已创建用户账号，密码 '123'",
@@ -424,6 +471,17 @@ export const TRANSLATIONS = {
     manageClasses: "管理班级",
     enrolledClasses: "已报班级",
     selectClasses: "选择班级",
+    locationAddress: "地点 / 地址",
+    noLocationInfo: "地点 / 地址未提供",
+    optional: "选填",
+    examBreakdownBySubject: "按科目分解考试成绩",
+    historicalExamScores: "历次考试成绩",
+    examTypeBreakdown: "考试类型分析",
+    averageScore: "平均分",
+    noExamData: "暂无考试成绩",
+    typeLabel: "类型",
+    teacherLabel: "教师",
+    records: "条记录",
     // Classes
     addNewClass: "添加新班级",
     className: "班级名称",
@@ -436,6 +494,9 @@ export const TRANSLATIONS = {
     time: "时间",
     addSpecialSession: "添加特殊课程",
     selectDay: "选择日期",
+    weeklyDays: "每周上课日",
+    sessionDuration: "单节课时长",
+    durationHelp: "请输入小时数（如 1、1.5、2）来设定课程长度。",
     // Sessions
     monday: "星期一",
     tuesday: "星期二",
@@ -516,11 +577,36 @@ export const TRANSLATIONS = {
     noStudentFound: "未找到学生数据。",
     pleaseSelectStudent: "请选择一名学生。",
     sessionsSchedule: "课程安排",
+    sessionsScheduleFallback: "本月 ({current}) 暂无排课，显示 {available} 的记录。",
     adminDetails: "管理员 / 紧急联系详情",
     parentNameLabel: "家长姓名",
     emergencyContactLabel: "紧急联系人",
     parentEmailLabel: "家长邮箱",
-    aiAnalysis: "AI 智能分析",
+    aiAnalysis: "学习建议",
+    attendanceSectionTitle: "出席率",
+    attendanceDescription: "显示出席天数、课程总数与出席率。",
+    attendanceDaysLabel: "出席天数",
+    attendanceTotalLabel: "课程总数",
+    attendanceRateLabel: "出席率",
+    schoolExamTitle: "学校考试成绩（中考、小考）",
+    schoolExamDesc: "展示中考、小考等学校考试成绩重点。",
+    latestExamLabel: "最近一次考试",
+    tutoringQuizTitle: "补习中心的测验 / 评估成绩",
+    tutoringQuizDesc: "补习中心的小测或评估成绩记录。",
+    latestAssessmentLabel: "最近一次测验",
+    noTutoringAssessments: "暂无测验或测评记录。",
+    postClassFeedbackTitle: "课后反馈程度",
+    postClassFeedbackDesc: "课后反馈评级的平均水平。",
+    feedbackCoverageLabel: "反馈数量",
+    feedbackPercentLabel: "反馈比例",
+    learningIndicatorTitle: "各项学习指标",
+    learningIndicatorDesc: "词汇、语法与专题掌握程度指标。",
+    learningSuggestionsHint: "自动生成见解并提供可执行的下一步。",
+    highLowLabel: "最高 / 最低",
+    assessmentCoverageLabel: "测评覆盖",
+    aiPositiveLabel: "亮点",
+    aiNegativeLabel: "需关注",
+    aiOverallLabel: "整体",
     classRatingTrend: "班级评分趋势",
     behaviorBreakdown: "行为细分",
     noSessionsFound: "本月暂无课程。",
@@ -528,39 +614,56 @@ export const TRANSLATIONS = {
 };
 
 // Helper to generate sessions (Logic)
-export const generateScheduleSessions = (classId: string, dayOfWeek: string, time: string): Session[] => {
+export const generateScheduleSessions = (
+  classId: string,
+  schedule?: ClassGroup['defaultSchedule']
+): Session[] => {
+  if (!schedule || !schedule.time || !schedule.days?.length) return [];
+
   const sessions: Session[] = [];
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const targetDayIndex = days.indexOf(dayOfWeek);
-  
-  if (targetDayIndex === -1) return [];
-
-  let currentDate = new Date();
-  // Find next occurrence of the day
-  while (currentDate.getDay() !== targetDayIndex) {
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  // Generate until end of 2029 (approx 5 years)
-  const endDate = new Date('2029-12-31');
+  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const uniqueDays = Array.from(new Set(schedule.days));
+  const validDays = uniqueDays.filter(day => daysOfWeek.includes(day));
+  // Generate only from the current date through the end of the third month ahead
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 3, 0); // last day of current month + 2 months
   let counter = 0;
 
-  while (currentDate <= endDate) {
-    const dateStr = currentDate.toISOString().split('T')[0];
-    const isHoliday = PUBLIC_HOLIDAYS.includes(dateStr);
-    
-    sessions.push({
-      id: `ses_${classId}_${counter}`,
-      classId: classId,
-      date: dateStr,
-      startTime: time,
-      type: 'REGULAR',
-      status: isHoliday ? 'CANCELLED' : 'SCHEDULED'
-    });
+  validDays.forEach((day) => {
+    const targetDayIndex = daysOfWeek.indexOf(day);
+    if (targetDayIndex === -1) return;
 
-    // Next week
-    currentDate.setDate(currentDate.getDate() + 7);
-    counter++;
-  }
+    const iterator = new Date(now);
+    while (iterator.getDay() !== targetDayIndex) {
+      iterator.setDate(iterator.getDate() + 1);
+    }
+
+    const working = new Date(iterator);
+    while (working <= endDate) {
+      const dateStr = working.toISOString().split('T')[0];
+      const isHoliday = PUBLIC_HOLIDAYS.includes(dateStr);
+      const cleanTime = schedule.time.replace(':', '');
+
+      sessions.push({
+        id: `ses_${classId}_${dateStr}_${cleanTime}_${counter++}`,
+        classId,
+        date: dateStr,
+        startTime: schedule.time,
+        type: 'REGULAR',
+        status: isHoliday ? 'CANCELLED' : 'SCHEDULED',
+        durationMinutes: schedule.durationMinutes ?? 60,
+      });
+
+      working.setDate(working.getDate() + 7);
+    }
+  });
+
+  sessions.sort((a, b) => {
+    if (a.date === b.date) {
+      return a.startTime.localeCompare(b.startTime);
+    }
+    return a.date.localeCompare(b.date);
+  });
+
   return sessions;
 };

@@ -1,4 +1,4 @@
-import { User, Teacher, ClassGroup, Student, Session, Score, BehaviorRating, StudentInsightRecord, AttendanceRecord, Location } from '../types';
+import { User, Teacher, ClassGroup, Student, Session, Score, BehaviorRating, StudentInsightRecord, AttendanceRecord, Location, RatingCategory } from '../types';
 
 // Cloudflare Workers endpoint - update this with your actual deployment URL
 const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
@@ -34,24 +34,53 @@ interface ChangePasswordRequest {
 }
 
 // Token and user session management
-let authToken: string | null = localStorage.getItem('authToken');
-
-const setAuthToken = (token: string | null) => {
-  authToken = token;
-  if (token) {
-    localStorage.setItem('authToken', token);
-  } else {
-    localStorage.removeItem('authToken');
+const getBrowserLocalStorage = () => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return window.localStorage;
   }
+  return null;
 };
+
+const storage = {
+  getItem: (key: string) => {
+    const ls = getBrowserLocalStorage();
+    if (ls && typeof ls.getItem === 'function') {
+      return ls.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key: string, value: string) => {
+    const ls = getBrowserLocalStorage();
+    if (ls && typeof ls.setItem === 'function') {
+      ls.setItem(key, value);
+    }
+  },
+  removeItem: (key: string) => {
+    const ls = getBrowserLocalStorage();
+    if (ls && typeof ls.removeItem === 'function') {
+      ls.removeItem(key);
+    }
+  },
+};
+
+let authToken: string | null = storage.getItem('authToken');
+
+  const setAuthToken = (token: string | null) => {
+    authToken = token;
+    if (token) {
+      storage.setItem('authToken', token);
+    } else {
+      storage.removeItem('authToken');
+    }
+  };
 
 // User session management
 const setUserSession = (user: LoginResponse['user']) => {
-  localStorage.setItem('userSession', JSON.stringify(user));
+  storage.setItem('userSession', JSON.stringify(user));
 };
 
 const getUserSession = (): LoginResponse['user'] | null => {
-  const session = localStorage.getItem('userSession');
+    const session = storage.getItem('userSession');
   if (session) {
     try {
       return JSON.parse(session);
@@ -64,7 +93,7 @@ const getUserSession = (): LoginResponse['user'] | null => {
 };
 
 const clearUserSession = () => {
-  localStorage.removeItem('userSession');
+  storage.removeItem('userSession');
 };
 
 const getAuthHeaders = () => {
@@ -103,6 +132,23 @@ const toSnakeCase = (obj: any): any => {
     }, {} as any);
   }
   return obj;
+};
+
+const extractErrorMessage = async (response: Response, fallback: string) => {
+  let message = fallback;
+  try {
+    const errorBody = await response.json();
+    if (errorBody?.message) {
+      message = errorBody.message;
+    } else if (errorBody?.error) {
+      message = `${errorBody.error} ${fallback}`;
+    } else {
+      message = response.statusText || fallback;
+    }
+  } catch {
+    message = response.statusText || fallback;
+  }
+  return message;
 };
 
 export const api = {
@@ -266,6 +312,21 @@ export const api = {
     const data = await response.json();
     return toCamelCase(data);
   },
+  updateLocation: async (location: Location): Promise<Location> => {
+    if (!location.id) {
+      throw new Error('Location ID is required for update.');
+    }
+    const response = await fetch(`${ADMIN_BASE}/locations/${location.id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(location))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update location: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
   deleteLocation: async (id: string): Promise<void> => {
     const response = await fetch(`${ADMIN_BASE}/locations/${id}`, {
       method: 'DELETE',
@@ -299,6 +360,21 @@ export const api = {
     const data = await response.json();
     return toCamelCase(data);
   },
+  updateTeacher: async (teacher: Teacher): Promise<Teacher> => {
+    if (!teacher.id) {
+      throw new Error('Teacher ID is required for update.');
+    }
+    const response = await fetch(`${ADMIN_BASE}/teachers/${teacher.id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(teacher))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update teacher: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
   deleteTeacher: async (id: string): Promise<void> => {
     const response = await fetch(`${ADMIN_BASE}/teachers/${id}`, {
       method: 'DELETE',
@@ -328,6 +404,21 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error(`Failed to create class: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  updateClass: async (cls: ClassGroup): Promise<ClassGroup> => {
+    if (!cls.id) {
+      throw new Error('Class ID is required for update.');
+    }
+    const response = await fetch(`${ADMIN_BASE}/classes/${cls.id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(cls))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update class: ${response.statusText}`);
     }
     const data = await response.json();
     return toCamelCase(data);
@@ -487,5 +578,90 @@ export const api = {
     });
     const data = await response.json();
     return toCamelCase(data);
+  },
+  fetchAdminBehaviors: async (): Promise<BehaviorRating[]> => {
+    const response = await fetch(`${ADMIN_BASE}/behaviors`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch behaviors: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  createAdminBehavior: async (behavior: BehaviorRating): Promise<BehaviorRating> => {
+    const response = await fetch(`${ADMIN_BASE}/behaviors`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(behavior))
+    });
+    if (!response.ok) {
+      const message = await extractErrorMessage(response, response.statusText || 'Unable to create behavior');
+      throw new Error(`Failed to create behavior: ${message}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  updateBehavior: async (behaviorId: number | undefined, updates: Partial<BehaviorRating>): Promise<BehaviorRating> => {
+    if (!behaviorId) {
+      throw new Error('Behavior ID is required for update.');
+    }
+    const response = await fetch(`${ADMIN_BASE}/behaviors/${behaviorId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(updates))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update behavior: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  fetchRatingCategories: async (): Promise<RatingCategory[]> => {
+    const response = await fetch(`${ADMIN_BASE}/rating-categories`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch rating categories: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  createRatingCategory: async (category: Omit<RatingCategory, 'id'>): Promise<RatingCategory> => {
+    const response = await fetch(`${ADMIN_BASE}/rating-categories`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(category))
+    });
+    if (!response.ok) {
+      const message = await extractErrorMessage(response, response.statusText || 'Unable to create rating category');
+      throw new Error(`Failed to create rating category: ${message}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  updateRatingCategory: async (categoryId: number | undefined, updates: Partial<RatingCategory>): Promise<RatingCategory> => {
+    if (!categoryId) {
+      throw new Error('Rating category ID is required for update.');
+    }
+    const response = await fetch(`${ADMIN_BASE}/rating-categories/${categoryId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(toSnakeCase(updates))
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update rating category: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return toCamelCase(data);
+  },
+  deleteRatingCategory: async (categoryId: number): Promise<void> => {
+    const response = await fetch(`${ADMIN_BASE}/rating-categories/${categoryId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete rating category: ${response.statusText}`);
+    }
   }
 };

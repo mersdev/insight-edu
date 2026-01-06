@@ -1,16 +1,17 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trash2, Plus, AlertCircle, CheckCircle, Eye, Phone, Mail, User as UserIcon, MapPin, Search, ArrowUpDown, Download, School, Check, UserCheck, UserX, MoreHorizontal, BookOpen, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Trash2, Plus, Edit3, AlertCircle, CheckCircle, Eye, Phone, Mail, User as UserIcon, MapPin, Search, ArrowUpDown, Download, School, Check, UserCheck, UserX, MoreHorizontal, BookOpen, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import {
   LineChart, Line, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis, YAxis, Legend,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 import { Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Select, Dropdown, DropdownItem } from '../../components/ui';
-import { Student, ClassGroup, User, Score, Session, AttendanceRecord, BehaviorRating } from '../../types';
+import { Student, ClassGroup, User, Score, Session, AttendanceRecord, BehaviorRating, Teacher, RatingCategory } from '../../types';
 import { api } from '../../services/backendApi';
 import { AIInsightSection } from '../../components/AIInsightSection';
 import { generateStudentInsights } from '../../services/geminiService';
-import { getRandomMalaysianName, getRandomItem, malaysianSchools, malaysianPhoneNumbers, generateEmailFromName } from '../../utils/malaysianSampleData';
+import { getRandomMalaysianName, getRandomItem, malaysianSchools, malaysianPhoneNumbers, malaysianLocations, generateEmailFromName } from '../../utils/malaysianSampleData';
 import { buildLoginWhatsAppMessage, buildWhatsAppLink, openWhatsAppLink } from '../../utils/whatsapp';
 
 interface StudentsProps {
@@ -22,9 +23,13 @@ interface StudentsProps {
   sessions: Session[];
   attendance: AttendanceRecord[];
   behaviors: BehaviorRating[];
+  teachers: Teacher[];
+  ratingCategories: RatingCategory[];
 }
 
-export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, classes, scores, sessions, attendance, behaviors }) => {
+const DEFAULT_BEHAVIOR_CATEGORIES = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+
+export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, classes, scores, sessions, attendance, behaviors, teachers, ratingCategories }) => {
   // Defensive check: ensure students is an array
   const safeStudents = Array.isArray(students) ? students : [];
 
@@ -36,8 +41,9 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
 
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
   const [newStudent, setNewStudent] = useState<Partial<Student>>({
-    name: '', classIds: [], school: '', parentName: '', relationship: 'Father', emergencyContact: '', parentEmail: ''
+    name: '', classIds: [], school: '', parentName: '', relationship: 'Father', emergencyContact: '', parentEmail: '', address: ''
   });
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
   const [users, setUsers] = useState<User[]>([]);
   const [insightText, setInsightText] = useState<string | null>(null);
@@ -49,8 +55,19 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
+  const teacherMap = useMemo(() => {
+    const map = new Map<string, Teacher>();
+    teachers.forEach((teacher) => {
+      if (teacher?.id) {
+        map.set(teacher.id, teacher);
+      }
+    });
+    return map;
+  }, [teachers]);
+
   // Student Profile Schedule View
   const [scheduleDate, setScheduleDate] = useState(new Date());
+  const navigate = useNavigate();
 
   useEffect(() => {
      const fetchUsers = async () => {
@@ -62,83 +79,74 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
 
   // Logic to generate and save insights
   const performGeneration = async (student: Student) => {
-      setIsAiLoading(true);
-      try {
-          const sScores = scores.filter(s => s.studentId === student.id);
-          const sBehaviors = behaviors.filter(b => b.studentId === student.id);
-          
-          const insights = await generateStudentInsights(student, sScores, sBehaviors);
-          
-          const now = new Date().toISOString();
-          await api.saveStudentInsight({
-              studentId: student.id,
-              insights,
-              lastAnalyzed: now
-          });
-          
-          // Format to Markdown
-          const text = insights.map(i => {
-              const icon = i.type === 'POSITIVE' ? '✅' : i.type === 'NEGATIVE' ? '⚠️' : 'ℹ️';
-              return `### ${icon} ${i.type}\n${i.message}`;
-          }).join('\n\n');
-          
-          setInsightText(text);
-          setLastUpdated(now);
-          return text;
-      } finally {
-          setIsAiLoading(false);
-      }
+    setIsAiLoading(true);
+    try {
+      const sScores = scores.filter(s => s.studentId === student.id);
+      const sBehaviors = behaviors.filter(b => b.studentId === student.id);
+      const insights = await generateStudentInsights(student, sScores, sBehaviors);
+      const now = new Date().toISOString();
+
+      await api.saveStudentInsight({
+        studentId: student.id,
+        insights,
+        lastAnalyzed: now
+      });
+
+      const formatted = insights.map(i => {
+        const icon = i.type === 'POSITIVE' ? '✅' : i.type === 'NEGATIVE' ? '⚠️' : 'ℹ️';
+        return `### ${icon} ${i.type}\n${i.message}`;
+      }).join('\n\n');
+
+      setInsightText(formatted);
+      setLastUpdated(now);
+      return formatted;
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   // Reset view states when opening profile and check for AI insights
   useEffect(() => {
-      if (selectedStudentId) {
-          setScheduleDate(new Date());
-          setInsightText(null);
-          setLastUpdated(null);
-          setIsAiLoading(true);
+      if (!selectedStudentId) return;
+      setScheduleDate(new Date());
+      setInsightText(null);
+      setLastUpdated(null);
+      setIsAiLoading(true);
 
-          // Auto-fetch insight from DB
-          const initInsights = async () => {
-              try {
-                  const record = await api.fetchStudentInsight(selectedStudentId);
-                  let shouldGenerate = false;
+      const initInsights = async () => {
+          try {
+              const record = await api.fetchStudentInsight(selectedStudentId);
+              let shouldGenerate = true;
 
-                  if (record) {
-                       const now = new Date();
-                       const last = new Date(record.lastAnalyzed);
-                       // Auto-regenerate if older than 12 hours
-                       if (now.getTime() - last.getTime() > 12 * 60 * 60 * 1000) {
-                           shouldGenerate = true;
-                       } else {
-                           // Use existing
-                           const text = record.insights.map(i => {
-                              const icon = i.type === 'POSITIVE' ? '✅' : i.type === 'NEGATIVE' ? '⚠️' : 'ℹ️';
-                              return `### ${icon} ${i.type}\n${i.message}`;
-                          }).join('\n\n');
-                          setInsightText(text);
-                          setLastUpdated(record.lastAnalyzed);
-                          setIsAiLoading(false);
-                       }
-                  } else {
-                      shouldGenerate = true;
+              if (record) {
+                  const now = new Date();
+                  const last = new Date(record.lastAnalyzed);
+                  if (!Number.isNaN(last.getTime()) && now.getTime() - last.getTime() <= 12 * 60 * 60 * 1000) {
+                      const text = (record.insights || []).map(i => {
+                          const icon = i.type === 'POSITIVE' ? '✅' : i.type === 'NEGATIVE' ? '⚠️' : 'ℹ️';
+                          return `### ${icon} ${i.type}\n${i.message}`;
+                      }).join('\n\n');
+                      setInsightText(text);
+                      setLastUpdated(record.lastAnalyzed);
+                      setIsAiLoading(false);
+                      shouldGenerate = false;
                   }
-
-                  if (shouldGenerate) {
-                      const student = safeStudents.find(s => s.id === selectedStudentId);
-                      if (student) {
-                          await performGeneration(student);
-                      } else {
-                          setIsAiLoading(false);
-                      }
-                  }
-              } catch (e) {
-                  console.error("Failed to load insights", e);
-                  setIsAiLoading(false);
               }
-          };
-          initInsights();
-      }
+
+              if (shouldGenerate) {
+                  const student = safeStudents.find(s => s.id === selectedStudentId);
+                  if (student) {
+                      await performGeneration(student);
+                  } else {
+                      setIsAiLoading(false);
+                  }
+              }
+          } catch (e) {
+              console.error("Failed to load insights", e);
+              setIsAiLoading(false);
+          }
+      };
+      initInsights();
   }, [selectedStudentId]);
 
   const handleDelete = async (id: string) => {
@@ -148,16 +156,38 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
     }
   };
 
+  const openStudentDialog = (student?: Student, defaultClassIds: string[] = []) => {
+    if (student) {
+      setEditingStudent(student);
+      setNewStudent({
+        name: student.name,
+        classIds: student.classIds || [],
+        school: student.school,
+        parentName: student.parentName,
+        relationship: student.relationship || 'Father',
+        emergencyContact: student.emergencyContact,
+        parentEmail: student.parentEmail || '',
+        address: student.address || ''
+      });
+    } else {
+      setEditingStudent(null);
+      setNewStudent({
+        name: '',
+        classIds: defaultClassIds,
+        school: '',
+        parentName: '',
+        relationship: 'Father',
+        emergencyContact: '',
+        parentEmail: '',
+        address: ''
+      });
+    }
+    setDialogOpen(true);
+  };
+
   const handleAddClick = () => {
     const defaultClassId = classes[0]?.id;
-
-    // Default to the first class when available; otherwise start empty but still open the form
-    setNewStudent({
-        name: '',
-        classIds: defaultClassId ? [defaultClassId] : [],
-        school: '', parentName: '', relationship: 'Father', emergencyContact: '', parentEmail: ''
-    });
-    setDialogOpen(true);
+    openStudentDialog(undefined, defaultClassId ? [defaultClassId] : []);
   };
 
   const handleAutoFillStudent = () => {
@@ -168,6 +198,7 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
     const email = generateEmailFromName(`${parentName.full}.parent`);
     const relationships = ['Father', 'Mother', 'Guardian'];
     const relationship = getRandomItem(relationships);
+    const location = getRandomItem(malaysianLocations);
 
     setNewStudent({
       ...newStudent,
@@ -177,53 +208,80 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
       relationship: relationship,
       emergencyContact: phone,
       parentEmail: email,
+      address: location?.address || '',
     });
   };
 
-  const handleSave = async () => {
+  const handleViewStudentReport = (studentId: string) => {
+    const encodedId = encodeURIComponent(studentId);
+    navigate(`/reports?studentId=${encodedId}`, {
+      state: { initialStudentId: studentId },
+    });
+  };
+
+  const closeStudentDialog = () => {
+    setDialogOpen(false);
+    setEditingStudent(null);
+    setNewStudent({
+      name: '',
+      classIds: [],
+      school: '',
+      parentName: '',
+      relationship: 'Father',
+      emergencyContact: '',
+      parentEmail: '',
+      address: ''
+    });
+  };
+
+  const handleSaveStudent = async () => {
     // Phone Validation
-    const phoneRegex = /^01\d[-\s]?\d{7,8}(?:\s*\/\s*01\d[-\s]?\d{7,8})?$/;
+    const phoneRegex = /^01\d(?:[-\s]?\d){7,8}(?:\s*\/\s*01\d(?:[-\s]?\d){7,8})*$/;
     if (newStudent.emergencyContact && !phoneRegex.test(newStudent.emergencyContact)) {
-        setErrorDialog('Emergency contact must match 01X-XXXXXXX (or 01X-XXXXXXXX) and optional second number separated by "/"');
+        setErrorDialog('Emergency contact must start with 01X and include 7–8 digits, optionally separated by "-" or space; use "/" for extra numbers.');
         return;
     }
 
-    if (newStudent.name && newStudent.classIds && newStudent.classIds.length > 0) {
-      const studentData: any = {
+    if (!newStudent.name || !newStudent.classIds || newStudent.classIds.length === 0) {
+      setErrorDialog(t.classRequired);
+      return;
+    }
+
+    const studentPayload = {
+      name: newStudent.name || '',
+      classIds: newStudent.classIds,
+      school: newStudent.school || '',
+      parentName: newStudent.parentName || '',
+      relationship: newStudent.relationship || 'Father',
+      emergencyContact: newStudent.emergencyContact || '',
+      parentEmail: newStudent.parentEmail || '',
+      address: newStudent.address || ''
+    };
+
+    try {
+      if (editingStudent) {
+        const updated = await api.updateStudent({
+          ...editingStudent,
+          ...studentPayload
+        });
+        setStudents(safeStudents.map((student) => (student.id === updated.id ? updated : student)));
+      } else {
+        const student = await api.createStudent({
           id: `s${Date.now()}`,
-          name: newStudent.name || '',
           parentId: 'p_new',
-          classIds: newStudent.classIds, // Array
           attendance: 100,
-          atRisk: false
-      };
-
-      // Only include optional fields if they have values
-      if (newStudent.school && newStudent.school.trim()) {
-          studentData.school = newStudent.school;
+          atRisk: false,
+          ...studentPayload
+        } as Student);
+        setStudents([...safeStudents, student]);
+        if (student.emergencyContact) {
+          handleSendParentLoginWhatsApp(student);
+        }
       }
-      if (newStudent.parentName && newStudent.parentName.trim()) {
-          studentData.parentName = newStudent.parentName;
-      }
-      if (newStudent.relationship && newStudent.relationship.trim()) {
-          studentData.relationship = newStudent.relationship;
-      }
-      if (newStudent.emergencyContact && newStudent.emergencyContact.trim()) {
-          studentData.emergencyContact = newStudent.emergencyContact;
-      }
-      if (newStudent.parentEmail && newStudent.parentEmail.trim()) {
-          studentData.parentEmail = newStudent.parentEmail;
-      }
-
-      const student = await api.createStudent(studentData as Student);
-
-      setStudents([...safeStudents, student]);
-      setDialogOpen(false);
-      if (student.emergencyContact) {
-        handleSendParentLoginWhatsApp(student);
-      }
-    } else {
-        setErrorDialog(t.classRequired);
+      closeStudentDialog();
+    } catch (error) {
+      console.error('Failed to save student', error);
+      setErrorDialog('Unable to save student. Please try again.');
     }
   };
 
@@ -392,15 +450,29 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
           .map(s => ({
               date: new Date(s.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }),
               value: s.value,
-              subject: s.subject
+              subject: s.subject,
+              teacherName: teacherMap.get(s.teacherId || '')?.name
           }));
-  }, [scores, selectedStudentId]);
+  }, [scores, selectedStudentId, teacherMap]);
+
+  const latestScoreDetails = useMemo(() => {
+    if (!selectedStudentId) return [];
+    const filtered = scores.filter(s => s.studentId === selectedStudentId);
+    const sorted = [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return sorted.slice(0, 3).map(score => ({
+      ...score,
+      teacherName: teacherMap.get(score.teacherId || '')?.name || 'Tutor',
+      formattedDate: new Date(score.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+    }));
+  }, [scores, selectedStudentId, teacherMap]);
 
   // Radar Chart Data: Avg per Category (For the visible month)
   const radarChartData = useMemo(() => {
     if (!selectedStudentId) return [];
     
-    const categories = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+    const categories = ratingCategories.length > 0
+      ? ratingCategories.map((category) => category.name)
+      : DEFAULT_BEHAVIOR_CATEGORIES;
     const sessionIdsInView = sessionsInView.map(s => s.id);
 
     return categories.map(cat => {
@@ -416,7 +488,21 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
 
         return { subject: cat, A: Number(avg.toFixed(1)), fullMark: 5 };
     });
-  }, [sessionsInView, behaviors, selectedStudentId]);
+  }, [sessionsInView, behaviors, selectedStudentId, ratingCategories]);
+
+  const recentBehaviorDetails = useMemo(() => {
+    if (!selectedStudentId) return [];
+    const sorted = [...behaviors]
+      .filter((b) => b.studentId === selectedStudentId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 3)
+      .map((entry) => ({
+        ...entry,
+        teacherName: teacherMap.get(entry.teacherId || '')?.name || 'Tutor',
+        formattedDate: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+      }));
+    return sorted;
+  }, [behaviors, selectedStudentId, teacherMap]);
 
   const handleGenerateInsight = async () => {
     if (!selectedStudent) return "";
@@ -537,6 +623,12 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                           }
                           menu={
                             <>
+                                <DropdownItem onClick={() => openStudentDialog(student)}>
+                                    <div className="flex items-center gap-2">
+                                        <Edit3 className="h-4 w-4 text-muted-foreground" />
+                                        {t.edit}
+                                    </div>
+                                </DropdownItem>
                                 <DropdownItem onClick={() => { 
                                     setManagingStudentId(student.id); 
                                     setTempClassIds(student.classIds || []); 
@@ -545,6 +637,12 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                                     <div className="flex items-center gap-2">
                                         <School className="h-4 w-4 text-muted-foreground" />
                                         {t.manageClasses}
+                                    </div>
+                                </DropdownItem>
+                                <DropdownItem onClick={() => handleViewStudentReport(student.id)}>
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                        {t.viewStudentReport || 'View Student Report'}
                                     </div>
                                 </DropdownItem>
                                 <DropdownItem onClick={() => setSelectedStudentId(student.id)}>
@@ -625,7 +723,10 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                      <div>
                          <h2 className="text-2xl font-bold">{selectedStudent.name}</h2>
                          <div className="text-muted-foreground flex items-center gap-2 mt-1">
-                             <MapPin className="w-4 h-4" /> {selectedStudent.school || 'No School Info'}
+                             <School className="w-4 h-4" /> {selectedStudent.school || 'No School Info'}
+                         </div>
+                         <div className="text-muted-foreground flex items-center gap-2 mt-1">
+                             <MapPin className="w-4 h-4" /> {selectedStudent.address || t.noLocationInfo}
                          </div>
                          <div className="text-sm text-muted-foreground mt-1 flex gap-1 flex-wrap">
                              Classes: 
@@ -647,15 +748,14 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                  
                  {/* AI Insight Section */}
                  <div>
-                     <AIInsightSection 
-                        onGenerate={handleGenerateInsight} 
-                        defaultText={insightText || undefined}
-                        title={`AI Analysis for ${selectedStudent.name}`}
-                        lastUpdated={lastUpdated || undefined}
-                        isLoading={isAiLoading}
-                     />
-                 </div>
-
+                 <AIInsightSection 
+                    onGenerate={handleGenerateInsight} 
+                    defaultText={insightText || undefined}
+                    title={`AI Analysis for ${selectedStudent.name}`}
+                    lastUpdated={lastUpdated || undefined}
+                    isLoading={isAiLoading}
+                 />
+             </div>
                  {/* KPIs */}
                  <div className="grid grid-cols-2 gap-4">
                      <Card className="p-4 flex flex-col items-center justify-center text-center">
@@ -674,26 +774,52 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                     <div className="border rounded-lg p-4 bg-card">
                          <h4 className="text-sm font-semibold mb-4 text-center">{t.scoreProgression} (Max: 5)</h4>
                          {scoreChartData.length > 0 ? (
-                            <div className="h-[200px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={scoreChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                         <div className="h-[200px] w-full">
+                             <ResponsiveContainer width="100%" height="100%">
+                                 <LineChart data={scoreChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                                         <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
                                         <YAxis fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
                                         <RechartsTooltip 
                                             contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
-                                            formatter={(value: any, name: any, props: any) => [`${value}`, props.payload.subject]}
+                                            formatter={(value: any, name: any, props: any) => {
+                                                const label = props.payload.teacherName
+                                                    ? `${props.payload.subject} · ${props.payload.teacherName}`
+                                                    : props.payload.subject;
+                                                return [`${value}`, label];
+                                            }}
                                         />
                                         <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                                     </LineChart>
-                                </ResponsiveContainer>
+                              </ResponsiveContainer>
+                          </div>
+                       ) : (
+                          <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+                              {t.noScoreData || 'No score data available'}
+                          </div>
+                       )}
+                        <div className="mt-4 border-t border-muted/50 pt-4 text-sm space-y-2">
+                            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+                                <span>Recent tutor scores</span>
+                                <span>{latestScoreDetails.length} record{latestScoreDetails.length === 1 ? '' : 's'}</span>
                             </div>
-                         ) : (
-                            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                                {t.noScoreData || 'No score data available'}
-                            </div>
-                         )}
-                    </div>
+                            {latestScoreDetails.length > 0 ? (
+                                latestScoreDetails.map((detail) => (
+                                    <div key={`${detail.date}-${detail.subject}-${detail.teacherName}-${detail.value}`} className="flex items-center justify-between">
+                                        <div>
+                                            <div className="font-medium">{detail.subject}</div>
+                                            <div className="text-[10px] text-muted-foreground">
+                                                {detail.teacherName} · {detail.formattedDate}
+                                            </div>
+                                        </div>
+                                        <div className="font-semibold text-base">{detail.value}</div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-xs text-muted-foreground">No recent tutor scores.</p>
+                            )}
+                        </div>
+                   </div>
 
                     {/* Radar Chart */}
                     <div className="border rounded-lg p-4 bg-card h-fit">
@@ -707,6 +833,29 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                                     <Radar name="Student" dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} />
                                 </RadarChart>
                             </ResponsiveContainer>
+                        </div>
+                        <div className="mt-4 border-t border-muted/50 pt-4 text-sm space-y-2">
+                            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+                                <span>Recent behavior notes</span>
+                                <span>{recentBehaviorDetails.length} record{recentBehaviorDetails.length === 1 ? '' : 's'}</span>
+                            </div>
+                            {recentBehaviorDetails.length > 0 ? (
+                                recentBehaviorDetails.map((entry) => (
+                                    <div key={`${entry.category}-${entry.formattedDate}-${entry.teacherName}`} className="flex items-center justify-between">
+                                        <div>
+                                            <div className="font-medium">{entry.category}</div>
+                                            <div className="text-[10px] text-muted-foreground">
+                                                {entry.teacherName} · {entry.formattedDate}
+                                            </div>
+                                        </div>
+                                        <Badge variant="outline" className="h-6 px-2 text-[10px]">
+                                            {entry.rating}/5
+                                        </Badge>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-xs text-muted-foreground">No recent behavior evaluations.</p>
+                            )}
                         </div>
                     </div>
                  </div>
@@ -813,8 +962,8 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
       {/* ... Add Student Dialog ... */}
       <Dialog
         isOpen={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
-        title={t.addNewStudent}
+        onClose={closeStudentDialog}
+        title={editingStudent ? 'Edit Student' : t.addNewStudent}
         footer={
           <div className="flex items-center justify-between w-full">
             <Button
@@ -826,8 +975,8 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
               {t.autoFill}
             </Button>
             <div className="flex gap-2">
-              <Button onClick={handleSave}>{t.save}</Button>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>{t.cancel}</Button>
+              <Button onClick={handleSaveStudent}>{editingStudent ? 'Update' : t.save}</Button>
+              <Button variant="outline" onClick={closeStudentDialog}>{t.cancel}</Button>
             </div>
           </div>
         }
@@ -850,6 +999,15 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
                 placeholder={t.schoolPlaceholder} 
              />
            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium mb-1">{t.locationAddress}</label>
+              <Input
+                value={newStudent.address || ''}
+                onChange={(e) => setNewStudent({ ...newStudent, address: e.target.value })}
+                placeholder={t.addressPlaceholder}
+              />
+              <p className="text-xs text-muted-foreground mt-1">{t.optional}</p>
+            </div>
            <div className="space-y-2">
              <label className="block text-sm font-medium mb-1">{t.selectClasses} *</label>
              {classes.length === 0 ? (

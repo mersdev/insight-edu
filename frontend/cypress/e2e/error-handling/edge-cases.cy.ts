@@ -88,7 +88,7 @@ describe('Error Handling - Edge Cases', () => {
       const largeTeacherList = Array.from({ length: 50 }, (_, i) => ({
         id: `t_${i}`,
         name: `Teacher ${i}`,
-        email: `teacher${i}@edu.com`,
+        email: `teacher${i}@test.com`,
         subject: 'Mathematics'
       }));
 
@@ -120,7 +120,7 @@ describe('Error Handling - Edge Cases', () => {
 
       // Fill form with special characters using label-based selectors
       cy.contains('label', /full.*name/i).parent().find('input').type("O'Brien-Smith (测试)", { force: true });
-      cy.get('input[type="email"]').type(`test.${Date.now()}@edu.com`, { force: true });
+      cy.get('input[type="email"]').type(`test.${Date.now()}@test.com`, { force: true });
       cy.contains('label', /english.*name/i).parent().find('input').type("O'Brien", { force: true });
       cy.get('[data-cy="teacher-subject-field"]').within(() => {
         cy.get('[data-cy="teacher-subject-input"]').clear({ force: true }).type('Math', { force: true });
@@ -305,7 +305,7 @@ describe('Error Handling - Edge Cases', () => {
 
       // Fill form using label-based selectors
       cy.contains('label', /full.*name/i).parent().find('input').type('Test Teacher', { force: true });
-      cy.get('input[type="email"]').type(`test.${Date.now()}@edu.com`, { force: true });
+      cy.get('input[type="email"]').type(`test.${Date.now()}@test.com`, { force: true });
       cy.contains('label', /english.*name/i).parent().find('input').type('Test', { force: true });
       cy.get('[data-cy="teacher-subject-field"]').within(() => {
         cy.get('[data-cy="teacher-subject-input"]').clear({ force: true }).type('Math', { force: true });

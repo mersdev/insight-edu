@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
 import { Users, AlertCircle, TrendingUp, MapPin, School, Calendar, Activity, Star, Download, ChevronRight, BookOpen } from 'lucide-react';
 import { Card, Button, Badge, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
-import { Student, ClassGroup, Location, Session, BehaviorRating, AttendanceRecord } from '../../types';
+import { Student, ClassGroup, Location, Session, BehaviorRating, AttendanceRecord, RatingCategory } from '../../types';
 import { AIInsightSection } from '../../components/AIInsightSection';
 import { generateDashboardInsights } from '../../services/geminiService';
 import { api } from '../../services/backendApi';
@@ -14,9 +14,12 @@ interface HQDashboardProps {
   students: Student[];
   classes: ClassGroup[];
   locations: Location[];
+  ratingCategories: RatingCategory[];
 }
 
-export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, locations }) => {
+const DEFAULT_BEHAVIOR_CATEGORIES = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+
+export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, locations, ratingCategories }) => {
   const [insightText, setInsightText] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -259,7 +262,9 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
 
   // 4. Behavior Category Analysis
   const categoryData = useMemo(() => {
-    const categories = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+    const categories = ratingCategories.length > 0
+      ? ratingCategories.map((category) => category.name)
+      : DEFAULT_BEHAVIOR_CATEGORIES;
     return categories.map(cat => {
         const catBehaviors = behaviors.filter(b => b.category === cat);
         const avg = catBehaviors.length > 0 
@@ -267,7 +272,7 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
             : 0;
         return { name: cat, value: avg };
     });
-  }, [behaviors]);
+  }, [behaviors, ratingCategories]);
 
   // --- Selected Location Report Data ---
   const selectedLocation = locations.find(l => l.id === selectedLocationId);
@@ -395,20 +400,155 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
 
   }, [selectedLocationId, classes, students, sessions, attendance, behaviors]);
 
+  const createPrintablePages = () => {
+    const pageWidthPx = 880;
+    const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-dashboard-section]'));
+    if (sections.length === 0) return null;
+
+    const sectionByKey: Record<string, HTMLElement | null> = {
+      header: document.querySelector('[data-dashboard-section="header"]'),
+      ai: document.querySelector('[data-dashboard-section="ai-insight"]'),
+      kpi: document.querySelector('[data-dashboard-section="kpi"]'),
+      locations: document.querySelector('[data-dashboard-section="locations"]'),
+      charts: document.querySelector('[data-dashboard-section="charts"]'),
+    };
+
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.left = '-10000px';
+    wrapper.style.top = '-10000px';
+    wrapper.style.width = `${pageWidthPx}px`;
+    wrapper.style.zIndex = '9999';
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.gap = '16px';
+
+    const pages: HTMLElement[] = [];
+    const appendPage = (clones: HTMLElement[]) => {
+      const valid = clones.filter(Boolean);
+      if (!valid.length) return;
+      const page = document.createElement('div');
+      page.style.width = `${pageWidthPx}px`;
+      page.style.margin = '0 auto';
+      page.style.padding = '32px';
+      page.style.borderRadius = '16px';
+      page.style.backgroundColor = '#ffffff';
+      page.style.boxSizing = 'border-box';
+      page.style.display = 'flex';
+      page.style.flexDirection = 'column';
+      page.style.gap = '20px';
+      page.style.pageBreakAfter = 'always';
+      valid.forEach((clone) => {
+        clone.style.width = '100%';
+        clone.style.boxSizing = 'border-box';
+        clone.querySelectorAll<HTMLElement>('.recharts-responsive-container').forEach((chart) => {
+          chart.style.width = '100%';
+          chart.style.height = '260px';
+        });
+        page.appendChild(clone);
+      });
+      wrapper.appendChild(page);
+      pages.push(page);
+    };
+
+    // Two-page layout: Page 1 (Header, AI, KPI, Locations), Page 2 (Charts/Trend)
+    const page1Clones = ['header', 'ai', 'kpi', 'locations']
+      .map((key) => (sectionByKey[key] ? sectionByKey[key]!.cloneNode(true) as HTMLElement : null))
+      .filter(Boolean) as HTMLElement[];
+    const page2Clones = ['charts']
+      .map((key) => (sectionByKey[key] ? sectionByKey[key]!.cloneNode(true) as HTMLElement : null))
+      .filter(Boolean) as HTMLElement[];
+
+    appendPage(page1Clones);
+    appendPage(page2Clones);
+
+    if (pages.length === 0) return null;
+    document.body.appendChild(wrapper);
+    return { container: wrapper, pages };
+  };
+
+  const capturePrintablePages = async () => {
+    const printable = createPrintablePages();
+    if (!printable) return [];
+    try {
+      const canvases: HTMLCanvasElement[] = [];
+      for (const page of printable.pages) {
+        const canvas = await (window as any).html2canvas(page, {
+          scale: 2,
+          width: page.clientWidth,
+          windowWidth: page.clientWidth,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+        });
+        canvases.push(canvas);
+      }
+      return canvases;
+    } finally {
+      printable?.container.remove();
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const canvases = await capturePrintablePages();
+      if (!canvases.length) return;
+
+      const jspdf = (window as any).jspdf;
+      const jsPDFConstructor = jspdf?.jsPDF;
+      const images = canvases.map((c) => c.toDataURL('image/png'));
+
+      const downloadPng = () => {
+        const link = document.createElement('a');
+        link.href = images[0];
+        link.download = `HQ_Dashboard_${new Date().toISOString().slice(0, 10)}.png`;
+        link.click();
+      };
+
+      if (!jsPDFConstructor) {
+        downloadPng();
+        return;
+      }
+
+      const pdf = new jsPDFConstructor({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      images.forEach((img, index) => {
+        if (index > 0) pdf.addPage();
+        const canvas = canvases[index];
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const scale = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+        const imgW = canvas.width * scale;
+        const imgH = canvas.height * scale;
+        const x = (pdfWidth - imgW) / 2;
+        const y = 0;
+        pdf.addImage(img, 'PNG', x, y, imgW, imgH);
+      });
+      pdf.save(`HQ_Dashboard_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error('HQ Dashboard export failed', err);
+      alert('Failed to export dashboard. Please try again.');
+    }
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div id="hq-dashboard-root" className="space-y-8 animate-in fade-in duration-500 pb-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4" data-dashboard-section="header">
            <div>
                 <h1 className="text-3xl font-bold tracking-tight">{t.dashboard}</h1>
                 <p className="text-muted-foreground">{t.dashboardOverview}</p>
            </div>
-           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-1 rounded-full border">
-                <Calendar className="w-4 h-4" />
-                <span>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+           <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-1 rounded-full border">
+                  <Calendar className="w-4 h-4" />
+                  <span>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+              </div>
+              <Button size="sm" className="bg-black text-white hover:bg-black/90" onClick={handleExportPdf}>
+                <Download className="w-4 h-4 mr-2" />
+                {t.exportPDF || 'Export PDF'}
+              </Button>
            </div>
       </div>
 
+      <section data-dashboard-section="ai-insight">
       <AIInsightSection 
          title={t.hqAiSummary}
          onGenerate={handleGenerate}
@@ -416,9 +556,10 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
          lastUpdated={lastUpdated || undefined}
          isLoading={loading}
       />
+      </section>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section data-dashboard-section="kpi" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiCards.map((kpi, idx) => {
           const isAttendanceCard = kpi.title === t.avgAttendance;
           const isCalculating = isAttendanceCard && calculatingAttendance;
@@ -447,10 +588,10 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
             </Card>
           );
         })}
-      </div>
+      </section>
 
       {/* Location Breakdown */}
-      <div>
+      <section data-dashboard-section="locations">
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-muted-foreground" />
               {t.locationPerformanceOverview}
@@ -494,10 +635,10 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
                   </Card>
               ))}
           </div>
-      </div>
+      </section>
 
       {/* Advanced Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section data-dashboard-section="charts" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Trend Line Chart */}
           <Card title={t.institutionTrends} description={t.institutionTrendsDesc}>
               <div className="h-[280px] w-full pt-4">
@@ -539,7 +680,7 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
                   </ResponsiveContainer>
               </div>
           </Card>
-      </div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
         {/* Student Distribution Chart */}

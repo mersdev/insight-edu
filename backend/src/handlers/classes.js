@@ -1,28 +1,6 @@
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase } from '../utils/casing.js';
-
-const EMPTY_SCHEDULE = { dayOfWeek: null, time: null };
-
-function normalizeDefaultSchedule(schedule) {
-  let scheduleValue = schedule;
-
-  if (typeof schedule === 'string') {
-    try {
-      scheduleValue = JSON.parse(schedule);
-    } catch {
-      scheduleValue = null;
-    }
-  }
-
-  if (!scheduleValue || typeof scheduleValue !== 'object') {
-    return { ...EMPTY_SCHEDULE };
-  }
-
-  return {
-    dayOfWeek: scheduleValue.dayOfWeek ?? null,
-    time: scheduleValue.time ?? null,
-  };
-}
+import { normalizeDefaultSchedule } from '../utils/schedule.js';
 
 function mapClassRecord(record) {
   const camelRecord = toCamelCase(record);

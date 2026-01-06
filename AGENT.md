@@ -183,3 +183,9 @@ CI Deployment
 
 ## Rules for AI Agent
 - After fix, update the backend Jest test and frontend Cypress test and make sure e2e testing is sucessful
+- If the backend schema changed, please run the db migration script automatically
+- Layout Guard
+  - The Settings page must always render the Behavior Indicators card at the top and the Manual Behavior Indicator card immediately below it; avoid reshuffling these cards in future changes.
+  - Keep them wrapped in the `<section data-layout-guard="behavior-indicators">` block so the layout order is explicit and the default behavior tiles stay on top.
+  - Ensure every seeded teacher has a matching `users` record so HQ reports always link teachers to login-enabled accounts and any new teacher creation follows the same pattern.
+  - The default `DEFAULT_BEHAVIOR_CATEGORIES` badges should stay visible in the Settings manual indicator group, as they communicate the fallback categories details.

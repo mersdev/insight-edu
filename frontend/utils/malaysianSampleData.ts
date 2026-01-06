@@ -87,17 +87,17 @@ export const malaysianSubjects = [
   'Computer Science',
 ];
 
-export const classNames = [
-  'Grade 10 Mathematics A',
-  'Grade 11 Physics B',
-  'Grade 9 Science C',
-  'Grade 10 Additional Math',
-  'Grade 11 Chemistry A',
-  'Grade 12 Biology B',
-  'Grade 10 English A',
-  'Grade 11 Bahasa Melayu',
-  'Grade 9 Chinese B',
-  'Grade 10 History A',
+export const sampleClassNames = [
+  'Form 4 Mathematics A',
+  'Form 5 Physics B',
+  'Form 3 Science C',
+  'Form 4 Additional Math',
+  'Form 5 Chemistry A',
+  'Form 6 Biology B',
+  'Form 4 English A',
+  'Form 5 Bahasa Melayu',
+  'Form 3 Chinese B',
+  'Form 4 History A',
 ];
 
 // export const malaysianPhoneNumbers = [
@@ -145,5 +145,5 @@ export const generateEmailFromName = (name: string): string => {
     .replace(/\s+binti\s+/g, '.')
     .replace(/\s+/g, '.')
     .replace(/[^a-z.]/g, '');
-  return `dehoulworker+${cleanName}@gmail.com`;
+  return `${cleanName || 'user'}@edu.com`;
 };

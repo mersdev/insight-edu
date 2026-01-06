@@ -6,13 +6,13 @@
     "name": "HQ Admin"
   },
   "teacherUser": {
-    "email": "dehoulworker+sarahjenkins@gmail.com",
+    "email": "sarahjenkins@edu.com",
     "password": "123",
     "role": "TEACHER",
     "name": "Teacher User"
   },
   "parentUser": {
-    "email": "dehoulworker+ali@gmail.com",
+    "email": "ahmad@edu.com",
     "password": "123",
     "role": "PARENT",
     "name": "Parent User"

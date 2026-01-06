@@ -2,13 +2,12 @@
 
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trash2, Plus, CalendarPlus, Eye, FileText, Download, ChevronLeft, ChevronRight, Calendar, Search, ArrowUpDown, MoreHorizontal, MapPin, Sparkles } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, LineChart, Line, Legend } from 'recharts';
-import { Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select, Badge, Dropdown, DropdownItem } from '../../components/ui';
+import { Trash2, Plus, CalendarPlus, Eye, Download, ChevronLeft, ChevronRight, Search, ArrowUpDown, MoreHorizontal, MapPin, Sparkles, Edit2 } from 'lucide-react';
+import { cn, Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select, Badge, Dropdown, DropdownItem } from '../../components/ui';
 import { generateScheduleSessions } from '../../constants';
-import { ClassGroup, Teacher, Student, Session, Score, AttendanceRecord, Location } from '../../types';
+import { ClassGroup, Teacher, Student, Session, Location } from '../../types';
 import { api } from '../../services/backendApi';
-import { getRandomItem, classNames } from '../../utils/malaysianSampleData';
+import { getRandomItem, sampleClassNames } from '../../utils/malaysianSampleData';
 
 interface ClassesProps {
   t: any;
@@ -18,12 +17,76 @@ interface ClassesProps {
   students: Student[];
   sessions: Session[];
   setSessions: (sessions: Session[]) => void;
-  scores: Score[];
-  attendance: AttendanceRecord[];
   locations: Location[];
 }
 
-export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teachers, students, sessions, setSessions, scores, attendance, locations }) => {
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const classNames = cn;
+if (typeof window !== 'undefined' && !(window as any).classNames) {
+  (window as any).classNames = classNames;
+}
+
+const PRIMARY_GRADE_OPTIONS = Array.from({ length: 6 }, (_, index) => `Standard ${index + 1}`);
+const SECONDARY_GRADE_OPTIONS = Array.from({ length: 6 }, (_, index) => `Form ${index + 1}`);
+const GRADE_OPTIONS = [...PRIMARY_GRADE_OPTIONS, ...SECONDARY_GRADE_OPTIONS];
+
+const parseTimeToMinutes = (value: string) => {
+  const [hoursStr, minutesStr] = value.split(':');
+  const hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return NaN;
+  }
+  return hours * 60 + minutes;
+};
+
+const formatMinutesToHHMM = (minutes: number) => {
+  const normalized = ((minutes % 1440) + 1440) % 1440;
+  const hours = String(Math.floor(normalized / 60)).padStart(2, '0');
+  const mins = String(normalized % 60).padStart(2, '0');
+  return `${hours}:${mins}`;
+};
+
+const parseDurationString = (value?: string) => {
+  if (!value) return NaN;
+  const [hoursPart, minutesPart = '0'] = value.split(':');
+  const hours = Number(hoursPart);
+  const minutes = Number(minutesPart);
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes < 0 || minutes > 59) return NaN;
+  return hours * 60 + minutes;
+};
+
+const computeEndTime = (start: string, durationMinutes: number) => {
+  const startInMinutes = parseTimeToMinutes(start);
+  if (Number.isNaN(startInMinutes) || Number.isNaN(durationMinutes)) return start;
+  return formatMinutesToHHMM(startInMinutes + durationMinutes);
+};
+
+const computeDurationBetweenTimes = (start: string, end: string) => {
+  const startInMinutes = parseTimeToMinutes(start);
+  const endInMinutes = parseTimeToMinutes(end);
+  if (Number.isNaN(startInMinutes) || Number.isNaN(endInMinutes)) {
+    return NaN;
+  }
+  let diff = endInMinutes - startInMinutes;
+  if (diff <= 0) {
+    diff += 24 * 60;
+  }
+  return diff;
+};
+
+const formatDurationLabel = (minutes?: number | null) => {
+  if (minutes === undefined || minutes === null) return '-';
+  if (!minutes) return '0m';
+  if (minutes % 60 === 0) {
+    return `${minutes / 60}h`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+};
+
+export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teachers, students, sessions, setSessions, locations }) => {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isSpecialSessionOpen, setSpecialSessionOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -33,10 +96,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
     console.log('isDialogOpen changed:', isDialogOpen);
   }, [isDialogOpen]);
   
-  // Report State
-  const [reportClassId, setReportClassId] = useState<string | null>(null);
-  const [reportYear, setReportYear] = useState<number>(new Date().getFullYear());
-
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
   
   // Session Pagination State
@@ -56,9 +115,12 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
     grade: '', 
     teacherId: '', 
     locationId: '',
-    dayOfWeek: 'Monday', 
-    time: '09:00' 
+    days: ['Monday'], 
+    startTime: '09:00',
+    endTime: '10:00',
+    sessionDuration: '01:00',
   });
+  const [editingClass, setEditingClass] = useState<ClassGroup | null>(null);
 
   // Special Session State
   const [specialSession, setSpecialSession] = useState({
@@ -83,61 +145,131 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
     }
   };
 
+  const openClassDialog = (cls?: ClassGroup) => {
+    if (cls) {
+      setEditingClass(cls);
+      const schedule = cls.defaultSchedule;
+      const durationMinutes = schedule?.durationMinutes ?? 60;
+      const startTime = schedule?.time || '09:00';
+      const endTime = schedule?.time
+        ? computeEndTime(schedule.time, durationMinutes)
+        : '10:00';
+      const sessionDuration = `${String(Math.floor(durationMinutes / 60)).padStart(2, '0')}:${String(durationMinutes % 60).padStart(2, '0')}`;
+      setNewClass({
+        name: cls.name,
+        grade: cls.grade,
+        teacherId: cls.teacherId,
+        locationId: cls.locationId,
+        days: schedule?.days && schedule.days.length > 0 ? schedule.days : ['Monday'],
+        startTime,
+        endTime,
+        sessionDuration,
+      });
+    } else {
+      setEditingClass(null);
+      setNewClass({ 
+          name: '', 
+          grade: '', 
+          teacherId: teachers[0]?.id || '', 
+          locationId: locations[0]?.id || '',
+          days: ['Monday'],
+          startTime: '09:00',
+          endTime: '10:00',
+          sessionDuration: '01:00',
+      });
+    }
+    setDialogOpen(true);
+  };
+
   const handleAddClick = () => {
+    openClassDialog();
+  };
+
+  const closeClassDialog = () => {
+    setDialogOpen(false);
+    setEditingClass(null);
     setNewClass({ 
         name: '', 
         grade: '', 
         teacherId: teachers[0]?.id || '', 
         locationId: locations[0]?.id || '',
-        dayOfWeek: 'Monday', 
-        time: '09:00' 
+        days: ['Monday'],
+        startTime: '09:00',
+        endTime: '10:00',
+        sessionDuration: '01:00',
     });
-    setDialogOpen(true);
   };
 
-  const handleSave = async () => {
-    console.log('handleSave called', newClass);
+  const handleSaveClass = async () => {
+    console.log('handleSaveClass called', newClass);
+    const durationFromTimes = computeDurationBetweenTimes(newClass.startTime, newClass.endTime);
+    const parsedDuration = parseDurationString(newClass.sessionDuration);
+    const durationMinutes =
+      !Number.isNaN(durationFromTimes) && durationFromTimes > 0
+        ? durationFromTimes
+        : parsedDuration;
+    if (Number.isNaN(durationMinutes) || durationMinutes <= 0) {
+      setErrorDialog(t.durationHelp || 'Please provide a valid session duration in HH:MM (e.g. 01:00).');
+      return;
+    }
 
-    // Validation
-    if (!newClass.name || !newClass.grade || !newClass.teacherId || !newClass.locationId) {
+    if (!newClass.name || !newClass.grade || !newClass.teacherId || !newClass.locationId || newClass.days.length === 0) {
       console.log('Validation failed:', {
         name: newClass.name,
         grade: newClass.grade,
         teacherId: newClass.teacherId,
-        locationId: newClass.locationId
+        locationId: newClass.locationId,
+        days: newClass.days,
       });
-      setErrorDialog(t.fillAllFields || 'Please fill in all required fields (Class Name, Grade, Teacher, and Location).');
+      setErrorDialog(t.fillAllFields || 'Please fill in all required fields (Class Name, Grade, Teacher, Location, and Days).');
       return;
     }
 
-    console.log('Validation passed, creating class...');
+    if (!newClass.startTime || !newClass.endTime) {
+      setErrorDialog('Please select both start and end times.');
+      return;
+    }
+
+    console.log('Validation passed, saving class...');
+    const schedule = {
+      days: newClass.days,
+      time: newClass.startTime,
+      durationMinutes,
+    };
 
     try {
-      const classId = `c${Date.now()}`;
-      const cls = await api.createClass({
-        id: classId,
-        name: newClass.name,
-        grade: newClass.grade,
-        teacherId: newClass.teacherId,
-        locationId: newClass.locationId,
-        defaultSchedule: {
-          dayOfWeek: newClass.dayOfWeek,
-          time: newClass.time
-        }
-      } as ClassGroup);
+      if (editingClass) {
+        const updated = await api.updateClass({
+          id: editingClass.id,
+          name: newClass.name,
+          grade: newClass.grade,
+          teacherId: newClass.teacherId,
+          locationId: newClass.locationId,
+          defaultSchedule: schedule
+        } as ClassGroup);
+        setClasses(classes.map((cls) => (cls.id === updated.id ? updated : cls)));
+        console.log('Class updated:', updated);
+      } else {
+        const classId = `c${Date.now()}`;
+        const cls = await api.createClass({
+          id: classId,
+          name: newClass.name,
+          grade: newClass.grade,
+          teacherId: newClass.teacherId,
+          locationId: newClass.locationId,
+          defaultSchedule: schedule
+        } as ClassGroup);
 
-      console.log('Class created:', cls);
-      setClasses([...classes, cls]);
+        console.log('Class created:', cls);
+        setClasses([...classes, cls]);
 
-      const generatedSessions = generateScheduleSessions(classId, newClass.dayOfWeek, newClass.time);
-      console.log('Generated sessions:', generatedSessions.length);
+        const generatedSessions = generateScheduleSessions(classId, schedule);
+        console.log('Generated sessions:', generatedSessions.length);
 
-      // Create all sessions in parallel instead of sequentially
-      const createdSessions = await Promise.all(generatedSessions.map(s => api.createSession(s)));
-      setSessions([...sessions, ...createdSessions]);
-
-      console.log('All done, closing dialog');
-      setDialogOpen(false);
+        const createdSessions = await Promise.all(generatedSessions.map(s => api.createSession(s)));
+        setSessions([...sessions, ...createdSessions]);
+      }
+      closeClassDialog();
     } catch (error) {
       console.error('Error creating class:', error);
       setErrorDialog(t.errorCreatingClass || 'Failed to create class. Please try again.');
@@ -145,18 +277,76 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
   };
 
   const handleAutoFillClass = () => {
-    const className = getRandomItem(classNames);
-    const grades = ['9', '10', '11', '12'];
-    const grade = getRandomItem(grades);
+    const className = getRandomItem(sampleClassNames);
+    const grade = getRandomItem(GRADE_OPTIONS);
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const times = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
+
+    const selectedDays = [getRandomItem(days)];
+    if (Math.random() > 0.5) {
+      const additionalDay = getRandomItem(days.filter(d => !selectedDays.includes(d)));
+      if (additionalDay) {
+        selectedDays.push(additionalDay);
+      }
+    }
+    const selectedStartTime = getRandomItem(times);
+    const durationOptions = ['01:00', '01:30', '02:00'];
+    const selectedDuration = getRandomItem(durationOptions);
+    const durationMinutes = parseDurationString(selectedDuration);
+    const computedEndTime = Number.isNaN(durationMinutes)
+      ? selectedStartTime
+      : computeEndTime(selectedStartTime, durationMinutes);
 
     setNewClass({
       ...newClass,
       name: className,
-      grade: grade,
-      dayOfWeek: getRandomItem(days),
-      time: getRandomItem(times),
+      grade,
+      days: selectedDays,
+      startTime: selectedStartTime,
+      sessionDuration: selectedDuration,
+      endTime: computedEndTime,
+    });
+  };
+
+  const handleStartTimeChange = (value: string) => {
+    setNewClass((prev) => {
+      const durationMinutes = parseDurationString(prev.sessionDuration);
+      const updatedEndTime = Number.isNaN(durationMinutes)
+        ? prev.endTime
+        : computeEndTime(value, durationMinutes);
+      return {
+        ...prev,
+        startTime: value,
+        endTime: updatedEndTime,
+      };
+    });
+  };
+
+  const handleEndTimeChange = (value: string) => {
+    setNewClass((prev) => {
+      const durationMinutes = computeDurationBetweenTimes(prev.startTime, value);
+      const formattedDuration = Number.isNaN(durationMinutes)
+        ? prev.sessionDuration
+        : formatMinutesToHHMM(durationMinutes);
+      return {
+        ...prev,
+        endTime: value,
+        sessionDuration: formattedDuration,
+      };
+    });
+  };
+
+  const handleSessionDurationChange = (value: string) => {
+    setNewClass((prev) => {
+      const durationMinutes = parseDurationString(value);
+      const updatedEndTime = Number.isNaN(durationMinutes)
+        ? prev.endTime
+        : computeEndTime(prev.startTime, durationMinutes);
+      return {
+        ...prev,
+        sessionDuration: value,
+        endTime: updatedEndTime,
+      };
     });
   };
 
@@ -288,112 +478,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
       setCurrentViewDate(d);
   };
 
-  const classStats = useMemo(() => {
-      if (!selectedClassId) return null;
-      
-      const totalStudents = classStudents.length;
-      
-      const avgAttendancePerc = classStudents.length > 0 
-        ? classStudents.reduce((acc, s) => acc + s.attendance, 0) / classStudents.length 
-        : 0;
-
-      const avgPresent = Math.round((avgAttendancePerc / 100) * totalStudents);
-
-      const studentIds = classStudents.map(s => s.id);
-      const relevantScores = scores.filter(s => studentIds.includes(s.studentId));
-      const avgScore = relevantScores.length > 0
-        ? Math.round(relevantScores.reduce((acc, s) => acc + s.value, 0) / relevantScores.length)
-        : 0;
-
-      // Absence Data from Real Attendance Records
-      // Get all session IDs for this class
-      const classSessionIds = allClassSessions.map(s => s.id);
-      // Filter attendance records
-      const classAttendance = attendance.filter(a => classSessionIds.includes(a.sessionId) && a.status === 'ABSENT' && a.reason);
-      
-      const reasonsCount: Record<string, number> = {
-          [t.sickLeave || 'Sick Leave']: 0,
-          [t.personalLeave || 'Personal Leave']: 0,
-          [t.schoolEvent || 'School Event']: 0,
-          [t.unexcused || 'Unexcused']: 0
-      };
-
-      classAttendance.forEach(a => {
-          const r = a.reason || 'Unexcused';
-          // Normalize key
-          const key = Object.keys(reasonsCount).find(k => k.toLowerCase() === r.toLowerCase()) || r;
-          reasonsCount[key] = (reasonsCount[key] || 0) + 1;
-      });
-
-      
-      const absenceData = Object.entries(reasonsCount).map(([name, value]) => ({ name, value }));
-
-      return { avgPresent, totalStudents, avgScore, absenceData };
-  }, [selectedClassId, classStudents, t, viewMonth, viewYear, scores, attendance, allClassSessions]);
-
-  // Report Data Calculation
-  const reportData = useMemo(() => {
-    if (!reportClassId) return null;
-
-    const rClass = classes.find(c => c.id === reportClassId);
-    const rStudents = students.filter(s => (s.classIds || []).includes(reportClassId));
-    
-    // Sessions in Year
-    const rSessions = sessions.filter(s => 
-        s.classId === reportClassId && 
-        new Date(s.date).getFullYear() === reportYear
-    );
-
-    // Aggregate by Month
-    const monthlyData = Array.from({length: 12}, (_, i) => {
-        const date = new Date(reportYear, i, 1);
-        const monthName = date.toLocaleString('default', { month: 'short' });
-        
-        const monthSessions = rSessions.filter(s => new Date(s.date).getMonth() === i);
-        const sessionCount = monthSessions.length;
-        
-        // Stats
-        let avgAttendance = 0;
-        let avgScore = 0;
-
-        if (sessionCount > 0) {
-             const baseAtt = rStudents.length > 0 
-                ? rStudents.reduce((a,b)=>a+b.attendance,0)/rStudents.length 
-                : 0;
-             const variation = (Math.sin(i * 1.5) * 8); 
-             avgAttendance = Math.round(Math.min(100, Math.max(0, baseAtt + variation)));
-
-             avgScore = Math.round(72 + (Math.cos(i) * 5) + (Math.random() * 5)); 
-        }
-
-        return {
-            month: monthName,
-            sessions: sessionCount,
-            attendance: avgAttendance,
-            score: avgScore,
-            status: sessionCount === 0 ? '-' : (avgAttendance < 80 || avgScore < 60 ? 'Review Needed' : 'Good')
-        };
-    });
-
-    const activeMonths = monthlyData.filter(m => m.sessions > 0);
-    const yearlyTotalSessions = rSessions.length;
-    const yearlyAvgAttendance = activeMonths.length > 0
-        ? Math.round(activeMonths.reduce((a,b) => a + b.attendance, 0) / activeMonths.length)
-        : 0;
-    const yearlyAvgScore = activeMonths.length > 0
-        ? Math.round(activeMonths.reduce((a,b) => a + b.score, 0) / activeMonths.length)
-        : 0;
-
-    return {
-        className: rClass?.name,
-        teacher: teachers.find(t => t.id === rClass?.teacherId)?.name,
-        monthlyData,
-        yearlyTotalSessions,
-        yearlyAvgAttendance,
-        yearlyAvgScore
-    };
-  }, [reportClassId, reportYear, sessions, students, classes, teachers]);
-
   const formatDate = (dateStr: string) => {
       const date = new Date(dateStr);
       return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-');
@@ -457,9 +541,10 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
               </TableHead>
               <TableHead>{t.grade}</TableHead>
               <TableHead>{t.assignedTeacher}</TableHead>
-              <TableHead>{t.locations}</TableHead>
-              <TableHead>{t.dayOfWeek}</TableHead>
+              <TableHead>{t.assignedLocation}</TableHead>
+              <TableHead>{t.weeklyDays}</TableHead>
               <TableHead>{t.time}</TableHead>
+              <TableHead>{t.sessionDuration}</TableHead>
               <TableHead className="text-right">{t.actions}</TableHead>
             </TableRow>
           </TableHeader>
@@ -478,8 +563,9 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
                           {locationName}
                       </div>
                   </TableCell>
-                  <TableCell>{cls.defaultSchedule?.dayOfWeek || '-'}</TableCell>
+                  <TableCell>{(cls.defaultSchedule?.days && cls.defaultSchedule.days.length > 0) ? cls.defaultSchedule.days.join(', ') : '-'}</TableCell>
                   <TableCell>{cls.defaultSchedule?.time || '-'}</TableCell>
+                  <TableCell>{formatDurationLabel(cls.defaultSchedule?.durationMinutes)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2 items-center">
                         <Dropdown 
@@ -490,10 +576,10 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
                           }
                           menu={
                             <>
-                                <DropdownItem onClick={() => { setReportClassId(cls.id); setReportYear(new Date().getFullYear()); }}>
+                                <DropdownItem onClick={() => openClassDialog(cls)}>
                                     <div className="flex items-center gap-2">
-                                        <FileText className="h-4 w-4 text-muted-foreground" />
-                                        Yearly Report
+                                        <Edit2 className="h-4 w-4 text-muted-foreground" />
+                                        {t.edit}
                                     </div>
                                 </DropdownItem>
                                 <DropdownItem onClick={() => setSelectedClassId(cls.id)}>
@@ -521,109 +607,12 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
             })}
             {filteredClasses.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">{t.noData}</TableCell>
+                <TableCell colSpan={8} className="h-24 text-center">{t.noData}</TableCell>
                 </TableRow>
             )}
           </TableBody>
         </Table>
       </Card>
-
-      {/* Yearly Report Dialog */}
-      <Dialog
-        isOpen={!!reportClassId}
-        onClose={() => setReportClassId(null)}
-        title={`Yearly Report: ${classes.find(c => c.id === reportClassId)?.name || ''}`}
-        className="max-w-3xl"
-      >
-        <div id="class-report-dialog-content" className="space-y-6 max-h-[80vh] overflow-y-auto p-2 bg-background">
-             <div className="flex justify-between items-center gap-4 border-b pb-4">
-                 <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
-                    <Select 
-                        value={reportYear} 
-                        onChange={(e) => setReportYear(parseInt(e.target.value))}
-                        className="w-32"
-                    >
-                        {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                    </Select>
-                 </div>
-                 <Button variant="outline" size="sm" onClick={() => captureElement('class-report-dialog-content', `Report_${reportYear}_${reportData?.className}.png`)}>
-                     <Download className="w-4 h-4 mr-2" /> Export
-                 </Button>
-             </div>
-             
-             {/* Stats Cards */}
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <Card className="p-4 flex flex-col items-center justify-center text-center">
-                    <div className="text-2xl font-bold">{reportData?.yearlyTotalSessions}</div>
-                    <div className="text-xs text-muted-foreground uppercase">Total Sessions</div>
-                 </Card>
-                 <Card className="p-4 flex flex-col items-center justify-center text-center">
-                    <div className="text-2xl font-bold">{reportData?.yearlyAvgAttendance}%</div>
-                    <div className="text-xs text-muted-foreground uppercase">Avg Attendance</div>
-                 </Card>
-                 <Card className="p-4 flex flex-col items-center justify-center text-center">
-                    <div className="text-2xl font-bold">{reportData?.yearlyAvgScore}</div>
-                    <div className="text-xs text-muted-foreground uppercase">Avg Score</div>
-                 </Card>
-             </div>
-             
-             {/* Chart */}
-             <div className="border rounded-lg p-4 shadow-sm bg-card w-full">
-                 <h3 className="text-sm font-semibold mb-4">Performance Trends</h3>
-                 <div className="h-[250px] w-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                         <LineChart data={reportData?.monthlyData}>
-                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                             <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                             <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
-                             <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
-                             <RechartsTooltip />
-                             <Legend />
-                             <Line yAxisId="left" type="monotone" name="Attendance (%)" dataKey="attendance" stroke="#16a34a" strokeWidth={2} dot={false} />
-                             <Line yAxisId="right" type="monotone" name="Avg Score" dataKey="score" stroke="#2563eb" strokeWidth={2} dot={false} />
-                         </LineChart>
-                     </ResponsiveContainer>
-                 </div>
-             </div>
-
-             {/* Table */}
-             <div>
-                 <h3 className="text-sm font-semibold mb-2">Monthly Breakdown</h3>
-                 <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-muted/50">
-                                <TableHead>Month</TableHead>
-                                <TableHead className="text-center">Sessions</TableHead>
-                                <TableHead className="text-center">Attendance</TableHead>
-                                <TableHead className="text-center">Score</TableHead>
-                                <TableHead className="text-right">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {reportData?.monthlyData.map((m, i) => (
-                                <TableRow key={i}>
-                                    <TableCell className="font-medium">{m.month}</TableCell>
-                                    <TableCell className="text-center">{m.sessions > 0 ? m.sessions : '-'}</TableCell>
-                                    <TableCell className="text-center">{m.sessions > 0 ? `${m.attendance}%` : '-'}</TableCell>
-                                    <TableCell className="text-center">{m.sessions > 0 ? m.score : '-'}</TableCell>
-                                    <TableCell className="text-right">
-                                        <span className={
-                                            m.status === 'Review Needed' ? 'text-destructive font-medium text-xs' : 
-                                            m.status === 'Good' ? 'text-green-600 font-medium text-xs' : 'text-muted-foreground text-xs'
-                                        }>
-                                            {m.status}
-                                        </span>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                 </div>
-             </div>
-        </div>
-      </Dialog>
 
       {/* Class Details Dialog (Existing) */}
       <Dialog
@@ -649,69 +638,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
                  <Button variant="outline" size="sm" onClick={() => captureElement('class-details-dialog-content', `Class_${selectedClass?.name}.png`)} title="Export as Image">
                      <Download className="w-4 h-4 mr-2" /> Export
                  </Button>
-             </div>
-             
-             {/* ... Stats ... */}
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <Card className="p-4 flex flex-col items-center justify-center text-center">
-                    <div className="text-2xl font-bold">{classStudents.length}</div>
-                    <div className="text-xs text-muted-foreground uppercase">{t.totalStudents}</div>
-                 </Card>
-                 <Card className="p-4 flex flex-col items-center justify-center text-center">
-                    <div className="text-2xl font-bold">{classStats?.avgPresent}/{classStats?.totalStudents}</div>
-                    <div className="text-xs text-muted-foreground uppercase">{t.avgAttendance}</div>
-                 </Card>
-                 <Card className="p-4 flex flex-col items-center justify-center text-center">
-                    <div className="text-2xl font-bold">{classStats?.avgScore}</div>
-                    <div className="text-xs text-muted-foreground uppercase">{t.avgPerformance}</div>
-                 </Card>
-             </div>
-
-             {/* ... Charts ... */}
-             <div className="grid grid-cols-1 gap-6">
-                <div className="border rounded-lg p-4 shadow-sm bg-card w-full">
-                   <h3 className="text-sm font-semibold mb-2 w-full text-left">Absence by Reason</h3>
-                   <div className="h-[200px] w-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={classStats?.absenceData}>
-                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                           <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                           <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                           <RechartsTooltip cursor={{fill: 'hsl(var(--muted)/0.2)'}} />
-                           <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
-                        </BarChart>
-                     </ResponsiveContainer>
-                   </div>
-                </div>
-
-                <div className="border rounded-lg p-4 shadow-sm bg-card w-full">
-                   <h3 className="text-sm font-semibold mb-2">Student Performance</h3>
-                   <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                         <thead>
-                            <tr className="border-b text-left text-muted-foreground">
-                               <th className="py-2">Student</th>
-                               <th className="py-2 text-right">Att.</th>
-                               <th className="py-2 text-right">Score</th>
-                            </tr>
-                         </thead>
-                         <tbody>
-                            {classStudents.map(s => {
-                                const sScores = scores.filter(sc => sc.studentId === s.id);
-                                const sAvg = sScores.length > 0 ? Math.round(sScores.reduce((a,b)=>a+b.value,0)/sScores.length) : '-';
-                                return (
-                                   <tr key={s.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                                      <td className="py-2 font-medium">{s.name}</td>
-                                      <td className="py-2 text-right">{s.attendance}%</td>
-                                      <td className="py-2 text-right">{sAvg}</td>
-                                   </tr>
-                                );
-                            })}
-                            {classStudents.length === 0 && <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">No students</td></tr>}
-                         </tbody>
-                      </table>
-                   </div>
-                </div>
              </div>
              
              {/* ... Sessions ... */}
@@ -764,8 +690,8 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
       {/* Add Class Dialog */}
       <Dialog
         isOpen={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
-        title={t.addNewClass}
+        onClose={closeClassDialog}
+        title={editingClass ? `${t.edit} ${t.classes}` : t.addNewClass}
         footer={
           <div className="flex items-center justify-between w-full">
             <Button
@@ -778,8 +704,8 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
               {t.autoFill}
             </Button>
            <div className="flex gap-2">
-             <Button type="button" onClick={handleSave}>{t.save}</Button>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{t.cancel}</Button>
+             <Button type="button" onClick={handleSaveClass}>{editingClass ? 'Update' : t.save}</Button>
+              <Button type="button" variant="outline" onClick={closeClassDialog}>{t.cancel}</Button>
             </div>
           </div>
         }
@@ -800,73 +726,138 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
              <label className="block text-sm font-medium mb-1.5">
                {t.grade} <span className="text-destructive">*</span>
              </label>
-             <Input
+             <Select
                 value={newClass.grade}
                 onChange={(e) => setNewClass({...newClass, grade: e.target.value})}
-                placeholder={t.gradePlaceholder}
                 required
+             >
+                <option value="" disabled>{t.gradePlaceholder || 'Select Standard / Form'}</option>
+                {GRADE_OPTIONS.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+             </Select>
+             <p className="text-xs text-muted-foreground mt-1">
+               {t.gradeDescription || 'Primary (Standard 1-6) or Secondary (Form 1-6) grades.'}
+             </p>
+           </div>
+           <div className="space-y-3">
+             <div className="space-y-2">
+                 <label className="block text-sm font-medium">
+                 {t.weeklyDays}
+                 <span className="block text-xs text-muted-foreground font-normal">
+                   Select one or multiple days for the recurring schedule.
+                 </span>
+               </label>
+               <div className="flex flex-wrap gap-2">
+                 {WEEKDAYS.map((day) => {
+                   const isSelected = newClass.days.includes(day);
+                   return (
+                     <button
+                       key={day}
+                       type="button"
+                       className={cn(
+                         'rounded-full border px-3 py-1 text-xs font-semibold transition',
+                         isSelected
+                           ? 'border-primary bg-primary text-primary-foreground'
+                           : 'border-input bg-muted/10 text-muted-foreground'
+                       )}
+                       onClick={() => {
+                         const hasDay = newClass.days.includes(day);
+                         setNewClass((prev) => ({
+                           ...prev,
+                           days: hasDay ? prev.days.filter(d => d !== day) : [...prev.days, day],
+                         }));
+                       }}
+                     >
+                       {t[day.toLowerCase()]}
+                     </button>
+                   );
+                 })}
+               </div>
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+               <div>
+                 <label className="block text-sm font-medium mb-1.5">
+                   {t.startTime || 'Start Time'}
+                 </label>
+                 <Input
+                   type="time"
+                   value={newClass.startTime}
+                   onChange={(e) => handleStartTimeChange(e.target.value)}
+                   required
+                 />
+               </div>
+               <div>
+                 <label className="block text-sm font-medium mb-1.5">
+                   {t.endTime || 'End Time'}
+                 </label>
+                 <Input
+                   type="time"
+                   value={newClass.endTime}
+                   onChange={(e) => handleEndTimeChange(e.target.value)}
+                   required
+                 />
+               </div>
+             </div>
+           </div>
+           <div className="space-y-2">
+             <label className="block text-sm font-medium mb-1.5">
+               {t.sessionDuration} (HH:MM)
+             </label>
+             <Input
+               type="text"
+               value={newClass.sessionDuration}
+               onChange={(e) => handleSessionDurationChange(e.target.value)}
+               placeholder="HH:MM"
              />
+             <p className="text-xs text-muted-foreground mt-1">
+               {t.durationHelp || 'Enter duration as HH:MM (e.g. 01:00) or adjust with the start/end times.'}
+             </p>
            </div>
-           <div>
-             <label className="block text-sm font-medium mb-1.5">
-               {t.assignedTeacher} <span className="text-destructive">*</span>
-             </label>
-             <Select
-                value={newClass.teacherId}
-                onChange={(e) => setNewClass({...newClass, teacherId: e.target.value})}
-                required
-                disabled={teachers.length === 0}
-              >
-                {teachers.length === 0 ? (
-                  <option value="">{t.teacherRequired}</option>
-                ) : (
-                  teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
-                )}
-              </Select>
-              {teachers.length === 0 && (
-                <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
-                  {t.teacherRequired}
-                </p>
-              )}
-           </div>
-           <div>
-             <label className="block text-sm font-medium mb-1.5">
-               {t.assignedLocation} <span className="text-destructive">*</span>
-             </label>
-             <Select
-                value={newClass.locationId}
-                onChange={(e) => setNewClass({...newClass, locationId: e.target.value})}
-                required
-                disabled={locations.length === 0}
-              >
-                {locations.length === 0 ? (
-                  <option value="">{t.locationRequired}</option>
-                ) : (
-                  locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)
-                )}
-              </Select>
-              {locations.length === 0 && (
-                <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
-                  {t.locationRequired}
-                </p>
-              )}
-           </div>
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div>
-               <label className="block text-sm font-medium mb-1.5">{t.dayOfWeek}</label>
-               <Select value={newClass.dayOfWeek} onChange={(e) => setNewClass({...newClass, dayOfWeek: e.target.value})}>
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => (
-                    <option key={d} value={d}>{t[d.toLowerCase()]}</option>
-                  ))}
-               </Select>
+               <label className="block text-sm font-medium mb-1.5">
+                 {t.assignedTeacher} <span className="text-destructive">*</span>
+               </label>
+               <Select
+                  value={newClass.teacherId}
+                  onChange={(e) => setNewClass({...newClass, teacherId: e.target.value})}
+                  required
+                  disabled={teachers.length === 0}
+                >
+                  {teachers.length === 0 ? (
+                    <option value="">{t.teacherRequired}</option>
+                  ) : (
+                    teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
+                  )}
+                </Select>
+                {teachers.length === 0 && (
+                  <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
+                    {t.teacherRequired}
+                  </p>
+                )}
              </div>
              <div>
-               <label className="block text-sm font-medium mb-1.5">{t.time}</label>
-               <Input
-                  type="time"
-                  value={newClass.time}
-                  onChange={(e) => setNewClass({...newClass, time: e.target.value})}
-               />
+               <label className="block text-sm font-medium mb-1.5">
+                 {t.assignedLocation} <span className="text-destructive">*</span>
+               </label>
+               <Select
+                  value={newClass.locationId}
+                  onChange={(e) => setNewClass({...newClass, locationId: e.target.value})}
+                  required
+                  disabled={locations.length === 0}
+                >
+                  {locations.length === 0 ? (
+                    <option value="">{t.locationRequired}</option>
+                  ) : (
+                    locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)
+                  )}
+                </Select>
+                {locations.length === 0 && (
+                  <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
+                    {t.locationRequired}
+                  </p>
+                )}
              </div>
            </div>
         </div>

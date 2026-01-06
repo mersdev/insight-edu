@@ -107,8 +107,9 @@ describe('HQ User - Complete Workflow', () => {
 
       teachersPage.fillTeacherForm({
         name: `Test Teacher ${timestamp}`,
-        email: `test.teacher.${timestamp}@edu.com`,
-        subject: 'Mathematics',
+        email: `test.teacher.${timestamp}@test.com`,
+        subjects: ['Mathematics'],
+        levels: ['Standard 1'],
         englishName: `Test Teacher ${timestamp}`,
         chineseName: `测试老师${timestamp}`,
         phone: '1234567890'
@@ -218,4 +219,3 @@ describe('HQ User - Complete Workflow', () => {
     });
   });
 });
-

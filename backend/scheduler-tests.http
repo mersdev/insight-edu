@@ -1,0 +1,40 @@
+# Base URL: http://127.0.0.1:8787 (backend dev server must be running)
+# Auth: obtain token first, then paste into Authorization headers below.
+
+### Login as admin (get token)
+POST http://127.0.0.1:8787/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@edu.com",
+  "password": "Admin123"
+}
+
+### Run manual scheduler for a month (defaults to current month if month omitted)
+POST http://127.0.0.1:8787/api/v1/admin/sessions/schedule
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFkbWluIiwiZW1haWwiOiJhZG1pbkBlZHUuY29tIiwicm9sZSI6IkhRIiwiaWF0IjoxNzY3NzA3MTM3LCJleHAiOjE3Njc3OTM1Mzd9.frlgEAjmN0zKcEvp5Rc_hzdpv24rs5L3C_-aPcj0ULc
+Content-Type: application/json
+
+{
+  "month": "2026-01"
+}
+
+### List sessions (verify creation)
+GET http://127.0.0.1:8787/api/v1/admin/sessions
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFkbWluIiwiZW1haWwiOiJhZG1pbkBlZHUuY29tIiwicm9sZSI6IkhRIiwiaWF0IjoxNzY3NzA3MTM3LCJleHAiOjE3Njc3OTM1Mzd9.frlgEAjmN0zKcEvp5Rc_hzdpv24rs5L3C_-aPcj0ULc
+
+### Trigger local cron handler (current time)
+GET http://127.0.0.1:8787/cdn-cgi/handler/scheduled?cron=*+*+*+*+*
+
+### Delete sessions for a month (revert)
+DELETE http://127.0.0.1:8787/api/v1/admin/sessions/by-month
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFkbWluIiwiZW1haWwiOiJhZG1pbkBlZHUuY29tIiwicm9sZSI6IkhRIiwiaWF0IjoxNzY3NzA3MTM3LCJleHAiOjE3Njc3OTM1Mzd9.frlgEAjmN0zKcEvp5Rc_hzdpv24rs5L3C_-aPcj0ULc
+Content-Type: application/json
+
+{
+  "month": "2026-01"
+}
+
+### Verify deletion
+GET http://127.0.0.1:8787/api/v1/admin/sessions
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFkbWluIiwiZW1haWwiOiJhZG1pbkBlZHUuY29tIiwicm9sZSI6IkhRIiwiaWF0IjoxNzY3NzA3MTM3LCJleHAiOjE3Njc3OTM1Mzd9.frlgEAjmN0zKcEvp5Rc_hzdpv24rs5L3C_-aPcj0ULc

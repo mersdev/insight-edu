@@ -87,7 +87,7 @@ describe('Authentication', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: 'dehoulworker+sarahjenkins@gmail.com',
+        email: 'sarahjenkins@edu.com',
           password: '123',
         }),
       });
@@ -98,7 +98,7 @@ describe('Authentication', () => {
       const data = await response.json();
       expect(data.token).toBeDefined();
       expect(data.user).toBeDefined();
-      expect(data.user.email).toBe('dehoulworker+sarahjenkins@gmail.com');
+      expect(data.user.email).toBe('sarahjenkins@edu.com');
       expect(data.user.role).toBe('TEACHER');
       expect(data.user.name).toBe('Sarah Jenkins');
     });
@@ -108,7 +108,7 @@ describe('Authentication', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: 'dehoulworker+ali@gmail.com',
+        email: 'ahmad@edu.com',
           password: '123',
         }),
       });
@@ -119,7 +119,7 @@ describe('Authentication', () => {
       const data = await response.json();
       expect(data.token).toBeDefined();
       expect(data.user).toBeDefined();
-      expect(data.user.email).toBe('dehoulworker+ali@gmail.com');
+      expect(data.user.email).toBe('ahmad@edu.com');
       expect(data.user.role).toBe('PARENT');
       expect(data.user.name).toBe('Mr. Ahmad');
     });

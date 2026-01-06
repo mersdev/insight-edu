@@ -1,5 +1,6 @@
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
+import { resolveTeacherId } from '../utils/teacherLookup.js';
 
 export async function handleGetScores({ db, corsHeaders }) {
   try {
@@ -18,9 +19,15 @@ export async function handleGetScores({ db, corsHeaders }) {
   }
 }
 
-export async function handleCreateScore({ body, db, corsHeaders }) {
+export async function handleCreateScore({ body, db, corsHeaders, user }) {
   try {
     const { studentId, date, subject, value, type } = body;
+    const teacherId = await resolveTeacherId({
+      db,
+      providedId: body.teacherId,
+      user,
+      studentId,
+    });
 
     if (!studentId || !date || !subject || value === undefined || !type) {
       return jsonResponse(
@@ -30,16 +37,24 @@ export async function handleCreateScore({ body, db, corsHeaders }) {
       );
     }
 
+    if (!teacherId) {
+      return jsonResponse(
+        { error: 'Validation Error', message: 'Teacher not identified' },
+        400,
+        corsHeaders
+      );
+    }
+
     const existing = await db
-      .prepare('SELECT * FROM scores WHERE student_id = ? AND date = ? AND subject = ? AND type = ?')
-      .bind(studentId, date, subject, type)
+      .prepare('SELECT * FROM scores WHERE student_id = ? AND date = ? AND subject = ? AND type = ? AND (teacher_id = ? OR (teacher_id IS NULL AND ? IS NULL))')
+      .bind(studentId, date, subject, type, teacherId, teacherId)
       .all();
 
     if (existing.results && existing.results.length > 0) {
       const scoreId = existing.results[0].id;
       await db
-        .prepare('UPDATE scores SET value = ? WHERE id = ?')
-        .bind(value, scoreId)
+        .prepare('UPDATE scores SET value = ?, teacher_id = ? WHERE id = ?')
+        .bind(value, teacherId, scoreId)
         .run();
 
       const updated = await db
@@ -51,8 +66,8 @@ export async function handleCreateScore({ body, db, corsHeaders }) {
     }
 
     await db
-      .prepare('INSERT INTO scores (student_id, date, subject, value, type) VALUES (?, ?, ?, ?, ?)')
-      .bind(studentId, date, subject, value, type)
+      .prepare('INSERT INTO scores (student_id, date, subject, value, teacher_id, type) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(studentId, date, subject, value, teacherId, type)
       .run();
 
     const created = await db

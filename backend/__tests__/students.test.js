@@ -50,6 +50,7 @@ describe('Students API', () => {
       expect(aliAhmad).toBeDefined();
       expect(aliAhmad.name).toBe('Ali Ahmad');
       expect(aliAhmad.school).toBe('City High School');
+      expect(aliAhmad.address).toBe('Jalan Cerdas, Taman Connaught, 56000 Kuala Lumpur');
     });
   });
 
@@ -57,25 +58,32 @@ describe('Students API', () => {
     test('should create a parent user that can login and trigger email', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const studentId = `s_test_${Date.now()}`;
+      const parentEmail = `testparent${Date.now()}@edu.com`;
+      const address = 'Level 4, Demo Building, Kuala Lumpur';
 
-      const parentEmail = `dehoulworker+testparent${Date.now()}@gmail.com`;
+      const newStudent = {
+        id: studentId,
+        name: 'Test Student',
+        classIds: [],
+        parentName: 'Test Parent',
+        parentEmail,
+        address,
+        attendance: 100,
+        atRisk: false,
+      };
 
       const request = new Request('http://localhost/api/v1/admin/students', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          id: studentId,
-          name: 'Test Student',
-          classIds: [],
-          parentName: 'Test Parent',
-          parentEmail,
-          attendance: 100,
-          atRisk: false,
-        }),
+        body: JSON.stringify(newStudent),
       });
 
       const response = await worker.fetch(request, mockEnv, mockCtx);
       expect(response.status).toBe(201);
+      const responseBody = await response.json();
+      expect(responseBody).toHaveProperty('id');
+      expect(responseBody).toHaveProperty('name', newStudent.name);
+      expect(responseBody).toHaveProperty('address', address);
 
       const loginRequest = new Request('http://localhost/api/v1/auth/login', {
         method: 'POST',
@@ -98,7 +106,7 @@ describe('Students API', () => {
     test('should remove parent user when last student is deleted', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const studentId = `s_delete_${Date.now()}`;
-      const parentEmail = `dehoulworker+parent${studentId.toLowerCase()}@gmail.com`;
+      const parentEmail = `parent${studentId.toLowerCase()}@edu.com`;
 
       const createRequest = new Request('http://localhost/api/v1/admin/students', {
         method: 'POST',

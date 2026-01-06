@@ -32,8 +32,9 @@ export class ClassesPage extends BasePage {
     grade: string;
     teacherId: string;
     locationId: string;
-    dayOfWeek: string;
+    days: string[];
     time: string;
+    durationHours?: string;
   }): void {
     cy.get('input[placeholder*="Name"], input[name="name"]').first().clear().type(classData.name);
     cy.get('input[placeholder*="Grade"], input[name="grade"]').clear().type(classData.grade);
@@ -43,12 +44,32 @@ export class ClassesPage extends BasePage {
     
     // Select location
     cy.get('select').eq(1).select(classData.locationId);
-    
-    // Select day of week
-    cy.get('select').eq(2).select(classData.dayOfWeek);
+
+    // Adjust weekly days
+    cy.contains('label', /weekly days/i).parent().within(() => {
+      cy.get('button').each(($button) => {
+        const buttonText = $button.text().trim();
+        const shouldBeSelected = classData.days.some(
+          (targetDay) => targetDay.toLowerCase() === buttonText.toLowerCase()
+        );
+        const isSelected = $button.hasClass('bg-primary');
+        if (shouldBeSelected && !isSelected) {
+          cy.wrap($button).click({ force: true });
+        }
+        if (!shouldBeSelected && isSelected) {
+          cy.wrap($button).click({ force: true });
+        }
+      });
+    });
     
     // Set time
     cy.get('input[type="time"], input[name="time"]').clear().type(classData.time);
+
+    if (classData.durationHours) {
+      cy.contains('label', /session duration/i).parent().within(() => {
+        cy.get('input').clear().type(classData.durationHours);
+      });
+    }
   }
 
   /**
@@ -105,4 +126,3 @@ export class ClassesPage extends BasePage {
     cy.contains('th', /name|class/i).click();
   }
 }
-

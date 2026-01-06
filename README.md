@@ -104,6 +104,15 @@ npm run db:reset
 
 This runs the local D1 reset helper, re-runs the schema (`init.sql`), and reseeds the database so you can start from a clean slate.
 
+### Apply incremental migrations
+
+```bash
+cd backend
+npx wrangler d1 execute insight-edu --local --file=migrations/004_teacher_schedule_updates.sql
+```
+
+Run this after pulling schema changes so the local D1 instance receives the latest alterations (new `subjects`, `levels`, and `duration_minutes` columns). For Cloudflare-hosted environments swap `--local` for `--remote` and ensure the target database matches the name in `wrangler.toml`.
+
 ### Remote (Cloudflare D1)
 
 ```bash
@@ -140,6 +149,28 @@ This project now handles notifications by asking the HQ Admin to open `wa.me/+60
 cd backend
 npm run dev
 ```
+
+### Testing cron locally
+Wrangler can expose the scheduled handler in dev mode so you can simulate the cron before deploying.
+
+1) Start dev with scheduled testing enabled:
+```bash
+cd backend
+npx wrangler dev --test-scheduled
+```
+
+2) Trigger the scheduled handler over HTTP (either path works for JS Workers):
+```bash
+curl "http://127.0.0.1:8787/__scheduled?cron=*+*+*+*+*"
+curl "http://127.0.0.1:8787/cdn-cgi/handler/scheduled?cron=*+*+*+*+*"
+```
+
+3) Optionally simulate a specific cron/time:
+```bash
+curl "http://127.0.0.1:8787/__scheduled?cron=0+0+1+*+*&time=1745856238"
+```
+
+This hits the same `scheduled` handler as production and will run the maintenance routine locally.
 
 **Start Frontend:**
 ```bash
@@ -187,6 +218,34 @@ The project includes comprehensive E2E tests using Cypress for testing the full 
 # Or manually from frontend directory
 cd frontend
 npm run test:e2e
+```
+
+## 📅 Monthly Session Scheduler
+
+- A Worker cron (`0 0 1 * *`) automatically creates sessions for every class based on each class's `default_schedule` for the current month.
+- Manual trigger (useful for testing or backfilling): `POST /api/v1/admin/sessions/schedule` with JSON body `{ "month": "YYYY-MM" }` (month optional; defaults to current).
+- Revert/delete a month's auto-created sessions: `DELETE /api/v1/admin/sessions/by-month` with the same JSON body.
+
+### How to test manually
+1. Start the backend (`cd backend && npm run dev`).
+2. Log in to get a token (e.g., using seeded admin: `admin@edu.com` / `Admin123`), then set `Authorization: Bearer <token>`.
+3. Run the scheduler for a month:  
+   `curl -X POST http://localhost:8787/api/v1/admin/sessions/schedule -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"month":"2025-11"}'`
+4. Verify sessions were created: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8787/api/v1/admin/sessions`.
+5. Delete the same month's sessions:  
+   `curl -X DELETE http://localhost:8787/api/v1/admin/sessions/by-month -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"month":"2025-11"}'`
+6. (Optional) Run automated coverage: `cd backend && npm test -- sessions.test.js`.
+
+### One-shot local script (includes cron handler)
+- Ensure backend dev server is running (`cd backend && npm run dev`).
+- Run `./test.sh` (from repo root). Environment overrides: `BASE_URL`, `MONTH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+- The script logs in, runs the manual scheduler, hits the local cron endpoint (`/cdn-cgi/handler/scheduled` with current time), and deletes the month’s sessions at the end.
+
+**Run a single E2E spec:**
+
+```bash
+cd frontend
+npx cypress run --spec "cypress/e2e/api/behaviors-scores.cy.ts"
 ```
 
 **Interactive Testing:**
@@ -244,11 +303,11 @@ After seeding the database, you can login with the following test accounts:
 - Password: `Admin123`
 
 **Teacher:**
-- Email: `dehoulworker+sarahjenkins@gmail.com`
+- Email: `sarahjenkins@edu.com`
 - Password: `123`
 
 **Parent:**
-- Email: `dehoulworker+ali@gmail.com`
+- Email: `ahmad@edu.com`
 - Password: `123`
 
 **⚠️ SECURITY NOTE:** These are test credentials for development only. In production:

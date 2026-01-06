@@ -49,6 +49,8 @@ describe('Teachers API', () => {
       const sarah = data.find((t) => t.id === 't1');
       expect(sarah).toBeDefined();
       expect(sarah.name).toBe('Sarah Jenkins');
+      expect(sarah.subjects).toContain('Mathematics');
+      expect(Array.isArray(sarah.levels)).toBe(true);
       expect(sarah.subject).toBe('Mathematics');
     });
   });
@@ -57,7 +59,7 @@ describe('Teachers API', () => {
     test('should create a teacher user that can login and trigger email', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const teacherId = `t_test_${Date.now()}`;
-      const expectedEmail = `dehoulworker+testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
+      const expectedEmail = `testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@edu.com`;
 
       const request = new Request('http://localhost/api/v1/admin/teachers', {
         method: 'POST',
@@ -66,13 +68,16 @@ describe('Teachers API', () => {
           id: teacherId,
           name: 'Test Teacher',
           email: expectedEmail,
-          subject: 'Islam / Moral',
+          subjects: ['Islam / Moral', 'Philosophy'],
+          levels: ['Standard 1'],
         }),
       });
 
     const response = await worker.fetch(request, mockEnv, mockCtx);
     expect(response.status).toBe(201);
     const createdTeacher = await response.json();
+    expect(createdTeacher.subjects).toEqual(['Islam / Moral', 'Philosophy']);
+    expect(createdTeacher.levels).toEqual(['Standard 1']);
     expect(createdTeacher.subject).toBe('Islam / Moral');
 
     const loginRequest = new Request('http://localhost/api/v1/auth/login', {
@@ -94,7 +99,7 @@ describe('Teachers API', () => {
     test('should remove teacher user when deleted', async () => {
       const token = createToken('admin', 'admin@edu.com', 'HQ');
       const teacherId = `t_delete_${Date.now()}`;
-      const expectedEmail = `dehoulworker+testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@gmail.com`;
+      const expectedEmail = `testteacher${teacherId.toLowerCase().replace(/[^a-z0-9]+/g, '')}@edu.com`;
 
       const createRequest = new Request('http://localhost/api/v1/admin/teachers', {
         method: 'POST',
@@ -103,7 +108,8 @@ describe('Teachers API', () => {
           id: teacherId,
           name: 'Delete Teacher',
           email: expectedEmail,
-          subject: 'Account',
+          subjects: ['Account'],
+          levels: ['Form 1'],
         }),
       });
 

@@ -75,7 +75,7 @@ describe('API Integration - Students', () => {
         parent_name: 'Test Parent',
         relationship: 'Father',
         emergency_contact: '1234567890',
-        parent_email: `dehoulworker+testparent${timestamp}@gmail.com`
+        parent_email: `testparent${timestamp}@test.com`
       };
 
       cy.request({

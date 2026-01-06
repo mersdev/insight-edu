@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS teachers (
   chinese_name TEXT,
   email TEXT NOT NULL,
   subject TEXT NOT NULL,
+  subjects TEXT DEFAULT '[]',
+  levels TEXT DEFAULT '[]',
   phone TEXT,
   description TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -66,7 +68,8 @@ CREATE TABLE IF NOT EXISTS students (
   parent_name TEXT,
   relationship TEXT,
   emergency_contact TEXT,
-  parent_email TEXT
+  parent_email TEXT,
+  address TEXT
 );
 
 -- Sessions table
@@ -75,6 +78,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   start_time TIME NOT NULL,
+  duration_minutes INTEGER DEFAULT 60,
   type TEXT NOT NULL CHECK (type IN ('REGULAR', 'SPECIAL')),
   status TEXT NOT NULL CHECK (status IN ('SCHEDULED', 'CANCELLED', 'COMPLETED')),
   target_student_ids TEXT
@@ -97,6 +101,7 @@ CREATE TABLE IF NOT EXISTS scores (
   date DATE NOT NULL,
   subject TEXT NOT NULL,
   value INTEGER NOT NULL CHECK (value >= 0 AND value <= 100),
+  teacher_id TEXT REFERENCES teachers(id) ON DELETE SET NULL,
   type TEXT NOT NULL CHECK (type IN ('EXAM', 'HOMEWORK', 'QUIZ', 'PRESENTATION', 'LAB'))
 );
 
@@ -106,8 +111,17 @@ CREATE TABLE IF NOT EXISTS behaviors (
   student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
   session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
   date TIMESTAMP NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('Attention', 'Participation', 'Homework', 'Behavior', 'Practice')),
+  category TEXT NOT NULL,
+  teacher_id TEXT REFERENCES teachers(id) ON DELETE SET NULL,
   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5)
+);
+
+-- Rating Categories table
+CREATE TABLE IF NOT EXISTS rating_categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Student Insights table
@@ -133,4 +147,6 @@ CREATE INDEX IF NOT EXISTS idx_behaviors_student_id ON behaviors(student_id);
 CREATE INDEX IF NOT EXISTS idx_behaviors_session_id ON behaviors(session_id);
 CREATE INDEX IF NOT EXISTS idx_behaviors_date ON behaviors(date);
 CREATE INDEX IF NOT EXISTS idx_behaviors_student_session_category ON behaviors(student_id, session_id, category);
+CREATE INDEX IF NOT EXISTS idx_scores_teacher_id ON scores(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_behaviors_teacher_id ON behaviors(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

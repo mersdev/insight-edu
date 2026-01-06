@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, Clock, MoreHorizontal, CalendarClock, XCircle, UserCheck } from 'lucide-react';
 import { Card, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select, Badge, Button, Dropdown, DropdownItem, Dialog, Input, cn } from '../../components/ui';
-import { ClassGroup, Session, Student, BehaviorRating } from '../../types';
+import { ClassGroup, Session, Student, BehaviorRating, RatingCategory, AttendanceRecord } from '../../types';
 import { api } from '../../services/backendApi';
 
 interface TeacherClassesProps {
@@ -14,10 +14,27 @@ interface TeacherClassesProps {
   students: Student[];
   behaviors: BehaviorRating[];
   setBehaviors: (behaviors: BehaviorRating[]) => void;
+  attendance: AttendanceRecord[];
+  setAttendance: (attendance: AttendanceRecord[]) => void;
+  ratingCategories: RatingCategory[];
 }
 
+const DEFAULT_CATEGORIES = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+const LEAVE_REASONS = ['Sick Leave', 'Personal Leave', 'School Event', 'Unexcused', 'Other'];
+
 export const TeacherClasses: React.FC<TeacherClassesProps> = ({
-  t, classes, selectedClassId, onSelectClass, sessions, setSessions, students, behaviors, setBehaviors
+  t,
+  classes,
+  selectedClassId,
+  onSelectClass,
+  sessions,
+  setSessions,
+  students,
+  behaviors,
+  setBehaviors,
+  attendance,
+  setAttendance,
+  ratingCategories,
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   
@@ -29,7 +46,8 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
   // Performance Rating State
   const [isPerformanceOpen, setPerformanceOpen] = useState(false);
   const [performanceSession, setPerformanceSession] = useState<Session | null>(null);
-  const [tempBehaviors, setTempBehaviors] = useState<Record<string, Record<string, number>>>({}); // studentId -> { category -> rating }
+  const [tempBehaviors, setTempBehaviors] = useState<Record<string, Record<string, number | null>>>({}); // studentId -> { category -> rating }
+  const [tempAttendance, setTempAttendance] = useState<Record<string, { status: 'PRESENT' | 'ABSENT'; reason?: string }>>({});
 
   // 1. Filter sessions for selected class
   const classSessions = useMemo(() => {
@@ -97,6 +115,16 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
       return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const isFutureSession = (session: Session) => {
+      const todayUTC = new Date(Date.UTC(
+        new Date().getUTCFullYear(),
+        new Date().getUTCMonth(),
+        new Date().getUTCDate()
+      ));
+      const sessionUTC = new Date(`${session.date}T00:00:00Z`);
+      return sessionUTC > todayUTC;
+  };
+
   // --- Handlers ---
 
   const handleOpenReschedule = (session: Session) => {
@@ -109,7 +137,9 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
       setPerformanceSession(session);
       
       const relevantBehaviors = behaviors.filter(b => b.sessionId === session.id);
+      const relevantAttendance = attendance.filter(a => a.sessionId === session.id);
       const loaded: Record<string, Record<string, number>> = {};
+      const attendanceLoaded: Record<string, { status: 'PRESENT' | 'ABSENT'; reason?: string }> = {};
       
       // Determine students for this session to set defaults
       const allClassStudents = students.filter(s => (s.classIds || []).includes(selectedClassId));
@@ -122,28 +152,51 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
           if (!loaded[student.id]) loaded[student.id] = {};
           categories.forEach(cat => {
                const found = relevantBehaviors.find(b => b.studentId === student.id && b.category === cat);
-               // Default to 5 if not found
+               // Default to 5 so ratings are pre-filled
                loaded[student.id][cat] = found ? found.rating : 5;
           });
+          const att = relevantAttendance.find(a => a.studentId === student.id);
+          attendanceLoaded[student.id] = att
+            ? { status: att.status as 'PRESENT' | 'ABSENT', reason: att.reason }
+            : { status: 'PRESENT' };
       });
 
       setTempBehaviors(loaded);
+      setTempAttendance(attendanceLoaded);
       setPerformanceOpen(true);
   };
 
   const handleCancelSession = async (session: Session) => {
-      if (window.confirm("Are you sure you want to cancel this session?")) {
-          await api.updateSessionStatus(session.id, 'CANCELLED');
-          const updated = sessions.map(s => s.id === session.id ? { ...s, status: 'CANCELLED' as const } : s);
-          setSessions(updated);
+      if (!window.confirm("Are you sure you want to cancel this session?")) return;
+      const updated = sessions.map(s => s.id === session.id ? { ...s, status: 'CANCELLED' as const } : s);
+      setSessions(updated);
+      try {
+        await api.updateSessionStatus(session.id, 'CANCELLED');
+      } catch (err: any) {
+        // If session does not exist in backend (future auto-generated), skip remote update
+        if (typeof err?.message === 'string' && err.message.includes('Not Found')) {
+          console.warn('Session not found in backend; kept local cancellation.');
+        } else {
+          console.error('Failed to cancel session', err);
+          setSessions(sessions); // revert if real failure
+          throw err;
+        }
       }
   };
 
   const confirmReschedule = async () => {
       if (!selectedSession || !rescheduleData.date || !rescheduleData.time) return;
       
-      // 1. Cancel old session
-      await api.updateSessionStatus(selectedSession.id, 'CANCELLED');
+      // 1. Cancel old session (best-effort)
+      try {
+        await api.updateSessionStatus(selectedSession.id, 'CANCELLED');
+      } catch (err: any) {
+        if (typeof err?.message === 'string' && err.message.includes('Not Found')) {
+          console.warn('Session not found in backend; skipping remote cancel.');
+        } else {
+          console.error('Failed to cancel session', err);
+        }
+      }
       
       // 2. Create new session
       const newSession: Session = {
@@ -164,6 +217,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
   };
 
   const updateRating = (studentId: string, category: string, value: number) => {
+      if (tempAttendance[studentId]?.status === 'ABSENT') return;
       setTempBehaviors(prev => ({
           ...prev,
           [studentId]: {
@@ -176,11 +230,43 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
   const savePerformance = async () => {
       if (!performanceSession) return;
       
+      // Ensure the session exists in backend before posting attendance/behaviors (best effort)
+      try {
+        await api.createSession({
+          ...performanceSession,
+          type: performanceSession.type || 'REGULAR',
+          status: performanceSession.status || 'SCHEDULED',
+        } as Session);
+      } catch (err: any) {
+        if (typeof err?.message === 'string' && err.message.toLowerCase().includes('unique')) {
+          // Already exists, safe to proceed
+        } else {
+          console.warn('createSession preflight failed, proceeding assuming session exists', err);
+        }
+      }
+
       const newBehaviors: BehaviorRating[] = [];
+      const newAttendance: AttendanceRecord[] = [];
       const timestamp = new Date().toISOString();
 
       Object.entries(tempBehaviors).forEach(([studentId, ratings]) => {
+          const attendanceStatus = tempAttendance[studentId]?.status || 'PRESENT';
+          const reason = tempAttendance[studentId]?.reason;
+          newAttendance.push({
+            id: `att_${performanceSession.id}_${studentId}`,
+            sessionId: performanceSession.id,
+            studentId,
+            status: attendanceStatus,
+            reason,
+            date: timestamp,
+          });
+
+          if (attendanceStatus === 'ABSENT') {
+            return;
+          }
+
           Object.entries(ratings).forEach(([category, rating]) => {
+              if (rating === null || rating === undefined) return;
               newBehaviors.push({
                   studentId,
                   sessionId: performanceSession.id,
@@ -193,14 +279,45 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
 
       // Optimistically update local state immediately to reflect changes in UI
       const cleanedBehaviors = behaviors.filter(b => b.sessionId !== performanceSession.id);
+      const cleanedAttendance = attendance.filter(a => a.sessionId !== performanceSession.id);
       setBehaviors([...cleanedBehaviors, ...newBehaviors]);
+      setAttendance([...cleanedAttendance, ...newAttendance]);
       setPerformanceOpen(false);
 
       // Persist to DB via API (Parallelized for speed)
-      await Promise.all(newBehaviors.map(b => api.recordBehavior(b)));
+      const attendanceResults = await Promise.allSettled(
+        newAttendance.map(a => api.recordAttendance(a))
+      );
+      const behaviorResults = await Promise.allSettled(
+        newBehaviors.map(b => api.recordBehavior(b))
+      );
+
+      const fatalError = [...attendanceResults, ...behaviorResults].find(
+        (r) => r.status === 'rejected' &&
+          !(
+            typeof (r as PromiseRejectedResult).reason?.message === 'string' &&
+            ((r as PromiseRejectedResult).reason.message.includes('Not Found') ||
+             (r as PromiseRejectedResult).reason.message.includes('foreign key constraint') ||
+             (r as PromiseRejectedResult).reason.message.toLowerCase().includes('unique')))
+      );
+      if (fatalError) {
+        throw (fatalError as PromiseRejectedResult).reason;
+      }
+
+      // Mark session as completed once performance data is saved
+      try {
+        await api.updateSessionStatus(performanceSession.id, 'COMPLETED');
+        setSessions((prev) =>
+          prev.map((s) => (s.id === performanceSession.id ? { ...s, status: 'COMPLETED' as const } : s))
+        );
+      } catch (statusErr) {
+        console.warn('Failed to mark session as completed', statusErr);
+      }
   };
 
-  const categories = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
+  const categories = ratingCategories.length > 0
+    ? ratingCategories.map((category) => category.name)
+    : DEFAULT_CATEGORIES;
 
   // Students for Performance Dialog
   const sessionStudents = useMemo(() => {
@@ -278,6 +395,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                         <Button 
                             size="sm" 
                             variant="default" // Force black
+                            disabled={isFutureSession(session)}
                             onClick={() => handleOpenPerformance(session)}
                             className="h-8 gap-2 bg-black text-white hover:bg-black/90 shadow-sm"
                         >
@@ -342,6 +460,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                     <Button 
                         size="sm" 
                         variant="default" // Force black
+                        disabled={isFutureSession(session)}
                         onClick={() => handleOpenPerformance(session)}
                         className="w-full text-xs h-10 bg-black text-white hover:bg-black/90 shadow-sm"
                     >
@@ -436,7 +555,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg">{student.name}</h3>
-                                <p className="text-xs text-muted-foreground">Rate performance (1-5)</p>
+                                <p className="text-xs text-muted-foreground">Mark attendance and optionally rate performance</p>
                             </div>
                         </div>
                         <div className="space-y-3">
@@ -446,6 +565,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                                     <div className="grid grid-cols-5 gap-2">
                                         {[1, 2, 3, 4, 5].map(value => {
                                             const isSelected = tempBehaviors[student.id]?.[cat] === value;
+                                            const isDisabled = tempAttendance[student.id]?.status === 'ABSENT';
                                             return (
                                                 <button
                                                     key={value}
@@ -454,10 +574,12 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                                                     className={cn(
                                                         "h-10 w-full rounded-lg border text-base font-semibold transition",
                                                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+                                                        isDisabled ? "opacity-50 cursor-not-allowed" :
                                                         isSelected
                                                             ? "bg-black text-white border-black"
                                                             : "bg-white text-black border-gray-200 hover:border-black"
                                                     )}
+                                                    disabled={isDisabled}
                                                 >
                                                     {value}
                                                 </button>
@@ -466,6 +588,61 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                        <div className="flex flex-col gap-3 mt-4">
+                          <div className="grid grid-cols-2 gap-2 w-full">
+                            <Button
+                              variant={tempAttendance[student.id]?.status === 'PRESENT' ? 'default' : 'outline'}
+                              size="sm"
+                              className="h-11 w-full text-sm font-semibold"
+                              onClick={() => {
+                                setTempAttendance(prev => ({
+                                  ...prev,
+                                  [student.id]: { status: 'PRESENT' },
+                                }));
+                              }}
+                            >
+                              Present
+                            </Button>
+                            <Button
+                              variant={tempAttendance[student.id]?.status === 'ABSENT' ? 'destructive' : 'outline'}
+                              size="sm"
+                              className="h-11 w-full text-sm font-semibold"
+                              onClick={() => {
+                                setTempAttendance(prev => ({
+                                  ...prev,
+                                  [student.id]: { status: 'ABSENT', reason: prev[student.id]?.reason },
+                                }));
+                                setTempBehaviors(prev => ({
+                                  ...prev,
+                                  [student.id]: { ...(prev[student.id] || {}) },
+                                }));
+                              }}
+                            >
+                              Absent
+                            </Button>
+                          </div>
+                          {tempAttendance[student.id]?.status === 'ABSENT' && (
+                            <div className="w-full">
+                              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Reason for Absence</label>
+                              <Select
+                                value={tempAttendance[student.id]?.reason || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setTempAttendance(prev => ({
+                                    ...prev,
+                                    [student.id]: { status: 'ABSENT', reason: value },
+                                  }));
+                                }}
+                                className="h-11 w-full bg-gray-50 border-gray-200 text-sm"
+                              >
+                                <option value="">Select Reason...</option>
+                                {LEAVE_REASONS.map((reason) => (
+                                  <option key={reason} value={reason}>{reason}</option>
+                                ))}
+                              </Select>
+                            </div>
+                          )}
                         </div>
                     </Card>
                 ))}

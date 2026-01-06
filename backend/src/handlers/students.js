@@ -37,6 +37,7 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
       relationship,
       emergencyContact,
       parentEmail,
+      address,
     } = body;
 
     if (!id || !name) {
@@ -88,7 +89,7 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
     }
 
     await db
-      .prepare('INSERT INTO students (id, name, parent_id, class_ids, attendance, at_risk, school, parent_name, relationship, emergency_contact, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .prepare('INSERT INTO students (id, name, parent_id, class_ids, attendance, at_risk, school, parent_name, relationship, emergency_contact, parent_email, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(
         id,
         name,
@@ -100,7 +101,8 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
         parentName || null,
         relationship || null,
         emergencyContact || null,
-        loginParentEmail || null
+        loginParentEmail || null,
+        address || null
       )
       .run();
 
@@ -134,10 +136,11 @@ export async function handleUpdateStudent({ params, body, db, corsHeaders }) {
       relationship,
       emergencyContact,
       parentEmail,
+      address,
     } = body;
 
     await db
-      .prepare('UPDATE students SET name = ?, parent_id = ?, class_ids = ?, attendance = ?, at_risk = ?, school = ?, parent_name = ?, relationship = ?, emergency_contact = ?, parent_email = ? WHERE id = ?')
+      .prepare('UPDATE students SET name = ?, parent_id = ?, class_ids = ?, attendance = ?, at_risk = ?, school = ?, parent_name = ?, relationship = ?, emergency_contact = ?, parent_email = ?, address = ? WHERE id = ?')
       .bind(
         name || null,
         parentId || null,
@@ -149,6 +152,7 @@ export async function handleUpdateStudent({ params, body, db, corsHeaders }) {
         relationship || null,
         emergencyContact || null,
         parentEmail || null,
+        address || null,
         studentId
       )
       .run();

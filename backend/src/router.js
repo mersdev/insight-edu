@@ -3,6 +3,24 @@ import { getCorsHeaders, jsonResponse } from './utils/response.js';
 import { toCamelCase } from './utils/casing.js';
 import { PUBLIC_ROUTES, AUTH_ROUTES, getRouteKey, resolveParamRoute } from './routes.js';
 
+let studentAddressColumnEnsured = false;
+
+const ensureStudentAddressColumn = async (db) => {
+  if (studentAddressColumnEnsured) return;
+  try {
+    await db.prepare('ALTER TABLE students ADD COLUMN address TEXT').run();
+  } catch (error) {
+    if (
+      !error?.message?.includes?.('duplicate column name') &&
+      !error?.message?.includes?.('table students has no column named address')
+    ) {
+      console.warn('Failed to add students.address column:', error.message);
+    }
+  } finally {
+    studentAddressColumnEnsured = true;
+  }
+};
+
 export async function handleRequest(request, env, ctx) {
   try {
     const url = new URL(request.url);
@@ -15,6 +33,18 @@ export async function handleRequest(request, env, ctx) {
     }
 
     const db = env.DB;
+    if (!db) {
+      return jsonResponse(
+        {
+          error: 'Configuration Error',
+          message: 'The D1 database binding is not configured. Please set the DB binding before running the worker.',
+        },
+        500,
+        corsHeaders
+      );
+    }
+
+    await ensureStudentAddressColumn(db);
 
     let body = {};
     if (method !== 'GET' && method !== 'HEAD') {

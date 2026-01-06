@@ -47,6 +47,22 @@ describe('API Integration - Sessions and Attendance', () => {
         }
       });
     });
+
+    it('should generate sessions for a requested month', () => {
+      const targetMonth = '2026-01';
+
+      cy.request({
+        method: 'GET',
+        url: `${apiUrl}/admin/sessions?month=${targetMonth}`,
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      }).then((response) => {
+        expect(response.status).to.eq(200);
+        const janSessions = (response.body || []).filter((s: any) => (s.date || '').startsWith(targetMonth));
+        expect(janSessions.length).to.be.greaterThan(0);
+      });
+    });
   });
 
   describe('POST /api/sessions', () => {
@@ -77,7 +93,7 @@ describe('API Integration - Sessions and Attendance', () => {
             englishName: `Teacher ${timestamp}`,
             email: `teacher.${timestamp}@test.com`,
             phone: '012-345 6789',
-            subject: 'Math'
+              subject: 'Mathematics'
           }
         }).then((teacherResponse) => {
           const teacherId = teacherResponse.body.id;
@@ -90,7 +106,7 @@ describe('API Integration - Sessions and Attendance', () => {
             body: {
               id: `c_test_${timestamp}`,
               name: `Test Class ${timestamp}`,
-              grade: 'Grade 5',
+              grade: 'Standard 5',
               teacherId: teacherId,
               locationId: locationId
             }
@@ -233,7 +249,7 @@ describe('API Integration - Sessions and Attendance', () => {
             body: {
               id: `c_att_${timestamp}`,
               name: `Attendance Class ${timestamp}`,
-              grade: 'Grade 6',
+              grade: 'Standard 6',
               teacherId: teacherId,
               locationId: locationId
             }
@@ -317,4 +333,3 @@ describe('API Integration - Sessions and Attendance', () => {
     });
   });
 });
-

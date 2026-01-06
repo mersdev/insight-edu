@@ -26,9 +26,9 @@ export class MockD1 {
           must_change_password: 1,
         },
         {
-          id: 'u_t1',
+          id: 't1',
           name: 'Sarah Jenkins',
-          email: 'dehoulworker+sarahjenkins@gmail.com',
+          email: 'sarahjenkins@edu.com',
           password: '123',
           password_hash: null, // Set to null to use plain password comparison in tests
           role: 'TEACHER',
@@ -37,7 +37,7 @@ export class MockD1 {
         {
           id: 'u_p1',
           name: 'Mr. Ahmad',
-          email: 'dehoulworker+ali@gmail.com',
+          email: 'ahmad@edu.com',
           password: '123',
           password_hash: null, // Set to null to use plain password comparison in tests
           role: 'PARENT',
@@ -59,74 +59,87 @@ export class MockD1 {
         { id: 'l4', name: 'Kuala Lumpur', address: 'Jalan Ampang' },
       ],
       teachers: [
-        {
-          id: 't1',
-          name: 'Sarah Jenkins',
-          english_name: 'Sarah',
-          chinese_name: '-',
-          email: 'dehoulworker+sarahjenkins@gmail.com',
-          subject: 'Mathematics',
-          phone: '012-345 6789',
-          description: 'Head of Mathematics Department.',
-        },
-        {
-          id: 't2',
-          name: 'David Lee',
-          english_name: 'David',
-          chinese_name: '李',
-          email: 'dehoulworker+davidlee@gmail.com',
-          subject: 'Science',
-          phone: '016-789 0123',
-          description: 'Science and Physics Teacher.',
-        },
+      {
+        id: 't1',
+        name: 'Sarah Jenkins',
+        english_name: 'Sarah',
+        chinese_name: '-',
+        email: 'sarahjenkins@edu.com',
+        subject: 'Mathematics',
+        subjects: '["Mathematics"]',
+        levels: '["Upper Secondary"]',
+        phone: '012-345 6789',
+        description: 'Head of Mathematics Department.',
+      },
+      {
+        id: 't2',
+        name: 'David Lee',
+        english_name: 'David',
+        chinese_name: '李',
+        email: 'davidlee@edu.com',
+        subject: 'Science',
+        subjects: '["Science", "Physics"]',
+        levels: '["Upper Secondary", "Science Club"]',
+        phone: '016-789 0123',
+        description: 'Science and Physics Teacher.',
+      },
       ],
       classes: [
-        {
-          id: 'c1',
-          name: 'Grade 10 Mathematics A',
-          teacher_id: 't1',
-          location_id: 'l1',
-          grade: '10',
-          default_schedule: '{"dayOfWeek": "Monday", "time": "09:00"}',
-        },
-        {
-          id: 'c2',
-          name: 'Grade 10 Science B',
-          teacher_id: 't2',
-          location_id: 'l2',
-          grade: '10',
-          default_schedule: '{"dayOfWeek": "Wednesday", "time": "11:00"}',
-        },
+      {
+        id: 'c1',
+        name: 'Form 4 Mathematics A',
+        teacher_id: 't1',
+        location_id: 'l1',
+        grade: 'Form 4',
+        default_schedule: '{"days": ["Monday"], "time": "09:00", "durationMinutes": 60}',
+      },
+      {
+        id: 'c2',
+        name: 'Form 4 Science B',
+        teacher_id: 't2',
+        location_id: 'l2',
+        grade: 'Form 4',
+        default_schedule: '{"days": ["Wednesday"], "time": "11:00", "durationMinutes": 60}',
+      },
       ],
       students: [
-        {
-          id: 's1',
-          name: 'Ali Ahmad',
-          parent_id: 'u_p1',
-          class_ids: '["c1", "c2"]',
-          attendance: 95,
-          at_risk: 0,
-          school: 'City High School',
-          parent_name: 'Mr. Ahmad',
-          relationship: 'Father',
-          emergency_contact: '012-111 2222',
-          parent_email: 'dehoulworker+ali@gmail.com',
-        },
-        {
-          id: 's2',
-          name: 'Ben Wong',
-          parent_id: 'u_p2',
-          class_ids: '["c1"]',
-          attendance: 88,
-          at_risk: 0,
-          school: 'Valley International',
-          parent_name: 'Mrs. Wong',
-          relationship: 'Mother',
-          emergency_contact: '013-333 4444',
-          parent_email: 'dehoulworker+ben@gmail.com',
-        },
+      {
+        id: 's1',
+        name: 'Ali Ahmad',
+        parent_id: 'u_p1',
+        class_ids: '["c1", "c2"]',
+        attendance: 95,
+        at_risk: 0,
+        school: 'City High School',
+        parent_name: 'Mr. Ahmad',
+        relationship: 'Father',
+        emergency_contact: '012-111 2222',
+        parent_email: 'ahmad@edu.com',
+        address: 'Jalan Cerdas, Taman Connaught, 56000 Kuala Lumpur',
+      },
+      {
+        id: 's2',
+        name: 'Ben Wong',
+        parent_id: 'u_p2',
+        class_ids: '["c1"]',
+        attendance: 88,
+        at_risk: 0,
+        school: 'Valley International',
+        parent_name: 'Mrs. Wong',
+        relationship: 'Mother',
+        emergency_contact: '013-333 4444',
+        parent_email: 'benwong@edu.com',
+        address: 'Jalan Yong Shook Lin, PJ New Town, 46200 Petaling Jaya',
+      },
       ],
       sessions: [],
+      rating_categories: [
+        { id: 1, name: 'Attention', description: 'Focus and concentration', created_at: '2023-01-01T00:00:00.000Z' },
+        { id: 2, name: 'Participation', description: 'Level of engagement', created_at: '2023-01-01T00:00:00.000Z' },
+        { id: 3, name: 'Homework', description: 'Homework completion and quality', created_at: '2023-01-01T00:00:00.000Z' },
+        { id: 4, name: 'Behavior', description: 'General conduct', created_at: '2023-01-01T00:00:00.000Z' },
+        { id: 5, name: 'Practice', description: 'Practice habits and effort', created_at: '2023-01-01T00:00:00.000Z' },
+      ],
       attendance: [],
       scores: [],
       behaviors: [],
@@ -165,16 +178,41 @@ export class MockD1 {
     if (sql.includes('FROM classes WHERE id')) {
       return this.data.classes.find((c) => c.id === args[0]);
     }
+    if (sql.includes('FROM scores WHERE id')) {
+      return this.data.scores.find((score) => score.id === args[0]);
+    }
+    if (sql.includes('FROM scores WHERE student_id')) {
+      const [studentId, date, subject, type] = args;
+      return this.data.scores.find((score) => {
+        if (!score || !score.student_id) return false;
+        return (
+          score.student_id === studentId &&
+          score.date === date &&
+          score.subject === subject &&
+          score.type === type
+        );
+      });
+    }
     if (sql.includes('FROM students WHERE parent_id')) {
       return this.data.students.find((s) => s.parent_id === args[0]);
     }
     if (sql.includes('SELECT * FROM settings')) {
       return this.data.settings[0];
     }
+    if (sql.includes('COUNT(*) AS total FROM rating_categories')) {
+      return { total: this.data.rating_categories.length };
+    }
+    if (sql.includes('FROM rating_categories WHERE name')) {
+      return this.data.rating_categories.find((category) => category.name === args[0]);
+    }
+    if (sql.includes('FROM rating_categories WHERE id')) {
+      const id = Number(args[0]);
+      return this.data.rating_categories.find((category) => category.id === id);
+    }
     return null;
   }
 
-  queryAll(sql) {
+  queryAll(sql, args = []) {
     // Handle users queries (both SELECT * and specific columns)
     if (sql.includes('FROM users')) {
       return { results: this.data.users };
@@ -191,8 +229,20 @@ export class MockD1 {
     if (sql.includes('SELECT * FROM students') || sql.includes('FROM students')) {
       return { results: this.data.students };
     }
-    if (sql.includes('SELECT * FROM sessions') || sql.includes('FROM sessions')) {
+    if (sql.includes('FROM sessions')) {
+      if (sql.includes('WHERE date >=')) {
+        const [start, end] = args;
+        const filtered = this.data.sessions.filter((session) => {
+          if (start && session.date < start) return false;
+          if (end && session.date > end) return false;
+          return true;
+        });
+        return { results: filtered };
+      }
       return { results: this.data.sessions };
+    }
+    if (sql.includes('FROM rating_categories')) {
+      return { results: this.data.rating_categories };
     }
     if (sql.includes('SELECT * FROM attendance') || sql.includes('FROM attendance')) {
       return { results: this.data.attendance };
@@ -223,6 +273,11 @@ export class MockD1 {
       this.data.users.push(user);
       return { success: true };
     }
+    if (sql.includes('DELETE FROM sessions WHERE date >=')) {
+      const [start, end] = args;
+      this.data.sessions = this.data.sessions.filter((session) => session.date < start || session.date > end);
+      return { success: true };
+    }
     if (sql.includes('INSERT INTO locations')) {
       const location = {
         id: args[0],
@@ -240,8 +295,10 @@ export class MockD1 {
         chinese_name: args[3],
         email: args[4],
         subject: args[5],
-        phone: args[6],
-        description: args[7],
+        subjects: args[6],
+        levels: args[7],
+        phone: args[8],
+        description: args[9],
       };
       this.data.teachers.push(teacher);
       return { success: true };
@@ -271,6 +328,7 @@ export class MockD1 {
         relationship: args[8],
         emergency_contact: args[9],
         parent_email: args[10],
+        address: args[11],
       };
       this.data.students.push(student);
       return { success: true };
@@ -281,9 +339,10 @@ export class MockD1 {
         class_id: args[1],
         date: args[2],
         start_time: args[3],
-        type: args[4],
-        status: args[5],
-        target_student_ids: args[6],
+        duration_minutes: args[4],
+        type: args[5],
+        status: args[6],
+        target_student_ids: args[7],
       };
       this.data.sessions.push(session);
       return { success: true };
@@ -306,7 +365,8 @@ export class MockD1 {
         date: args[1],
         subject: args[2],
         value: args[3],
-        type: args[4],
+        teacher_id: args[4],
+        type: args[5],
       };
       this.data.scores.push(score);
       return { success: true };
@@ -318,9 +378,24 @@ export class MockD1 {
         session_id: args[1],
         date: args[2],
         category: args[3],
-        rating: args[4],
+        teacher_id: args[4],
+        rating: args[5],
       };
       this.data.behaviors.push(behavior);
+      return { success: true };
+    }
+    if (
+      sql.includes('INSERT INTO rating_categories') ||
+      sql.includes('INSERT OR IGNORE INTO rating_categories')
+    ) {
+      const nextId = Math.max(0, ...this.data.rating_categories.map((cat) => cat.id)) + 1;
+      const category = {
+        id: nextId,
+        name: args[0],
+        description: args[1],
+        created_at: new Date().toISOString(),
+      };
+      this.data.rating_categories.push(category);
       return { success: true };
     }
     if (sql.includes('DELETE FROM teachers')) {
@@ -335,6 +410,11 @@ export class MockD1 {
       this.data.students = this.data.students.filter((s) => s.id !== args[0]);
       return { success: true };
     }
+    if (sql.includes('DELETE FROM rating_categories')) {
+      const id = Number(args[0]);
+      this.data.rating_categories = this.data.rating_categories.filter((category) => category.id !== id);
+      return { success: true };
+    }
     if (sql.includes('UPDATE settings')) {
       this.data.settings[0] = {
         ...this.data.settings[0],
@@ -342,6 +422,15 @@ export class MockD1 {
         last_analyzed: args[1],
         insight_auto_update_hours: args[2],
       };
+      return { success: true };
+    }
+    if (sql.includes('UPDATE rating_categories')) {
+      const id = Number(args[2]);
+      const existing = this.data.rating_categories.find((category) => category.id === id);
+      if (existing) {
+        existing.name = args[0];
+        existing.description = args[1];
+      }
       return { success: true };
     }
     return { success: true };

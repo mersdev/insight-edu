@@ -44,8 +44,8 @@ describe('API Integration - Seed Data', () => {
       headers: authHeaders,
     }).then((response) => {
       const emails = response.body.map((teacher: { email: string }) => teacher.email);
-      expect(emails).to.include('dehoulworker+sarahjenkins@gmail.com');
-      expect(emails).to.include('dehoulworker+davidlee@gmail.com');
+      expect(emails).to.include('sarahjenkins@edu.com');
+      expect(emails).to.include('davidlee@edu.com');
     });
 
     cy.request({
@@ -55,7 +55,7 @@ describe('API Integration - Seed Data', () => {
     }).then((response) => {
       expect(response.body.length).to.be.at.least(1);
       const names = response.body.map((classGroup: { name: string }) => classGroup.name);
-      const seedClasses = ['Grade 10 Mathematics A', 'Grade 10 Science B'];
+      const seedClasses = ['Form 4 Mathematics A', 'Form 4 Science B'];
       const hasSeedClass = seedClasses.some((name) => names.includes(name));
       if (!hasSeedClass) {
         cy.log('Seed classes were updated or removed by other specs.');

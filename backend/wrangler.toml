@@ -2,7 +2,6 @@ name = "insight-edu-backend"
 main = "src/worker.js"
 compatibility_date = "2024-12-20"
 compatibility_flags = ["nodejs_compat_v2"]
-type = "service"
 
 vars = { ENVIRONMENT = "production", JWT_EXPIRES_IN = "24h" }
 
@@ -14,6 +13,9 @@ database_id = "a72ec55a-1171-4ada-af45-443ba8e56fc2"
 [build]
 command = "npm run build"
 cwd = "."
+
+[triggers]
+crons = ["0 0 1 * *"]
 
 [observability]
 enabled = true

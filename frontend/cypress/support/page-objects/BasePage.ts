@@ -68,11 +68,17 @@ export abstract class BasePage {
    */
   dismissDialogIfPresent(): void {
     cy.get('body').then(($body) => {
-      if ($body.text().includes('Recommendation') || $body.text().includes('建议')) {
+      const hasRecommendation =
+        $body.text().includes('Recommendation') || $body.text().includes('建议');
+      const okButtonExists = $body
+        .find('button')
+        .toArray()
+        .some((button) => button.textContent?.trim().toUpperCase() === 'OK');
+
+      if (hasRecommendation && okButtonExists) {
         cy.contains('button', 'OK').click({ force: true });
         cy.wait(500);
       }
     });
   }
 }
-
