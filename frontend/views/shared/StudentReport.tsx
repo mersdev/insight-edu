@@ -388,24 +388,31 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
       }
     };
 
+    // Page 1: Header + Quick Summary + Attendance
     const introSections = ['student-report-header', 'report-section-ai', 'report-section-attendance']
       .map((sectionId) => cloneSectionForPrint(sectionId))
       .filter((section): section is HTMLElement => Boolean(section));
     appendPage(introSections);
 
+    // Page 2+: School Exam Scores (one section per page)
     const scoreSections = splitSectionByCharts('report-section-score', '[data-report-chart]', chartsPerPage);
     scoreSections.forEach((section, index) => {
       appendPage([section]);
     });
 
+    // Page 3+: Centre Quiz / Assessment Scores (one section per page)
     const quizSections = splitSectionByCharts('report-section-quiz', '[data-report-chart]', chartsPerPage);
     quizSections.forEach((section, index) => {
       appendPage([section]);
     });
 
-    const feedbackSection = cloneSectionForPrint('report-section-feedback');
-    if (feedbackSection) {
-      appendPage([feedbackSection]);
+    // Final Page(s): Post Class Feedback (by Month) — split if needed
+    const feedbackSections = splitSectionByCharts('report-section-feedback', '[data-report-chart]', chartsPerPage);
+    if (feedbackSections.length === 0) {
+      const singleFeedback = cloneSectionForPrint('report-section-feedback');
+      if (singleFeedback) appendPage([singleFeedback]);
+    } else {
+      feedbackSections.forEach((section) => appendPage([section]));
     }
 
     if (pages.length === 0) return null;
@@ -423,6 +430,8 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
       for (const page of printable.pages) {
         const canvas = await (window as any).html2canvas(page, {
           scale: 2,
+          width: page.clientWidth,
+          windowWidth: page.clientWidth,
           useCORS: true,
           backgroundColor: '#ffffff',
         });
@@ -441,9 +450,10 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
 
       const jspdf = (window as any).jspdf;
       const jsPDFConstructor = jspdf?.jsPDF;
+      const pageImages = canvases.map((canvas) => canvas.toDataURL('image/png'));
       const downloadAsPng = () => {
         const link = document.createElement('a');
-        link.href = canvases[0].toDataURL('image/png');
+        link.href = pageImages[0];
         link.download = `Student_Report_${selectedStudent?.name || 'Export'}.png`;
         link.click();
       };
@@ -454,19 +464,19 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
       }
 
       const pdf = new jsPDFConstructor({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      canvases.forEach((canvas, index) => {
+      pageImages.forEach((imageData, index) => {
         if (index > 0) {
           pdf.addPage();
         }
 
-        const imageData = canvas.toDataURL('image/png');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvas = canvases[index];
         const scale = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
         const imageWidth = canvas.width * scale;
         const imageHeight = canvas.height * scale;
         const xOffset = (pdfWidth - imageWidth) / 2;
-        const yOffset = (pdfHeight - imageHeight) / 2;
+        const yOffset = 0; // start at top to avoid vertical centering
         pdf.addImage(imageData, 'PNG', xOffset, yOffset, imageWidth, imageHeight);
       });
 
@@ -853,24 +863,27 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                 </Button>
               </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 min-w-0">
+            <div className="grid gap-4 md:grid-cols-2 min-w-0">
               {isAiLoading && (
                 <>
                   <div className="h-24 rounded-2xl border border-muted/50 bg-muted/10 animate-pulse" />
                   <div className="h-24 rounded-2xl border border-muted/50 bg-muted/10 animate-pulse" />
                 </>
               )}
-              {!isAiLoading && preparedInsightEntries.length > 0 && preparedInsightEntries.map((entry) => (
-                <div key={`${entry.type}-${entry.message}`} className="rounded-2xl border border-muted/60 bg-background p-4 space-y-2 min-w-0">
-                  <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground">{insightLabelMap[entry.type] || entry.type}</p>
-                  <p className="text-xs sm:text-sm text-foreground leading-relaxed break-words">{entry.message}</p>
+              {!isAiLoading && preparedInsightEntries.filter((entry) => entry.type !== 'OVERALL').map((entry) => (
+                <div
+                  key={`${entry.type}-${entry.message}`}
+                  className="rounded-2xl border border-muted/60 bg-background p-5 sm:p-6 space-y-3 min-w-0"
+                >
+                  <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground">
+                    {insightLabelMap[entry.type] || entry.type}
+                  </p>
+                  <p className="text-sm sm:text-base text-foreground leading-7 whitespace-pre-wrap break-words">{entry.message}</p>
                 </div>
               ))}
-              {!isAiLoading && preparedInsightEntries.length === 0 && (
-                <div className="rounded-2xl border border-muted/60 bg-background p-4">
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    {t.noInsights || `${selectedStudent.name}’s AI insights will appear here after the next analysis.`}
-                  </p>
+              {!isAiLoading && preparedInsightEntries.filter((entry) => entry.type !== 'OVERALL').length === 0 && (
+                <div className="rounded-2xl border border-dashed border-muted/60 bg-background/50 p-4 sm:p-5 text-xs sm:text-sm text-muted-foreground">
+                  {t.noInsights || `${selectedStudent.name}’s AI insights will appear here after the next analysis.`}
                 </div>
               )}
             </div>

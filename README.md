@@ -150,6 +150,28 @@ cd backend
 npm run dev
 ```
 
+### Testing cron locally
+Wrangler can expose the scheduled handler in dev mode so you can simulate the cron before deploying.
+
+1) Start dev with scheduled testing enabled:
+```bash
+cd backend
+npx wrangler dev --test-scheduled
+```
+
+2) Trigger the scheduled handler over HTTP (either path works for JS Workers):
+```bash
+curl "http://127.0.0.1:8787/__scheduled?cron=*+*+*+*+*"
+curl "http://127.0.0.1:8787/cdn-cgi/handler/scheduled?cron=*+*+*+*+*"
+```
+
+3) Optionally simulate a specific cron/time:
+```bash
+curl "http://127.0.0.1:8787/__scheduled?cron=0+0+1+*+*&time=1745856238"
+```
+
+This hits the same `scheduled` handler as production and will run the maintenance routine locally.
+
 **Start Frontend:**
 ```bash
 cd frontend
@@ -197,6 +219,27 @@ The project includes comprehensive E2E tests using Cypress for testing the full 
 cd frontend
 npm run test:e2e
 ```
+
+## 📅 Monthly Session Scheduler
+
+- A Worker cron (`0 0 1 * *`) automatically creates sessions for every class based on each class's `default_schedule` for the current month.
+- Manual trigger (useful for testing or backfilling): `POST /api/v1/admin/sessions/schedule` with JSON body `{ "month": "YYYY-MM" }` (month optional; defaults to current).
+- Revert/delete a month's auto-created sessions: `DELETE /api/v1/admin/sessions/by-month` with the same JSON body.
+
+### How to test manually
+1. Start the backend (`cd backend && npm run dev`).
+2. Log in to get a token (e.g., using seeded admin: `admin@edu.com` / `Admin123`), then set `Authorization: Bearer <token>`.
+3. Run the scheduler for a month:  
+   `curl -X POST http://localhost:8787/api/v1/admin/sessions/schedule -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"month":"2025-11"}'`
+4. Verify sessions were created: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8787/api/v1/admin/sessions`.
+5. Delete the same month's sessions:  
+   `curl -X DELETE http://localhost:8787/api/v1/admin/sessions/by-month -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"month":"2025-11"}'`
+6. (Optional) Run automated coverage: `cd backend && npm test -- sessions.test.js`.
+
+### One-shot local script (includes cron handler)
+- Ensure backend dev server is running (`cd backend && npm run dev`).
+- Run `./test.sh` (from repo root). Environment overrides: `BASE_URL`, `MONTH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+- The script logs in, runs the manual scheduler, hits the local cron endpoint (`/cdn-cgi/handler/scheduled` with current time), and deletes the month’s sessions at the end.
 
 **Run a single E2E spec:**
 
@@ -371,7 +414,3 @@ For issues and questions, please open an issue on GitHub.
 ---
 
 Built with ❤️ for educational excellence
-
-
-LSGH Development Sdn Bhd - Rm500.00 / 8 hours
-1468 - 1472

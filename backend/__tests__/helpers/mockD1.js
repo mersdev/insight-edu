@@ -212,7 +212,7 @@ export class MockD1 {
     return null;
   }
 
-  queryAll(sql) {
+  queryAll(sql, args = []) {
     // Handle users queries (both SELECT * and specific columns)
     if (sql.includes('FROM users')) {
       return { results: this.data.users };
@@ -229,7 +229,16 @@ export class MockD1 {
     if (sql.includes('SELECT * FROM students') || sql.includes('FROM students')) {
       return { results: this.data.students };
     }
-    if (sql.includes('SELECT * FROM sessions') || sql.includes('FROM sessions')) {
+    if (sql.includes('FROM sessions')) {
+      if (sql.includes('WHERE date >=')) {
+        const [start, end] = args;
+        const filtered = this.data.sessions.filter((session) => {
+          if (start && session.date < start) return false;
+          if (end && session.date > end) return false;
+          return true;
+        });
+        return { results: filtered };
+      }
       return { results: this.data.sessions };
     }
     if (sql.includes('FROM rating_categories')) {
@@ -262,6 +271,11 @@ export class MockD1 {
         must_change_password: args[6] ?? 0,
       };
       this.data.users.push(user);
+      return { success: true };
+    }
+    if (sql.includes('DELETE FROM sessions WHERE date >=')) {
+      const [start, end] = args;
+      this.data.sessions = this.data.sessions.filter((session) => session.date < start || session.date > end);
       return { success: true };
     }
     if (sql.includes('INSERT INTO locations')) {

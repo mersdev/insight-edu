@@ -115,6 +115,16 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
       return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const isFutureSession = (session: Session) => {
+      const todayUTC = new Date(Date.UTC(
+        new Date().getUTCFullYear(),
+        new Date().getUTCMonth(),
+        new Date().getUTCDate()
+      ));
+      const sessionUTC = new Date(`${session.date}T00:00:00Z`);
+      return sessionUTC > todayUTC;
+  };
+
   // --- Handlers ---
 
   const handleOpenReschedule = (session: Session) => {
@@ -293,6 +303,16 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
       if (fatalError) {
         throw (fatalError as PromiseRejectedResult).reason;
       }
+
+      // Mark session as completed once performance data is saved
+      try {
+        await api.updateSessionStatus(performanceSession.id, 'COMPLETED');
+        setSessions((prev) =>
+          prev.map((s) => (s.id === performanceSession.id ? { ...s, status: 'COMPLETED' as const } : s))
+        );
+      } catch (statusErr) {
+        console.warn('Failed to mark session as completed', statusErr);
+      }
   };
 
   const categories = ratingCategories.length > 0
@@ -375,6 +395,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                         <Button 
                             size="sm" 
                             variant="default" // Force black
+                            disabled={isFutureSession(session)}
                             onClick={() => handleOpenPerformance(session)}
                             className="h-8 gap-2 bg-black text-white hover:bg-black/90 shadow-sm"
                         >
@@ -439,6 +460,7 @@ export const TeacherClasses: React.FC<TeacherClassesProps> = ({
                     <Button 
                         size="sm" 
                         variant="default" // Force black
+                        disabled={isFutureSession(session)}
                         onClick={() => handleOpenPerformance(session)}
                         className="w-full text-xs h-10 bg-black text-white hover:bg-black/90 shadow-sm"
                     >

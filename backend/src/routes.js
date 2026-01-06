@@ -12,6 +12,7 @@ import { handleGetScores, handleCreateScore } from './handlers/scores.js';
 import { handleGetBehaviors, handleCreateBehavior, handleUpdateBehavior, handleDeleteBehavior } from './handlers/behaviors.js';
 import { handleGetRatingCategories, handleCreateRatingCategory, handleUpdateRatingCategory, handleDeleteRatingCategory } from './handlers/ratingCategories.js';
 import { handleGetStudentInsight, handleSaveStudentInsight } from './handlers/studentInsights.js';
+import { handleRunScheduler, handleDeleteSessionsByMonth, performScheduledMaintenance } from './handlers/scheduler.js';
 
 const API_PREFIX = '/api/v1';
 const ADMIN_PREFIX = `${API_PREFIX}/admin`;
@@ -39,6 +40,12 @@ export const AUTH_ROUTES = new Map([
   [`POST ${ADMIN_PREFIX}/students`, handleCreateStudent],
   [`GET ${ADMIN_PREFIX}/sessions`, handleGetSessions],
   [`POST ${ADMIN_PREFIX}/sessions`, handleCreateSession],
+  [`POST ${ADMIN_PREFIX}/sessions/schedule`, handleRunScheduler],
+  [`DELETE ${ADMIN_PREFIX}/sessions/by-month`, handleDeleteSessionsByMonth],
+  [`POST ${ADMIN_PREFIX}/scheduled-run`, async ({ db, corsHeaders }) => {
+    const result = await performScheduledMaintenance({ db });
+    return jsonResponse(result, 200, corsHeaders);
+  }],
   [`GET ${TEACHER_PREFIX}/sessions`, handleGetSessions],
   [`POST ${TEACHER_PREFIX}/sessions`, handleCreateSession],
   [`GET ${TEACHER_PREFIX}/attendance`, handleGetAttendance],

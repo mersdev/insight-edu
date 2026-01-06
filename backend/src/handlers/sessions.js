@@ -1,7 +1,22 @@
 import { jsonResponse } from '../utils/response.js';
 import { toCamelCase, toCamelCaseArray } from '../utils/casing.js';
+import { parseMonthInput, runMonthlySessionScheduler } from './scheduler.js';
 
-export async function handleGetSessions({ db, corsHeaders }) {
+function buildUpcomingMonths(baseDate) {
+  const start = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1));
+  return [0, 1, 2].map((offset) => {
+    return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + offset, 1));
+  });
+}
+
+export async function ensureUpcomingSessions(db, baseDate = new Date()) {
+  const months = buildUpcomingMonths(baseDate);
+  for (const monthDate of months) {
+    await runMonthlySessionScheduler({ db, targetDate: monthDate });
+  }
+}
+
+export async function handleGetSessions({ db, corsHeaders, request }) {
   try {
     const sessions = await db
       .prepare('SELECT * FROM sessions ORDER BY date DESC, start_time')
@@ -19,15 +34,24 @@ export async function handleGetSessions({ db, corsHeaders }) {
 }
 
 export async function handleCreateSession({ body, db, corsHeaders }) {
-  try {
-    const { id, classId, date, startTime, durationMinutes, type, status, targetStudentIds } = body;
+  const { id, classId, date, startTime, durationMinutes, type, status, targetStudentIds } = body;
 
-    if (!id || !classId || !date || !startTime || !type || !status) {
-      return jsonResponse(
-        { error: 'Validation Error', message: 'Missing required fields' },
-        400,
-        corsHeaders
-      );
+  if (!id || !classId || !date || !startTime || !type || !status) {
+    return jsonResponse(
+      { error: 'Validation Error', message: 'Missing required fields' },
+      400,
+      corsHeaders
+    );
+  }
+
+  try {
+    const existing = await db
+      .prepare('SELECT * FROM sessions WHERE class_id = ? AND date = ? AND start_time = ?')
+      .bind(classId, date, startTime)
+      .first();
+
+    if (existing) {
+      return jsonResponse(toCamelCase(existing), 200, corsHeaders);
     }
 
     await db
@@ -52,6 +76,42 @@ export async function handleCreateSession({ body, db, corsHeaders }) {
     return jsonResponse(toCamelCase(created), 201, corsHeaders);
   } catch (error) {
     console.error('Create session error:', error);
+
+    if (
+      typeof error?.message === 'string' &&
+      error.message.includes('UNIQUE constraint failed: sessions.class_id, sessions.date, sessions.start_time')
+    ) {
+      try {
+        const conflict = await db
+          .prepare('SELECT * FROM sessions WHERE class_id = ? AND date = ? AND start_time = ?')
+          .bind(classId, date, startTime)
+          .first();
+
+        if (conflict) {
+          return jsonResponse(
+            {
+              error: 'Conflict',
+              message: 'A session already exists for this class at the specified date and time.',
+              session: toCamelCase(conflict),
+            },
+            409,
+            corsHeaders
+          );
+        }
+      } catch (lookupError) {
+        console.warn('Failed to fetch conflicting session after constraint error:', lookupError);
+      }
+
+      return jsonResponse(
+        {
+          error: 'Conflict',
+          message: 'A session already exists for this class at the specified date and time.',
+        },
+        409,
+        corsHeaders
+      );
+    }
+
     return jsonResponse(
       { error: 'Internal Server Error', message: error.message },
       500,

@@ -47,6 +47,22 @@ describe('API Integration - Sessions and Attendance', () => {
         }
       });
     });
+
+    it('should generate sessions for a requested month', () => {
+      const targetMonth = '2026-01';
+
+      cy.request({
+        method: 'GET',
+        url: `${apiUrl}/admin/sessions?month=${targetMonth}`,
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      }).then((response) => {
+        expect(response.status).to.eq(200);
+        const janSessions = (response.body || []).filter((s: any) => (s.date || '').startsWith(targetMonth));
+        expect(janSessions.length).to.be.greaterThan(0);
+      });
+    });
   });
 
   describe('POST /api/sessions', () => {
