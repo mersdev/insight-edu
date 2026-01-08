@@ -236,11 +236,6 @@ npm run test:e2e
    `curl -X DELETE http://localhost:8787/api/v1/admin/sessions/by-month -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"month":"2025-11"}'`
 6. (Optional) Run automated coverage: `cd backend && npm test -- sessions.test.js`.
 
-### One-shot local script (includes cron handler)
-- Ensure backend dev server is running (`cd backend && npm run dev`).
-- Run `./test.sh` (from repo root). Environment overrides: `BASE_URL`, `MONTH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
-- The script logs in, runs the manual scheduler, hits the local cron endpoint (`/cdn-cgi/handler/scheduled` with current time), and deletes the month’s sessions at the end.
-
 **Run a single E2E spec:**
 
 ```bash
