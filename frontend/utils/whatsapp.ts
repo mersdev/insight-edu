@@ -78,7 +78,10 @@ export const openWhatsAppLink = (link: string | null | undefined) => {
     console.debug('[WhatsApp Mock] Navigation suppressed:', link);
     return;
   }
-  window.open(link, '_blank');
+  const newWindow = window.open(link, '_blank', 'noopener,noreferrer');
+  if (!newWindow) {
+    window.location.href = link;
+  }
 };
 
 export const buildReportWhatsAppMessage = ({
