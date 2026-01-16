@@ -2,10 +2,10 @@
 
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trash2, Plus, CalendarPlus, Eye, Download, ChevronLeft, ChevronRight, Search, ArrowUpDown, MoreHorizontal, MapPin, Sparkles, Edit2 } from 'lucide-react';
+import { Trash2, Plus, CalendarPlus, Eye, Download, ChevronLeft, ChevronRight, Search, ArrowUpDown, MoreHorizontal, Sparkles, Edit2 } from 'lucide-react';
 import { cn, Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select, Badge, Dropdown, DropdownItem } from '../../components/ui';
 import { generateScheduleSessions } from '../../constants';
-import { ClassGroup, Teacher, Student, Session, Location } from '../../types';
+import { ClassGroup, Teacher, Student, Session } from '../../types';
 import { api } from '../../services/backendApi';
 import { getRandomItem, sampleClassNames } from '../../utils/malaysianSampleData';
 
@@ -17,7 +17,7 @@ interface ClassesProps {
   students: Student[];
   sessions: Session[];
   setSessions: (sessions: Session[]) => void;
-  locations: Location[];
+  setStudents: (students: Student[]) => void;
 }
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -86,7 +86,7 @@ const formatDurationLabel = (minutes?: number | null) => {
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 };
 
-export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teachers, students, sessions, setSessions, locations }) => {
+export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teachers, students, sessions, setSessions, setStudents }) => {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isSpecialSessionOpen, setSpecialSessionOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -114,7 +114,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
     name: '', 
     grade: '', 
     teacherId: '', 
-    locationId: '',
     days: ['Monday'], 
     startTime: '09:00',
     endTime: '10:00',
@@ -131,17 +130,25 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
   });
 
   const handleDelete = async (id: string) => {
-    // Check if any student has this class in their classIds
     const enrolledStudents = students.filter(s => (s.classIds || []).includes(id));
-    if (enrolledStudents.length > 0) {
-      setErrorDialog(`Cannot delete this class. There are currently ${enrolledStudents.length} student(s) enrolled. Please move or delete the students first.`);
+    const confirmationMessage = enrolledStudents.length > 0
+      ? `This class has ${enrolledStudents.length} enrolled student(s). Deleting will unassign them. Continue?`
+      : t.deleteClassConfirm;
+
+    if (!confirm(confirmationMessage)) {
       return;
     }
 
-    if (confirm(t.deleteClassConfirm)) {
-      await api.deleteClass(id);
-      setClasses(classes.filter(c => c.id !== id));
-      setSessions(sessions.filter(s => s.classId !== id));
+    await api.deleteClass(id);
+    setClasses(classes.filter(c => c.id !== id));
+    setSessions(sessions.filter(s => s.classId !== id));
+
+    if (enrolledStudents.length > 0) {
+      const updatedStudents = students.map((s) => {
+        if (!s.classIds || !s.classIds.includes(id)) return s;
+        return { ...s, classIds: (s.classIds || []).filter((cid) => cid !== id) };
+      });
+      setStudents(updatedStudents);
     }
   };
 
@@ -159,7 +166,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
         name: cls.name,
         grade: cls.grade,
         teacherId: cls.teacherId,
-        locationId: cls.locationId,
         days: schedule?.days && schedule.days.length > 0 ? schedule.days : ['Monday'],
         startTime,
         endTime,
@@ -171,7 +177,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
           name: '', 
           grade: '', 
           teacherId: teachers[0]?.id || '', 
-          locationId: locations[0]?.id || '',
           days: ['Monday'],
           startTime: '09:00',
           endTime: '10:00',
@@ -192,7 +197,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
         name: '', 
         grade: '', 
         teacherId: teachers[0]?.id || '', 
-        locationId: locations[0]?.id || '',
         days: ['Monday'],
         startTime: '09:00',
         endTime: '10:00',
@@ -213,15 +217,14 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
       return;
     }
 
-    if (!newClass.name || !newClass.grade || !newClass.teacherId || !newClass.locationId || newClass.days.length === 0) {
+    if (!newClass.name || !newClass.grade || !newClass.teacherId || newClass.days.length === 0) {
       console.log('Validation failed:', {
         name: newClass.name,
         grade: newClass.grade,
         teacherId: newClass.teacherId,
-        locationId: newClass.locationId,
         days: newClass.days,
       });
-      setErrorDialog(t.fillAllFields || 'Please fill in all required fields (Class Name, Grade, Teacher, Location, and Days).');
+      setErrorDialog(t.fillAllFields || 'Please fill in all required fields (Class Name, Grade, Teacher, and Days).');
       return;
     }
 
@@ -244,7 +247,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
           name: newClass.name,
           grade: newClass.grade,
           teacherId: newClass.teacherId,
-          locationId: newClass.locationId,
           defaultSchedule: schedule
         } as ClassGroup);
         setClasses(classes.map((cls) => (cls.id === updated.id ? updated : cls)));
@@ -256,7 +258,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
           name: newClass.name,
           grade: newClass.grade,
           teacherId: newClass.teacherId,
-          locationId: newClass.locationId,
           defaultSchedule: schedule
         } as ClassGroup);
 
@@ -541,7 +542,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
               </TableHead>
               <TableHead>{t.grade}</TableHead>
               <TableHead>{t.assignedTeacher}</TableHead>
-              <TableHead>{t.assignedLocation}</TableHead>
               <TableHead>{t.weeklyDays}</TableHead>
               <TableHead>{t.time}</TableHead>
               <TableHead>{t.sessionDuration}</TableHead>
@@ -551,18 +551,11 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
           <TableBody>
             {filteredClasses.map((cls) => {
               const teacherName = teachers.find(t => t.id === cls.teacherId)?.name || t.unassigned;
-              const locationName = locations.find(l => l.id === cls.locationId)?.name || '-';
               return (
                 <TableRow key={cls.id}>
                   <TableCell className="font-medium">{cls.name}</TableCell>
                   <TableCell>{cls.grade}</TableCell>
                   <TableCell>{teacherName}</TableCell>
-                  <TableCell>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          {locationName}
-                      </div>
-                  </TableCell>
                   <TableCell>{(cls.defaultSchedule?.days && cls.defaultSchedule.days.length > 0) ? cls.defaultSchedule.days.join(', ') : '-'}</TableCell>
                   <TableCell>{cls.defaultSchedule?.time || '-'}</TableCell>
                   <TableCell>{formatDurationLabel(cls.defaultSchedule?.durationMinutes)}</TableCell>
@@ -607,7 +600,7 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
             })}
             {filteredClasses.length === 0 && (
                 <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">{t.noData}</TableCell>
+                <TableCell colSpan={7} className="h-24 text-center">{t.noData}</TableCell>
                 </TableRow>
             )}
           </TableBody>
@@ -723,23 +716,27 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
              />
            </div>
            <div>
-             <label className="block text-sm font-medium mb-1.5">
-               {t.grade} <span className="text-destructive">*</span>
-             </label>
-             <Select
+           <label className="block text-sm font-medium mb-1.5">
+             {t.grade} <span className="text-destructive">*</span>
+           </label>
+            <div className="space-y-1">
+              <Input
+                list="grade-options"
                 value={newClass.grade}
-                onChange={(e) => setNewClass({...newClass, grade: e.target.value})}
+                onChange={(e) => setNewClass({ ...newClass, grade: e.target.value })}
+                placeholder={t.gradePlaceholder || 'Type or pick Standard / Form'}
                 required
-             >
-                <option value="" disabled>{t.gradePlaceholder || 'Select Standard / Form'}</option>
+              />
+              <datalist id="grade-options">
                 {GRADE_OPTIONS.map(option => (
-                  <option key={option} value={option}>{option}</option>
+                  <option key={option} value={option} />
                 ))}
-             </Select>
-             <p className="text-xs text-muted-foreground mt-1">
-               {t.gradeDescription || 'Primary (Standard 1-6) or Secondary (Form 1-6) grades.'}
-             </p>
-           </div>
+              </datalist>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t.gradeDescription || 'Primary (Standard 1-6) or Secondary (Form 1-6) grades.'}
+            </p>
+          </div>
            <div className="space-y-3">
              <div className="space-y-2">
                  <label className="block text-sm font-medium">
@@ -834,28 +831,6 @@ export const Classes: React.FC<ClassesProps> = ({ t, classes, setClasses, teache
                 {teachers.length === 0 && (
                   <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
                     {t.teacherRequired}
-                  </p>
-                )}
-             </div>
-             <div>
-               <label className="block text-sm font-medium mb-1.5">
-                 {t.assignedLocation} <span className="text-destructive">*</span>
-               </label>
-               <Select
-                  value={newClass.locationId}
-                  onChange={(e) => setNewClass({...newClass, locationId: e.target.value})}
-                  required
-                  disabled={locations.length === 0}
-                >
-                  {locations.length === 0 ? (
-                    <option value="">{t.locationRequired}</option>
-                  ) : (
-                    locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)
-                  )}
-                </Select>
-                {locations.length === 0 && (
-                  <p className="text-sm text-destructive mt-2 bg-destructive/5 border border-destructive/20 rounded-md p-3">
-                    {t.locationRequired}
                   </p>
                 )}
              </div>

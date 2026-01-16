@@ -37,8 +37,10 @@ export interface Teacher {
   name: string;
   email: string;
   subject?: string;
-  subjects: string[];
+  subjects: (string | { name: string; subject?: string; levels?: string[] })[];
+  subjectNames?: string[];
   levels: string[];
+  subjectLevels?: { subject: string; levels: string[] }[];
   // New Fields
   englishName?: string;
   chineseName?: string;
@@ -57,7 +59,6 @@ export interface ClassGroup {
   id: string;
   name: string;
   teacherId: string;
-  locationId: string;
   grade: string;
   defaultSchedule?: {
     days: string[]; // e.g. ['Monday', 'Wednesday']
@@ -92,6 +93,7 @@ export interface Score {
   value: number; // 0-100
   type: 'EXAM' | 'HOMEWORK' | 'QUIZ' | 'PRESENTATION' | 'LAB';
   teacherId?: string;
+  remark?: string | null;
 }
 
 export interface BehaviorRating {

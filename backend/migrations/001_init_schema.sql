@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS classes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   teacher_id TEXT REFERENCES teachers(id) ON DELETE CASCADE,
-  location_id TEXT REFERENCES locations(id) ON DELETE SET NULL,
   grade TEXT NOT NULL,
   default_schedule TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

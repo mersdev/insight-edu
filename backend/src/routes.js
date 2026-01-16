@@ -2,7 +2,6 @@ import { jsonResponse } from './utils/response.js';
 import { handleLogin, handleAuthMe, handleChangePassword } from './handlers/auth.js';
 import { handleGetSettings, handleUpdateSettings } from './handlers/settings.js';
 import { handleGetUsers, handleUpdateUser, handleDeleteUser } from './handlers/users.js';
-import { handleGetLocations, handleCreateLocation, handleGetLocation, handleUpdateLocation, handleDeleteLocation } from './handlers/locations.js';
 import { handleGetTeachers, handleCreateTeacher, handleGetTeacher, handleUpdateTeacher, handleDeleteTeacher } from './handlers/teachers.js';
 import { handleGetClasses, handleCreateClass, handleGetClass, handleUpdateClass, handleDeleteClass } from './handlers/classes.js';
 import { handleGetStudents, handleCreateStudent, handleUpdateStudent, handleDeleteStudent } from './handlers/students.js';
@@ -30,8 +29,6 @@ export const AUTH_ROUTES = new Map([
   [`GET ${ADMIN_PREFIX}/settings`, handleGetSettings],
   [`PUT ${ADMIN_PREFIX}/settings`, handleUpdateSettings],
   [`GET ${ADMIN_PREFIX}/users`, handleGetUsers],
-  [`GET ${ADMIN_PREFIX}/locations`, handleGetLocations],
-  [`POST ${ADMIN_PREFIX}/locations`, handleCreateLocation],
   [`GET ${ADMIN_PREFIX}/teachers`, handleGetTeachers],
   [`POST ${ADMIN_PREFIX}/teachers`, handleCreateTeacher],
   [`GET ${ADMIN_PREFIX}/classes`, handleGetClasses],
@@ -65,9 +62,6 @@ export const AUTH_ROUTES = new Map([
 const PARAM_ROUTES = [
   { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/users/([^/]+)$`), handler: handleUpdateUser },
   { method: 'DELETE', pattern: new RegExp(`^${ADMIN_PREFIX}/users/([^/]+)$`), handler: handleDeleteUser },
-  { method: 'GET', pattern: new RegExp(`^${ADMIN_PREFIX}/locations/([^/]+)$`), handler: handleGetLocation },
-  { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/locations/([^/]+)$`), handler: handleUpdateLocation },
-  { method: 'DELETE', pattern: new RegExp(`^${ADMIN_PREFIX}/locations/([^/]+)$`), handler: handleDeleteLocation },
   { method: 'GET', pattern: new RegExp(`^${ADMIN_PREFIX}/teachers/([^/]+)$`), handler: handleGetTeacher },
   { method: 'PUT', pattern: new RegExp(`^${ADMIN_PREFIX}/teachers/([^/]+)$`), handler: handleUpdateTeacher },
   { method: 'DELETE', pattern: new RegExp(`^${ADMIN_PREFIX}/teachers/([^/]+)$`), handler: handleDeleteTeacher },

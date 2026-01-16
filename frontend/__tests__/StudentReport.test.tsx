@@ -44,7 +44,7 @@ describe('StudentReport exam coverage', () => {
 
   const user: User = { id: 'u1', name: 'HQ Admin', role: 'HQ' };
   const classes: ClassGroup[] = [
-    { id: 'c1', name: 'Form 4 Math', teacherId: 't1', locationId: 'l1', grade: 'Form 4' }
+    { id: 'c1', name: 'Form 4 Math', teacherId: 't1', grade: 'Form 4' }
   ];
   const teacher: Teacher = {
     id: 't1',
@@ -62,7 +62,8 @@ describe('StudentReport exam coverage', () => {
       subject: 'Math',
       value: 92,
       type: 'EXAM',
-      teacherId: 't1'
+      teacherId: 't1',
+      remark: 'Strong grasp of algebra.',
     },
     {
       studentId: 's1',
@@ -87,7 +88,7 @@ describe('StudentReport exam coverage', () => {
   const attendance: AttendanceRecord[] = [];
   const ratingCategories: RatingCategory[] = [];
 
-  it('shows exam breakdown sections when scores exist', async () => {
+  it('shows exam breakdown sections, remarks, and parent-friendly summary when scores exist', async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -107,15 +108,13 @@ describe('StudentReport exam coverage', () => {
       );
     });
 
-    await screen.findByText(t.examBreakdownBySubject);
-
-    const mathElements = await screen.findAllByText('Math');
-    const scienceElements = await screen.findAllByText('Science');
-    expect(mathElements.length).toBeGreaterThan(0);
-    expect(scienceElements.length).toBeGreaterThan(0);
-    expect(screen.getByText(t.examBreakdownBySubject)).toBeInTheDocument();
-    expect(screen.getByText(t.examTypeBreakdown)).toBeInTheDocument();
-    expect(screen.getByText(t.historicalExamScores)).toBeInTheDocument();
-    expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
+    await screen.findByText(/Monthly Learning Summary/i);
+    expect(screen.getByText(/Parent-friendly update/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Math/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Science/i)).toBeInTheDocument();
+    expect(await screen.findByText(t.examBreakdownBySubject)).toBeInTheDocument();
+    expect(screen.getByText(/What this means/i)).toBeInTheDocument();
+    expect(screen.getByText(/Strong grasp of algebra./i)).toBeInTheDocument();
+    expect(screen.getByText(/attendance/i)).toBeInTheDocument();
   });
 });

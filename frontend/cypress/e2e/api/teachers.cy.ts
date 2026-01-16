@@ -67,7 +67,10 @@ describe('API Integration - Teachers', () => {
         id: `t_test_${timestamp}`,
         name: 'Test Teacher',
         email: `testteacher${timestamp}@test.com`,
-        subject: 'Mathematics',
+        subjects: [{
+          name: 'Mathematics',
+          levels: ['Form 4']
+        }],
         englishName: 'Test Teacher',
         chineseName: '测试老师',
         phone: '1234567890'
@@ -86,7 +89,7 @@ describe('API Integration - Teachers', () => {
         expect(response.body).to.have.property('name', newTeacher.name);
         const expectedEmail = newTeacher.email;
         expect(response.body).to.have.property('email', expectedEmail);
-        expect(response.body).to.have.property('subject', newTeacher.subject);
+        expect(response.body.subjects[0]).to.have.property('name', newTeacher.subjects[0].name);
 
         cy.request({
           method: 'POST',
@@ -127,7 +130,10 @@ describe('API Integration - Teachers', () => {
         id: `t_delete_${Date.now()}`,
         name: 'Teacher To Delete',
         email: `delete.${Date.now()}@test.com`,
-        subject: 'Science'
+        subjects: [{
+          name: 'Science',
+          levels: ['Form 3']
+        }]
       };
 
       cy.request({

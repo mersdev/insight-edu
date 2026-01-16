@@ -38,7 +38,6 @@ export const Navigation: React.FC<NavigationProps> = ({
           { path: '/teachers', label: t.teachers, icon: Users },
           { path: '/students', label: t.students, icon: GraduationCap },
           { path: '/classes', label: t.classes, icon: School },
-          { path: '/locations', label: t.locations, icon: MapPin },
           { path: '/settings', label: t.settings, icon: Settings },
         ];
       case 'TEACHER':

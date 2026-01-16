@@ -21,13 +21,6 @@ CREATE TABLE IF NOT EXISTS users (
   last_password_change TIMESTAMP
 );
 
--- Locations table
-CREATE TABLE IF NOT EXISTS locations (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  address TEXT
-);
-
 -- Teachers table
 CREATE TABLE IF NOT EXISTS teachers (
   id TEXT PRIMARY KEY,
@@ -37,6 +30,7 @@ CREATE TABLE IF NOT EXISTS teachers (
   email TEXT NOT NULL,
   subject TEXT NOT NULL,
   subjects TEXT DEFAULT '[]',
+  subject_levels TEXT,
   levels TEXT DEFAULT '[]',
   phone TEXT,
   description TEXT,
@@ -49,7 +43,6 @@ CREATE TABLE IF NOT EXISTS classes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   teacher_id TEXT REFERENCES teachers(id) ON DELETE CASCADE,
-  location_id TEXT REFERENCES locations(id) ON DELETE SET NULL,
   grade TEXT NOT NULL,
   default_schedule TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -102,6 +95,7 @@ CREATE TABLE IF NOT EXISTS scores (
   subject TEXT NOT NULL,
   value INTEGER NOT NULL CHECK (value >= 0 AND value <= 100),
   teacher_id TEXT REFERENCES teachers(id) ON DELETE SET NULL,
+  remark TEXT,
   type TEXT NOT NULL CHECK (type IN ('EXAM', 'HOMEWORK', 'QUIZ', 'PRESENTATION', 'LAB'))
 );
 

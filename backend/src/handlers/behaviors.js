@@ -38,17 +38,18 @@ export async function handleCreateBehavior({ body, db, corsHeaders, user }) {
       );
     }
 
-    if (!teacherId) {
+    if (!teacherId && user?.role !== 'HQ') {
       return jsonResponse(
         { error: 'Validation Error', message: 'Teacher not identified' },
         400,
         corsHeaders
       );
     }
+    const resolvedTeacherId = teacherId || null;
 
     await db
       .prepare('INSERT INTO behaviors (student_id, session_id, date, category, teacher_id, rating) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(studentId, sessionId, date, category, teacherId, rating)
+      .bind(studentId, sessionId, date, category, resolvedTeacherId, rating)
       .run();
 
     const created = await db

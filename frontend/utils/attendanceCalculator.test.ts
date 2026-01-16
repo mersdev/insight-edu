@@ -7,8 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateAverageAttendance,
   calculateStudentAttendance,
-  calculateClassAttendance,
-  calculateLocationAttendance
+  calculateClassAttendance
 } from './attendanceCalculator';
 import { Student, Session, AttendanceRecord } from '../types';
 
@@ -155,4 +154,3 @@ describe('Attendance Calculator', () => {
     });
   });
 });
-

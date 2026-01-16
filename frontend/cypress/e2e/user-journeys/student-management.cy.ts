@@ -59,15 +59,12 @@ describe('User Journey - Student Management', () => {
     cy.hash().should('eq', '#/students');
   });
 
-  it('should expose the location/address field when adding a student', () => {
+  it('should show location field as optional when adding a student', () => {
     cy.visit('/#/students');
 
     cy.contains('button', 'Add').click();
-    cy.contains('label', 'Location / Address').should('be.visible');
-    cy.contains('label', 'Location / Address')
-      .next('input')
-      .type('Level 1, Cypress Plaza')
-      .should('have.value', 'Level 1, Cypress Plaza');
+    cy.contains('label', /location/i).should('be.visible');
+    cy.contains(/optional/i).should('exist');
     cy.contains('button', 'Cancel').click();
   });
 });

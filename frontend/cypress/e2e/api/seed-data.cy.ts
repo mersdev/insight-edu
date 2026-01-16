@@ -24,19 +24,8 @@ describe('API Integration - Seed Data', () => {
     });
   });
 
-  it('includes expected seed locations, teachers, classes, and students', () => {
+  it('includes expected seed teachers, classes, and students', () => {
     const authHeaders = { Authorization: `Bearer ${authToken}` };
-
-    cy.request({
-      method: 'GET',
-      url: `${apiUrl}/admin/locations`,
-      headers: authHeaders,
-    }).then((response) => {
-      const names = response.body.map((loc: { name: string }) => loc.name);
-      ['Cheras', 'Petaling Jaya', 'Subang Jaya', 'Kuala Lumpur'].forEach((name) => {
-        expect(names).to.include(name);
-      });
-    });
 
     cy.request({
       method: 'GET',

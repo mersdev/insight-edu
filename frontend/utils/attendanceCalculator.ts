@@ -114,32 +114,3 @@ export function calculateClassAttendance(
   
   return Math.round((presentRecords / totalAttendanceRecords) * 100);
 }
-
-/**
- * Calculate attendance for a specific location
- * @param locationId - Location ID
- * @param classes - Array of classes
- * @param students - Array of students
- * @param sessions - Array of sessions
- * @param attendance - Array of attendance records
- * @returns Location attendance percentage (0-100)
- */
-export function calculateLocationAttendance(
-  locationId: string,
-  classes: any[],
-  students: Student[],
-  sessions: Session[],
-  attendance: AttendanceRecord[]
-): number {
-  const locationClasses = classes.filter(c => c.locationId === locationId);
-  const locationClassIds = locationClasses.map(c => c.id);
-  
-  const locationStudents = students.filter(s => 
-    (s.classIds || []).some(id => locationClassIds.includes(id))
-  );
-  
-  if (locationStudents.length === 0) return 0;
-  
-  return calculateAverageAttendance(locationStudents, sessions, attendance);
-}
-

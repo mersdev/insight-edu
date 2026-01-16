@@ -28,7 +28,7 @@ export async function handleGetClasses({ db, corsHeaders }) {
 
 export async function handleCreateClass({ body, db, corsHeaders }) {
   try {
-    const { id, name, teacherId, locationId, grade, defaultSchedule } = body;
+    const { id, name, teacherId, grade, defaultSchedule } = body;
     const normalizedDefaultSchedule = normalizeDefaultSchedule(defaultSchedule);
 
     if (!id || !name || !teacherId || !grade) {
@@ -40,8 +40,8 @@ export async function handleCreateClass({ body, db, corsHeaders }) {
     }
 
     await db
-      .prepare('INSERT INTO classes (id, name, teacher_id, location_id, grade, default_schedule) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(id, name, teacherId, locationId || null, grade, JSON.stringify(normalizedDefaultSchedule))
+      .prepare('INSERT INTO classes (id, name, teacher_id, grade, default_schedule) VALUES (?, ?, ?, ?, ?)')
+      .bind(id, name, teacherId, grade, JSON.stringify(normalizedDefaultSchedule))
       .run();
 
     const created = await db
@@ -90,7 +90,7 @@ export async function handleGetClass({ params, db, corsHeaders }) {
 export async function handleUpdateClass({ params, body, db, corsHeaders }) {
   const classId = params.id;
   try {
-    const { name, teacherId, locationId, grade, defaultSchedule } = body;
+    const { name, teacherId, grade, defaultSchedule } = body;
 
     const existing = await db
       .prepare('SELECT * FROM classes WHERE id = ?')
@@ -111,11 +111,10 @@ export async function handleUpdateClass({ params, body, db, corsHeaders }) {
         : normalizeDefaultSchedule(defaultSchedule);
 
     await db
-      .prepare('UPDATE classes SET name = ?, teacher_id = ?, location_id = ?, grade = ?, default_schedule = ? WHERE id = ?')
+      .prepare('UPDATE classes SET name = ?, teacher_id = ?, grade = ?, default_schedule = ? WHERE id = ?')
       .bind(
         name ?? existing.name,
         teacherId ?? existing.teacher_id,
-        locationId ?? existing.location_id,
         grade ?? existing.grade,
         JSON.stringify(normalizedDefaultSchedule),
         classId
@@ -141,6 +140,28 @@ export async function handleUpdateClass({ params, body, db, corsHeaders }) {
 export async function handleDeleteClass({ params, db, corsHeaders }) {
   const classId = params.id;
   try {
+    // Unassign the class from any enrolled students to avoid orphaned references
+    const students = await db
+      .prepare('SELECT id, class_ids FROM students')
+      .all();
+
+    const records = students?.results || [];
+    for (const student of records) {
+      let classIds = [];
+      try {
+        classIds = JSON.parse(student.class_ids || '[]');
+      } catch {
+        classIds = [];
+      }
+      if (Array.isArray(classIds) && classIds.includes(classId)) {
+        const updatedIds = classIds.filter((cid) => cid !== classId);
+        await db
+          .prepare('UPDATE students SET class_ids = ? WHERE id = ?')
+          .bind(JSON.stringify(updatedIds), student.id)
+          .run();
+      }
+    }
+
     await db
       .prepare('DELETE FROM classes WHERE id = ?')
       .bind(classId)

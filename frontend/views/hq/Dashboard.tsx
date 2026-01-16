@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
-import { Users, AlertCircle, TrendingUp, MapPin, School, Calendar, Activity, Star, Download, ChevronRight, BookOpen } from 'lucide-react';
+import { Users, AlertCircle, TrendingUp, School, Calendar, Activity, Star, Download, BookOpen } from 'lucide-react';
 import { Card, Button, Badge, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
-import { Student, ClassGroup, Location, Session, BehaviorRating, AttendanceRecord, RatingCategory } from '../../types';
+import { Student, ClassGroup, Session, BehaviorRating, AttendanceRecord, RatingCategory, Teacher } from '../../types';
 import { AIInsightSection } from '../../components/AIInsightSection';
 import { generateDashboardInsights } from '../../services/geminiService';
 import { api } from '../../services/backendApi';
@@ -13,13 +13,13 @@ interface HQDashboardProps {
   t: any;
   students: Student[];
   classes: ClassGroup[];
-  locations: Location[];
+  teachers: Teacher[];
   ratingCategories: RatingCategory[];
 }
 
 const DEFAULT_BEHAVIOR_CATEGORIES = ['Attention', 'Participation', 'Homework', 'Behavior', 'Practice'];
 
-export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, locations, ratingCategories }) => {
+export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, teachers, ratingCategories }) => {
   const [insightText, setInsightText] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,9 +27,6 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [behaviors, setBehaviors] = useState<BehaviorRating[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-
-  // Location Dialog State
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
 
   // Use a ref to prevent double-firing in strict mode or rapid re-renders
   const hasCheckedAutoUpdate = useRef(false);
@@ -84,7 +81,6 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
       actualAvgAttendance,
       totalSessions: sessions.length,
       completedSessions: sessions.filter(s => s.status === 'COMPLETED').length,
-      totalLocations: locations.length,
       totalClasses: classes.length
     });
     const now = new Date().toISOString();
@@ -137,6 +133,7 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
   // 1. KPI Cards
   const totalStudents = students.length;
   const atRiskStudents = students.filter(s => s.atRisk).length;
+  const totalTeachers = teachers.length;
 
   // Calculate average attendance from actual attendance records using centralized utility
   const avgAttendance = useMemo(() => {
@@ -147,76 +144,22 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
     return result;
   }, [students, sessions, attendance]);
 
+  const totalTeachersLabel = t.totalTeachers || 'Total Teachers';
   const kpiCards = [
     { title: t.totalStudents, value: totalStudents, icon: Users, sub: totalStudents > 0 ? t.activeStudents : t.noStudentData, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: t.locations, value: locations.length, icon: MapPin, sub: t.activeCampuses, color: "text-purple-600", bg: "bg-purple-50" },
+    { title: totalTeachersLabel, value: totalTeachers, icon: Users, sub: t.teachers, color: "text-amber-600", bg: "bg-amber-50" },
     { title: t.classes, value: classes.length, icon: School, sub: t.totalClasses, color: "text-indigo-600", bg: "bg-indigo-50" },
     { title: t.avgAttendance, value: `${avgAttendance}%`, icon: Activity, sub: t.globalAverage, color: "text-green-600", bg: "bg-green-50" },
   ];
 
-  // 2. Location Analysis (Overview Cards)
-  const locationAnalytics = useMemo(() => {
-      const analytics = locations.map(loc => {
-          const locClasses = classes.filter(c => c.locationId === loc.id);
-          const locClassIds = locClasses.map(c => c.id);
+  const classDistribution = useMemo(() => {
+    return classes.map((cls) => {
+      const count = students.filter((s) => (s.classIds || []).includes(cls.id)).length;
+      return { name: cls.name, studentCount: count };
+    }).sort((a, b) => b.studentCount - a.studentCount);
+  }, [classes, students]);
 
-          const locStudents = students.filter(s =>
-              (s.classIds || []).some(id => locClassIds.includes(id))
-          );
-
-          const activeSessions = sessions.filter(s => {
-              const d = new Date(s.date);
-              return locClassIds.includes(s.classId) &&
-                     d.getMonth() === currentMonth &&
-                     d.getFullYear() === currentYear &&
-                     s.status !== 'CANCELLED';
-          }).length;
-
-          // Get all completed sessions for this location
-          const completedSessions = sessions.filter(s =>
-              locClassIds.includes(s.classId) && s.status === 'COMPLETED'
-          );
-          const completedSessionIds = completedSessions.map(s => s.id);
-
-          // Calculate average attendance for this location
-          const locAttendance = attendance.filter(a => completedSessionIds.includes(a.sessionId));
-          const avgAttendance = locAttendance.length > 0
-                ? Math.round((locAttendance.filter(a => a.status === 'PRESENT').length / locAttendance.length) * 100)
-                : 0;
-
-          // Calculate average behavior for this location
-          const locBehaviors = behaviors.filter(b => b.sessionId && completedSessionIds.includes(b.sessionId));
-          const avgBehavior = locBehaviors.length > 0
-                ? parseFloat((locBehaviors.reduce((acc, b) => acc + b.rating, 0) / locBehaviors.length).toFixed(1))
-                : 0;
-
-          const result = {
-              id: loc.id,
-              name: loc.name,
-              address: loc.address,
-              studentCount: locStudents.length,
-              classCount: locClasses.length,
-              activeSessions,
-              avgAttendance,
-              avgBehavior
-          };
-
-          // Debug logging
-          console.log(`Location: ${loc.name}`, {
-              completedSessions: completedSessions.length,
-              attendanceRecords: locAttendance.length,
-              avgAttendance,
-              behaviorRecords: locBehaviors.length,
-              avgBehavior
-          });
-
-          return result;
-      }).sort((a, b) => b.studentCount - a.studentCount);
-
-      return analytics;
-  }, [locations, classes, students, sessions, attendance, behaviors, currentMonth, currentYear]);
-
-  // 3. Trend Analysis (Global - Last 6 Months)
+  // 2. Trend Analysis (Global - Last 6 Months)
   const trendData = useMemo(() => {
     const data = [];
     const now = new Date();
@@ -274,131 +217,7 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
     });
   }, [behaviors, ratingCategories]);
 
-  // --- Selected Location Report Data ---
-  const selectedLocation = locations.find(l => l.id === selectedLocationId);
-  const selectedLocData = useMemo(() => {
-      if (!selectedLocationId) return null;
-
-      const locClasses = classes.filter(c => c.locationId === selectedLocationId);
-      const locClassIds = locClasses.map(c => c.id);
-      
-      const locStudents = students.filter(s => 
-          (s.classIds || []).some(id => locClassIds.includes(id))
-      );
-
-      // Class Breakdown
-      const classBreakdown = locClasses.map(c => {
-          const cStudents = students.filter(s => (s.classIds || []).includes(c.id));
-          // Only use COMPLETED sessions for accurate metrics
-          const cSessions = sessions.filter(s => s.classId === c.id && s.status === 'COMPLETED');
-          const cSessionIds = cSessions.map(s => s.id);
-
-          const cAttendance = attendance.filter(a => cSessionIds.includes(a.sessionId));
-          const attRate = cAttendance.length > 0
-              ? Math.round((cAttendance.filter(a => a.status === 'PRESENT').length / cAttendance.length) * 100)
-              : 0;
-
-          const cBehaviors = behaviors.filter(b => b.sessionId && cSessionIds.includes(b.sessionId));
-          const avgBeh = cBehaviors.length > 0
-              ? (cBehaviors.reduce((sum, b) => sum + b.rating, 0) / cBehaviors.length).toFixed(1)
-              : 0;
-
-          console.log(`Class ${c.name}:`, {
-              completedSessions: cSessions.length,
-              attendance: cAttendance.length,
-              attRate,
-              behaviors: cBehaviors.length,
-              avgBeh
-          });
-
-          return {
-              name: c.name,
-              students: cStudents.length,
-              attendance: attRate,
-              behavior: Number(avgBeh)
-          };
-      });
-
-      // Location Trend (Last 6 Months)
-      const locTrend = [];
-      const now = new Date();
-      for (let i = 5; i >= 0; i--) {
-          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const monthLabel = d.toLocaleString('default', { month: 'short' });
-          const monthKey = d.getMonth();
-          const yearKey = d.getFullYear();
-
-          const monthSessions = sessions.filter(s => {
-              const sd = new Date(s.date);
-              return locClassIds.includes(s.classId) && sd.getMonth() === monthKey && sd.getFullYear() === yearKey && s.status === 'COMPLETED';
-          });
-          const monthSessionIds = monthSessions.map(s => s.id);
-
-          const relevantAttendance = attendance.filter(a => monthSessionIds.includes(a.sessionId));
-          let attPerc = 0;
-          if (relevantAttendance.length > 0) {
-              const present = relevantAttendance.filter(a => a.status === 'PRESENT').length;
-              attPerc = Math.round((present / relevantAttendance.length) * 100);
-          }
-
-          const relevantBehaviors = behaviors.filter(b => b.sessionId && monthSessionIds.includes(b.sessionId));
-          let behAvg = 0;
-          if (relevantBehaviors.length > 0) {
-              const sum = relevantBehaviors.reduce((acc, b) => acc + b.rating, 0);
-              behAvg = parseFloat((sum / relevantBehaviors.length).toFixed(1));
-          }
-
-          console.log(`Trend ${monthLabel} ${yearKey}:`, {
-              sessions: monthSessions.length,
-              attendance: relevantAttendance.length,
-              attPerc,
-              behaviors: relevantBehaviors.length,
-              behAvg
-          });
-
-          // Always push data for all 6 months (even if 0) for consistent graph
-          locTrend.push({
-              name: monthLabel,
-              attendance: attPerc,
-              behavior: behAvg
-          });
-      }
-
-      // Calculate overall attendance and behavior from ALL completed sessions
-      const allCompletedSessions = sessions.filter(s =>
-          locClassIds.includes(s.classId) && s.status === 'COMPLETED'
-      );
-      const allCompletedSessionIds = allCompletedSessions.map(s => s.id);
-
-      // Overall attendance
-      const allAttendance = attendance.filter(a => allCompletedSessionIds.includes(a.sessionId));
-      const overallAvgAttendance = allAttendance.length > 0
-          ? Math.round((allAttendance.filter(a => a.status === 'PRESENT').length / allAttendance.length) * 100)
-          : 0;
-
-      // Overall behavior
-      const allBehaviors = behaviors.filter(b => b.sessionId && allCompletedSessionIds.includes(b.sessionId));
-      const overallAvgBehavior = allBehaviors.length > 0
-          ? parseFloat((allBehaviors.reduce((acc, b) => acc + b.rating, 0) / allBehaviors.length).toFixed(1))
-          : 0;
-
-      console.log(`Selected Location Data for ${selectedLocationId}:`, {
-          completedSessions: allCompletedSessions.length,
-          attendanceRecords: allAttendance.length,
-          avgAttendance: overallAvgAttendance,
-          behaviorRecords: allBehaviors.length,
-          avgBehavior: overallAvgBehavior
-      });
-
-      return {
-          totalStudents: locStudents.length,
-          avgAttendance: overallAvgAttendance,
-          avgBehavior: overallAvgBehavior,
-          classBreakdown,
-          trend: locTrend
-      };
-
-  }, [selectedLocationId, classes, students, sessions, attendance, behaviors]);
+  
 
   const createPrintablePages = () => {
     const pageWidthPx = 880;
@@ -409,7 +228,6 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
       header: document.querySelector('[data-dashboard-section="header"]'),
       ai: document.querySelector('[data-dashboard-section="ai-insight"]'),
       kpi: document.querySelector('[data-dashboard-section="kpi"]'),
-      locations: document.querySelector('[data-dashboard-section="locations"]'),
       charts: document.querySelector('[data-dashboard-section="charts"]'),
     };
 
@@ -451,8 +269,8 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
       pages.push(page);
     };
 
-    // Two-page layout: Page 1 (Header, AI, KPI, Locations), Page 2 (Charts/Trend)
-    const page1Clones = ['header', 'ai', 'kpi', 'locations']
+    // Two-page layout: Page 1 (Header, AI, KPI), Page 2 (Charts/Trend)
+    const page1Clones = ['header', 'ai', 'kpi']
       .map((key) => (sectionByKey[key] ? sectionByKey[key]!.cloneNode(true) as HTMLElement : null))
       .filter(Boolean) as HTMLElement[];
     const page2Clones = ['charts']
@@ -590,52 +408,8 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
         })}
       </section>
 
-      {/* Location Breakdown */}
-      <section data-dashboard-section="locations">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-muted-foreground" />
-              {t.locationPerformanceOverview}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              {locationAnalytics.map(loc => (
-                  <Card
-                    key={loc.id}
-                    className="p-5 border border-gray-200 shadow-sm hover:border-primary hover:shadow-md transition-all cursor-pointer group"
-                    onClick={() => setSelectedLocationId(loc.id)}
-                  >
-                      <div className="flex justify-between items-start mb-4">
-                          <div className="overflow-hidden">
-                              <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors">{loc.name}</h3>
-                              <p className="text-xs text-muted-foreground">{loc.classCount} Classes</p>
-                          </div>
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-700 shrink-0">
-                              {loc.studentCount} Students
-                          </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                          <div>
-                              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t.avgAttendance}</p>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                  <Activity className="w-4 h-4 text-green-500" />
-                                  <span className="font-semibold text-lg">{loc.avgAttendance}%</span>
-                              </div>
-                          </div>
-                          <div>
-                              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Avg Behavior</p>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                  <span className="font-semibold text-lg">{loc.avgBehavior > 0 ? loc.avgBehavior : '-'}</span>
-                              </div>
-                          </div>
-                      </div>
-                      <div className="mt-3 text-xs text-primary flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          {t.viewReport} <ChevronRight className="w-3 h-3 ml-1" />
-                      </div>
-                  </Card>
-              ))}
-          </div>
-      </section>
+      
+      {/* Locations section removed */}
 
       {/* Advanced Charts Grid */}
       <section data-dashboard-section="charts" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -687,7 +461,7 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
         <Card title={t.studentDistribution} description={t.studentDistributionDesc} className="lg:col-span-4 min-h-[350px]">
            <div className="h-[300px] w-full pt-4">
              <ResponsiveContainer width="100%" height="100%">
-               <BarChart data={locationAnalytics} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} layout="vertical">
+              <BarChart data={classDistribution} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />
                   <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                   <YAxis dataKey="name" type="category" width={100} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
@@ -696,7 +470,7 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
                     contentStyle={{ borderRadius: 'var(--radius)', border: '1px solid hsl(var(--border))', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="studentCount" name="Students" radius={[0, 4, 4, 0]} barSize={32}>
-                    {locationAnalytics.map((entry, index) => (
+                    {classDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill="hsl(var(--primary))" />
                     ))}
                   </Bar>
@@ -740,133 +514,8 @@ export const HQDashboard: React.FC<HQDashboardProps> = ({ t, students, classes, 
         </Card>
       </div>
 
-      {/* Location Report Dialog */}
-      <Dialog
-        isOpen={!!selectedLocationId}
-        onClose={() => setSelectedLocationId(null)}
-        title={selectedLocation?.name || t.locationReport}
-        className="max-w-4xl"
-      >
-        <div id="location-report-content" className="space-y-6 max-h-[80vh] overflow-y-auto p-4 bg-background">
-             {selectedLocation && selectedLocData && (
-                <>
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
-                      <div>
-                          <h2 className="text-2xl font-bold flex items-center gap-2">
-                              {selectedLocation.name} 
-                              <span className="text-sm font-normal text-muted-foreground border px-2 py-0.5 rounded-full">Report</span>
-                          </h2>
-                          <div className="flex items-center gap-2 text-muted-foreground mt-1">
-                              <MapPin className="w-4 h-4" /> 
-                              <span className="text-sm">{selectedLocation.address || "No address provided"}</span>
-                          </div>
-                      </div>
-                      <Button size="sm" onClick={() => handleScreenshot('location-report-content', `Location_Report_${selectedLocation.name}.png`)} className="bg-black text-white hover:bg-black/90">
-                           <Download className="w-4 h-4 mr-2" /> {t.exportPDF}
-                      </Button>
-                  </div>
+      
 
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-3 gap-4">
-                      <Card className="p-4 flex flex-col items-center justify-center text-center bg-blue-50/50 border-blue-100">
-                           <div className="text-3xl font-bold text-blue-700">{selectedLocData.totalStudents}</div>
-                           <div className="text-xs font-bold text-blue-600/70 uppercase">{t.totalStudents}</div>
-                      </Card>
-                      <Card className="p-4 flex flex-col items-center justify-center text-center bg-green-50/50 border-green-100">
-                           <div className="text-3xl font-bold text-green-700">{selectedLocData.avgAttendance}%</div>
-                           <div className="text-xs font-bold text-green-600/70 uppercase">{t.avgAttendance}</div>
-                      </Card>
-                      <Card className="p-4 flex flex-col items-center justify-center text-center bg-purple-50/50 border-purple-100">
-                           <div className="text-3xl font-bold text-purple-700">{selectedLocData.avgBehavior}</div>
-                           <div className="text-xs font-bold text-purple-600/70 uppercase">Avg Behavior</div>
-                      </Card>
-                  </div>
-
-                  {/* Graphs */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="border rounded-lg p-4 bg-card shadow-sm">
-                          <h4 className="text-sm font-semibold mb-4 text-center">{t.branchTrend}</h4>
-                          <div className="h-[250px] w-full">
-                              <ResponsiveContainer width="100%" height="100%">
-                                  <LineChart data={selectedLocData.trend}>
-                                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                                      <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} />
-                                      <YAxis yAxisId="left" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
-                                      <YAxis yAxisId="right" orientation="right" fontSize={10} tickLine={false} axisLine={false} domain={[0, 5]} />
-                                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
-                                      <Legend />
-                                      <Line yAxisId="left" type="monotone" dataKey="attendance" name="Attendance (%)" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} />
-                                      <Line yAxisId="right" type="monotone" dataKey="behavior" name="Behavior (Avg)" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
-                                  </LineChart>
-                              </ResponsiveContainer>
-                          </div>
-                      </div>
-
-                      <div className="border rounded-lg p-4 bg-card shadow-sm">
-                          <h4 className="text-sm font-semibold mb-4 text-center">{t.classComparison}</h4>
-                          <div className="h-[250px] w-full">
-                              <ResponsiveContainer width="100%" height="100%">
-                                  <BarChart data={selectedLocData.classBreakdown} layout="vertical" margin={{ left: 10, right: 10 }}>
-                                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                                      <XAxis type="number" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
-                                      <YAxis type="category" dataKey="name" width={80} fontSize={10} tickLine={false} axisLine={false} />
-                                      <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
-                                      <Bar dataKey="attendance" name="Attendance %" fill="#16a34a" radius={[0, 4, 4, 0]} barSize={20} />
-                                  </BarChart>
-                              </ResponsiveContainer>
-                          </div>
-                      </div>
-                  </div>
-
-                  {/* Class Breakdown List */}
-                  <div>
-                      <h4 className="font-bold text-sm mb-3 flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-muted-foreground" />
-                          {t.classBreakdown}
-                      </h4>
-                      <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                              <TableHeader>
-                                  <TableRow className="bg-muted/50">
-                                      <TableHead>{t.className}</TableHead>
-                                      <TableHead className="text-center">{t.totalStudents}</TableHead>
-                                      <TableHead className="text-center">{t.avgAttendance}</TableHead>
-                                      <TableHead className="text-center">Avg Behavior</TableHead>
-                                  </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                  {selectedLocData.classBreakdown.map((c, idx) => (
-                                      <TableRow key={idx}>
-                                          <TableCell className="font-medium">{c.name}</TableCell>
-                                          <TableCell className="text-center">{c.students}</TableCell>
-                                          <TableCell className="text-center">
-                                              <Badge variant={c.attendance >= 90 ? 'secondary' : c.attendance >= 75 ? 'outline' : 'destructive'} className={c.attendance >= 90 ? 'bg-green-100 text-green-700' : ''}>
-                                                  {c.attendance}%
-                                              </Badge>
-                                          </TableCell>
-                                          <TableCell className="text-center">
-                                              <div className="flex items-center justify-center gap-1">
-                                                  <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                                                  {c.behavior}
-                                              </div>
-                                          </TableCell>
-                                      </TableRow>
-                                  ))}
-                                  {selectedLocData.classBreakdown.length === 0 && (
-                                      <TableRow>
-                                          <TableCell colSpan={4} className="h-16 text-center text-muted-foreground">
-                                              {t.noClassesInLocation}
-                                          </TableCell>
-                                      </TableRow>
-                                  )}
-                              </TableBody>
-                          </Table>
-                      </div>
-                  </div>
-                </>
-             )}
-        </div>
-      </Dialog>
     </div>
   );
 };

@@ -520,6 +520,12 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
   const attendanceRate = attendanceStats.total > 0
     ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
     : 0;
+  const attendanceInsight = useMemo(() => {
+    if (attendanceStats.total === 0) return 'No completed sessions to summarise yet.';
+    if (attendanceRate >= 95) return 'Excellent attendance reflects strong learning discipline and consistent class participation.';
+    if (attendanceRate >= 85) return 'Solid attendance—keep encouraging this steady routine.';
+    return 'Attendance needs attention; small improvements will help learning stick.';
+  }, [attendanceRate, attendanceStats]);
 
   const sessionViewData = useMemo(() => {
     const requestedDate = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), 1);
@@ -707,6 +713,43 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
       }))
       .sort((a, b) => a.subject.localeCompare(b.subject));
   }, [tutoringAssessments]);
+  const examTrend = useMemo(() => {
+    if (examScores.length < 2) return { direction: 'flat', delta: 0 };
+    const sorted = [...examScores].sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
+    const latest = sorted[sorted.length - 1]?.value || 0;
+    const previous = sorted[sorted.length - 2]?.value || 0;
+    const delta = latest - previous;
+    const direction = delta > 1 ? 'up' : delta < -1 ? 'down' : 'flat';
+    return { direction, delta };
+  }, [examScores]);
+  const tutoringTrend = useMemo(() => {
+    if (tutoringAssessments.length < 2) return { direction: 'flat', delta: 0 };
+    const sorted = [...tutoringAssessments].sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
+    const latest = sorted[sorted.length - 1]?.value || 0;
+    const previous = sorted[sorted.length - 2]?.value || 0;
+    const delta = latest - previous;
+    const direction = delta > 1 ? 'up' : delta < -1 ? 'down' : 'flat';
+    return { direction, delta };
+  }, [tutoringAssessments]);
+  const formatTrendLabel = (trend: { direction: string; delta: number }) => {
+    if (trend.direction === 'up') return `Improving (+${Math.round(trend.delta)} pts)`;
+    if (trend.direction === 'down') return `Slight dip (${Math.round(trend.delta)} pts)`;
+    return 'Consistent';
+  };
+  const examRemarks = useMemo(() => {
+    return studentScores
+      .filter((score) => score.type === 'EXAM' && score.remark && score.remark.trim())
+      .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+      .slice(0, 5)
+      .map((score) => ({ ...score, formattedDate: formatScoreDate(score.date) }));
+  }, [studentScores]);
+  const tutoringRemarks = useMemo(() => {
+    return studentScores
+      .filter((score) => TUTORING_ASSESSMENT_TYPES.includes(score.type) && score.remark && score.remark.trim())
+      .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+      .slice(0, 5)
+      .map((score) => ({ ...score, formattedDate: formatScoreDate(score.date) }));
+  }, [studentScores]);
   const examHighLow = useMemo(() => {
     if (examScores.length === 0) {
       return { highest: null, lowest: null };
@@ -760,6 +803,13 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
     if (preparedInsightEntries[0]?.message) return preparedInsightEntries[0]?.message;
     return insightText ? ensureMinWordCount(insightText, 30) : `${selectedStudent.name}’s latest report is ready.`;
   }, [preparedInsightEntries, insightText, selectedStudent]);
+  const chineseSummary = useMemo(() => {
+    if (!selectedStudent) return '';
+    const attendanceLine = attendanceRate ? `出勤率 ${attendanceRate}%` : '出勤数据待补充';
+    const performanceLine = examAverage > 0 ? `考试平均分约 ${Math.round(examAverage)} 分` : '尚未有考试分数记录';
+    const participationLine = attendanceRate >= 85 ? '课堂参与保持稳定，学习状态安心。' : '课堂参与需要多一点陪伴和提醒。';
+    return `${selectedStudent.name} 本月${attendanceLine}，${performanceLine}，${participationLine}`;
+  }, [selectedStudent, attendanceRate, examAverage]);
 
   if (!selectedStudent) return <div className="p-8 text-center text-muted-foreground">{safeStudents.length === 0 ? t.noStudentFound : t.pleaseSelectStudent}</div>;
 
@@ -842,9 +892,10 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
           <section id="report-section-ai" className="rounded-2xl sm:rounded-3xl border border-muted/60 bg-white p-4 sm:p-6 shadow-sm space-y-4 w-full max-w-full min-w-0">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
               <div className="space-y-2 min-w-0 flex-1">
-                <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground">Quick Summary for Student</p>
-                <h2 className="text-lg sm:text-xl font-bold text-foreground break-words">{t.quickSummaryTitle || 'Quick Summary for Student'}</h2>
+                <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground">Monthly Learning Summary (家长摘要)</p>
+                <h2 className="text-lg sm:text-xl font-bold text-foreground break-words">Parent-friendly update for {selectedStudent.name}</h2>
                 <p className="text-sm sm:text-base leading-relaxed text-muted-foreground break-words">{quickSummaryText}</p>
+                <p className="text-sm text-foreground/80 leading-relaxed break-words">中文: {chineseSummary}</p>
               </div>
               <div className="flex flex-col items-start gap-2 md:items-end w-full md:w-auto">
                 {lastUpdated && (
@@ -909,6 +960,19 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                         <p className="text-xl sm:text-2xl font-semibold text-foreground">{attendanceRate}%</p>
                     </div>
                 </div>
+                <div className="rounded-2xl border border-muted/50 p-4 bg-background">
+                    <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground mb-2">
+                        <span>{t.attendanceRateLabel}</span>
+                        <span>{attendanceRate}%</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-green-500 transition-all"
+                          style={{ width: `${Math.min(100, Math.max(0, attendanceRate))}%` }}
+                        />
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-2">{attendanceInsight}</p>
+                </div>
             </section>
 
                         <section id="report-section-score" className="rounded-2xl sm:rounded-3xl border border-muted/40 bg-white p-4 sm:p-6 shadow-sm space-y-6 w-full max-w-full min-w-0">
@@ -922,6 +986,17 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                         <p className="text-xl sm:text-2xl font-semibold text-foreground">{examAverage ? examAverage.toFixed(0) : '-'}</p>
                     </div>
                     <p className="text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground">{examScores.length} {t.records}</p>
+                </div>
+                <div className="rounded-2xl border border-muted/40 bg-background p-4 sm:p-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground">What this means</p>
+                        <Badge variant="secondary" className="uppercase text-[10px] tracking-wide">
+                          {formatTrendLabel(examTrend)}
+                        </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        {selectedStudent.name}’s average exam score is {examAverage ? Math.round(examAverage) : '—'}. {examTrend.direction === 'up' ? 'Performance is trending upward.' : examTrend.direction === 'down' ? 'There was a slight dip recently.' : 'Results are consistent this month.'}
+                    </p>
                 </div>
                 <div className="rounded-2xl sm:rounded-3xl border border-muted/40 bg-background p-4 sm:p-5 space-y-4">
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground">
@@ -1000,11 +1075,44 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                         <p className="text-sm text-muted-foreground">{t.noExamData}</p>
                     )}
                 </div>
+                <div className="rounded-2xl border border-muted/40 bg-white p-4 space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground">Tutor remarks for school exams</h4>
+                    {examRemarks.length > 0 ? (
+                      <div className="space-y-2">
+                        {examRemarks.map((score) => (
+                          <div key={`${score.subject}-${score.date}-${score.value}`} className="flex items-start justify-between gap-3 border border-muted/30 rounded-xl p-3">
+                            <div className="text-sm font-medium text-foreground">
+                              {score.subject} · {score.value}
+                              <div className="text-xs text-muted-foreground">{score.formattedDate}</div>
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground max-w-xl text-right">{score.remark}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No tutor remarks recorded for recent exams.</p>
+                    )}
+                </div>
             </section>
             <section id="report-section-quiz" className="rounded-2xl sm:rounded-3xl border border-muted/40 bg-white p-4 sm:p-6 shadow-sm space-y-6 w-full max-w-full min-w-0">
                 <div className="space-y-1">
                     <h2 className="text-lg sm:text-xl font-semibold text-foreground">{t.tutoringQuizTitle}</h2>
                     <p className="text-xs sm:text-sm text-muted-foreground">{t.tutoringQuizDesc}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      Centre assessments focus on concept mastery and readiness, not exam memorisation.
+                    </p>
+                </div>
+                <div className="rounded-2xl border border-muted/40 bg-background p-4 sm:p-5 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground">What this means</p>
+                        <Badge variant="secondary" className="uppercase text-[10px] tracking-wide">
+                          {formatTrendLabel(tutoringTrend)}
+                        </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        {selectedStudent.name}’s centre assessment scores average {tutoringAverage ? Math.round(tutoringAverage) : '—'} across quizzes, homework, labs, and presentations. {tutoringTrend.direction === 'up' ? 'Concept mastery is improving month over month.' : tutoringTrend.direction === 'down' ? 'Let’s focus on specific skills to lift the next check-in.' : 'Progress is steady; keep practising key concepts.'}
+                    </p>
                 </div>
                 <div className="rounded-2xl sm:rounded-3xl border border-muted/40 bg-background p-4 sm:p-5 space-y-4">
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-muted-foreground">
@@ -1047,6 +1155,24 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                         </div>
                     ) : (
                         <div className="py-16 text-center text-sm text-muted-foreground">{t.noTutoringAssessments}</div>
+                    )}
+                </div>
+                <div className="rounded-2xl border border-muted/40 bg-white p-4 space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground">Tutor remarks for centre assessments</h4>
+                    {tutoringRemarks.length > 0 ? (
+                      <div className="space-y-2">
+                        {tutoringRemarks.map((score) => (
+                          <div key={`${score.subject}-${score.date}-${score.value}`} className="flex items-start justify-between gap-3 border border-muted/30 rounded-xl p-3">
+                            <div className="text-sm font-medium text-foreground">
+                              {score.subject} · {score.value}
+                              <div className="text-xs text-muted-foreground">{score.formattedDate}</div>
+                            </div>
+                            <div className="text-xs sm:text-sm text-muted-foreground max-w-xl text-right">{score.remark}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No tutor remarks recorded for centre assessments yet.</p>
                     )}
                 </div>
                 <div className="grid gap-3 sm:gap-4 md:grid-cols-3 min-w-0">

@@ -49,8 +49,11 @@ describe('Teachers API', () => {
       const sarah = data.find((t) => t.id === 't1');
       expect(sarah).toBeDefined();
       expect(sarah.name).toBe('Sarah Jenkins');
-      expect(sarah.subjects).toContain('Mathematics');
+      expect(sarah.subjectNames || sarah.subjects.map((s) => s.name)).toContain('Mathematics');
       expect(Array.isArray(sarah.levels)).toBe(true);
+      expect(Array.isArray(sarah.subjectLevels)).toBe(true);
+      expect(sarah.subjectLevels?.[0]).toHaveProperty('subject');
+      expect(sarah.subjectLevels?.[0]).toHaveProperty('levels');
       expect(sarah.subject).toBe('Mathematics');
     });
   });
@@ -68,16 +71,22 @@ describe('Teachers API', () => {
           id: teacherId,
           name: 'Test Teacher',
           email: expectedEmail,
-          subjects: ['Islam / Moral', 'Philosophy'],
-          levels: ['Standard 1'],
+          subjectLevels: [
+            { subject: 'Islam / Moral', levels: ['Standard 1'] },
+            { subject: 'Philosophy', levels: ['Form 3'] },
+          ],
         }),
       });
 
     const response = await worker.fetch(request, mockEnv, mockCtx);
     expect(response.status).toBe(201);
     const createdTeacher = await response.json();
-    expect(createdTeacher.subjects).toEqual(['Islam / Moral', 'Philosophy']);
-    expect(createdTeacher.levels).toEqual(['Standard 1']);
+    expect(createdTeacher.subjectNames || createdTeacher.subjects.map((s) => s.name)).toEqual(['Islam / Moral', 'Philosophy']);
+    expect(createdTeacher.subjectLevels).toEqual([
+      { subject: 'Islam / Moral', levels: ['Standard 1'] },
+      { subject: 'Philosophy', levels: ['Form 3'] },
+    ]);
+    expect(createdTeacher.levels).toEqual(['Standard 1', 'Form 3']);
     expect(createdTeacher.subject).toBe('Islam / Moral');
 
     const loginRequest = new Request('http://localhost/api/v1/auth/login', {

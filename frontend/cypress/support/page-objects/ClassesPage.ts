@@ -31,7 +31,6 @@ export class ClassesPage extends BasePage {
     name: string;
     grade: string;
     teacherId: string;
-    locationId: string;
     days: string[];
     time: string;
     durationHours?: string;
@@ -41,9 +40,6 @@ export class ClassesPage extends BasePage {
     
     // Select teacher
     cy.get('select').eq(0).select(classData.teacherId);
-    
-    // Select location
-    cy.get('select').eq(1).select(classData.locationId);
 
     // Adjust weekly days
     cy.contains('label', /weekly days/i).parent().within(() => {

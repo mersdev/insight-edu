@@ -66,6 +66,7 @@ export class TeachersPage extends BasePage {
         cy.get('[data-cy="subject-dropdown-option"]', { timeout: 2000 }).should('have.length.greaterThan', 0);
         cy.contains('[data-cy="subject-dropdown-option"]', subject, { matchCase: false }).click({ force: true });
       });
+      cy.get('[data-cy="subject-level-list"]').should('contain', subject);
     });
 
     if (teacher.levels) {

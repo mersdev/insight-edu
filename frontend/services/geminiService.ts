@@ -53,7 +53,6 @@ export const generateDashboardInsights = async (
         actualAvgAttendance?: number;
         totalSessions?: number;
         completedSessions?: number;
-        totalLocations?: number;
         totalClasses?: number;
     }
 ): Promise<string> => {
@@ -73,7 +72,6 @@ export const generateDashboardInsights = async (
       - Average Attendance: ${avgAttendance.toFixed(1)}%
 
       **Operational Metrics:**
-      - Total Locations: ${metrics?.totalLocations || 'N/A'}
       - Total Classes: ${metrics?.totalClasses || 'N/A'}
       - Total Sessions: ${metrics?.totalSessions || 'N/A'}
       - Completed Sessions: ${metrics?.completedSessions || 'N/A'}
@@ -86,8 +84,8 @@ export const generateDashboardInsights = async (
         1
       )}%** average attendance and **${atRiskCount} students** flagged at risk.
       - **Key Concern:** ${atRiskCount > 0 ? 'At-risk students are clustering in a few classes, stressing support resources.' : 'Attendance and behavior remain steady.'}
-      - **Next Step:** Coordinate targeted interventions for the branches serving those at-risk cohorts.
-      - **Next Step:** Review session pacing in low-attendance locations to keep the calendar full and engagement high.
+      - **Next Step:** Coordinate targeted interventions for the cohorts and classes serving those at-risk students.
+      - **Next Step:** Review session pacing in low-attendance time slots to keep the calendar full and engagement high.
     `;
 
     return generateAIContent(prompt, fallback);
