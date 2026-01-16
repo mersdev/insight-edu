@@ -24,6 +24,7 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
 
   // State for scores: { studentId: { colName: value } }
   const [scores, setScores] = useState<Record<string, Record<string, string>>>({});
+  const [scoreRemarks, setScoreRemarks] = useState<Record<string, Record<string, string>>>({});
 
   // View Mode: 'READ' (Default) | 'EDIT'
   const [viewMode, setViewMode] = useState<'READ' | 'EDIT'>('READ');
@@ -51,9 +52,10 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
         });
 
         // Group scores by student and subject, keeping the most recent entry per subject
-        const scoresMap: Record<string, Record<string, { value: string; date?: string }>> = {};
+        const scoresMap: Record<string, Record<string, { value: string; date?: string; remark?: string }>> = {};
         const subjectsSet = new Set<string>();
         const subjectTypeMap: Record<string, Score['type']> = {};
+        const remarksMap: Record<string, Record<string, string>> = {};
 
         classScores.forEach(score => {
           if (!scoresMap[score.studentId]) {
@@ -69,6 +71,7 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
             scoresMap[score.studentId][score.subject] = {
               value: score.value.toString(),
               date: score.date,
+              remark: score.remark || '',
             };
           }
           subjectsSet.add(score.subject);
@@ -81,11 +84,14 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
         const flattenedScores: Record<string, Record<string, string>> = {};
         Object.entries(scoresMap).forEach(([studentId, subjectMap]) => {
           flattenedScores[studentId] = {};
+          remarksMap[studentId] = {};
           Object.entries(subjectMap).forEach(([subject, entry]) => {
             flattenedScores[studentId][subject] = entry.value;
+            remarksMap[studentId][subject] = entry.remark || '';
           });
         });
         setScores(flattenedScores);
+        setScoreRemarks(remarksMap);
         setColumnTypes((prev) => ({
           ...prev,
           ...subjectTypeMap,
@@ -135,6 +141,16 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
     }));
   };
 
+  const updateRemark = (studentId: string, col: string, val: string) => {
+    setScoreRemarks(prev => ({
+      ...prev,
+      [studentId]: {
+        ...(prev[studentId] || {}),
+        [col]: val,
+      }
+    }));
+  };
+
   // Helper function to determine score type from column name
   const getScoreType = (columnName: string): Score['type'] => {
     const lowerName = columnName.toLowerCase();
@@ -163,13 +179,15 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
         Object.entries(studentScores).forEach(([columnName, value]) => {
           // Only save non-empty scores
           if (value && value.trim() !== '') {
+            const remark = scoreRemarks[studentId]?.[columnName];
             scoresToSave.push({
               studentId,
               date: currentDate,
               subject: columnName,
               value: parseInt(value, 10),
               type: columnTypes[columnName] || getScoreType(columnName),
-              teacherId
+              teacherId,
+              remark: remark && remark.trim() ? remark.trim() : undefined,
             });
           }
         });
@@ -250,7 +268,7 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                                     return (
                                         <TableCell key={col} className="text-right p-2">
                                             {viewMode === 'EDIT' ? (
-                                                <div className="flex items-center justify-end">
+                                                <div className="flex flex-col items-end gap-2">
                                                     <div className="flex items-center bg-gray-100 rounded-lg px-3 h-10 w-28 relative transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5 border border-transparent focus-within:border-gray-200">
                                                         <input 
                                                             type="number" 
@@ -260,10 +278,21 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                                                             className="bg-transparent w-full text-right font-bold outline-none placeholder:text-gray-400 text-sm"
                                                         />
                                                     </div>
+                                                    <Input
+                                                      value={scoreRemarks[student.id]?.[col] || ''}
+                                                      onChange={(e) => updateRemark(student.id, col, e.target.value)}
+                                                      placeholder="Remark (optional)"
+                                                      className="w-48 text-xs h-9"
+                                                    />
                                                 </div>
                                             ) : (
-                                                <div className="font-medium text-gray-700 pr-4">
-                                                    {scoreVal || '-'}
+                                                <div className="flex flex-col items-end gap-1">
+                                                    <div className="font-medium text-gray-700 pr-4">
+                                                        {scoreVal || '-'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground max-w-[220px] text-right">
+                                                        {scoreRemarks[student.id]?.[col] ? scoreRemarks[student.id][col] : 'No remark'}
+                                                    </div>
                                                 </div>
                                             )}
                                         </TableCell>
@@ -304,22 +333,35 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                                      </label>
                                      <div className="relative w-40 sm:w-48">
                                         {viewMode === 'EDIT' ? (
-                                            <div className="flex items-center bg-gray-100 rounded-xl px-4 h-12 w-full relative transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5">
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase mr-auto tracking-wider">SCORE</span>
-                                                <input 
-                                                    type="number" 
-                                                    placeholder="-"
-                                                    value={scoreVal}
-                                                    onChange={(e) => updateScore(student.id, col, e.target.value)}
-                                                    className="bg-transparent w-full text-right font-bold text-lg outline-none placeholder:text-gray-300"
-                                                />
+                                            <div className="space-y-2">
+                                              <div className="flex items-center bg-gray-100 rounded-xl px-4 h-12 w-full relative transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5">
+                                                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-auto tracking-wider">SCORE</span>
+                                                  <input 
+                                                      type="number" 
+                                                      placeholder="-"
+                                                      value={scoreVal}
+                                                      onChange={(e) => updateScore(student.id, col, e.target.value)}
+                                                      className="bg-transparent w-full text-right font-bold text-lg outline-none placeholder:text-gray-300"
+                                                  />
+                                              </div>
+                                              <Input
+                                                value={scoreRemarks[student.id]?.[col] || ''}
+                                                onChange={(e) => updateRemark(student.id, col, e.target.value)}
+                                                placeholder="Remark (optional)"
+                                                className="w-full text-xs"
+                                              />
                                             </div>
                                         ) : (
-                                            <div className="flex items-center bg-gray-100 rounded-xl px-4 h-12 w-full relative">
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase mr-auto tracking-wider">SCORE</span>
-                                                <div className="w-full text-right font-bold text-lg text-foreground/80">
-                                                    {scoreVal || '-'}
-                                                </div>
+                                            <div className="space-y-1">
+                                              <div className="flex items-center bg-gray-100 rounded-xl px-4 h-12 w-full relative">
+                                                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-auto tracking-wider">SCORE</span>
+                                                  <div className="w-full text-right font-bold text-lg text-foreground/80">
+                                                      {scoreVal || '-'}
+                                                  </div>
+                                              </div>
+                                              <div className="text-xs text-muted-foreground text-right">
+                                                {scoreRemarks[student.id]?.[col] ? scoreRemarks[student.id][col] : 'No remark'}
+                                              </div>
                                             </div>
                                         )}
                                      </div>

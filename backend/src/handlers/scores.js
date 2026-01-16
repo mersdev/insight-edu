@@ -21,7 +21,7 @@ export async function handleGetScores({ db, corsHeaders }) {
 
 export async function handleCreateScore({ body, db, corsHeaders, user }) {
   try {
-    const { studentId, date, subject, value, type } = body;
+    const { studentId, date, subject, value, type, remark } = body;
     const teacherId = await resolveTeacherId({
       db,
       providedId: body.teacherId,
@@ -37,25 +37,26 @@ export async function handleCreateScore({ body, db, corsHeaders, user }) {
       );
     }
 
-    if (!teacherId) {
+    if (!teacherId && user?.role !== 'HQ') {
       return jsonResponse(
         { error: 'Validation Error', message: 'Teacher not identified' },
         400,
         corsHeaders
       );
     }
+    const resolvedTeacherId = teacherId || null;
 
     const existing = await db
       .prepare('SELECT * FROM scores WHERE student_id = ? AND date = ? AND subject = ? AND type = ? AND (teacher_id = ? OR (teacher_id IS NULL AND ? IS NULL))')
-      .bind(studentId, date, subject, type, teacherId, teacherId)
+      .bind(studentId, date, subject, type, resolvedTeacherId, resolvedTeacherId)
       .all();
 
     if (existing.results && existing.results.length > 0) {
       const scoreId = existing.results[0].id;
       await db
-        .prepare('UPDATE scores SET value = ?, teacher_id = ? WHERE id = ?')
-        .bind(value, teacherId, scoreId)
-        .run();
+      .prepare('UPDATE scores SET value = ?, teacher_id = ?, remark = ? WHERE id = ?')
+      .bind(value, resolvedTeacherId, remark ?? null, scoreId)
+      .run();
 
       const updated = await db
         .prepare('SELECT * FROM scores WHERE id = ?')
@@ -66,8 +67,8 @@ export async function handleCreateScore({ body, db, corsHeaders, user }) {
     }
 
     await db
-      .prepare('INSERT INTO scores (student_id, date, subject, value, teacher_id, type) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(studentId, date, subject, value, teacherId, type)
+      .prepare('INSERT INTO scores (student_id, date, subject, value, teacher_id, type, remark) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(studentId, date, subject, value, resolvedTeacherId, type, remark ?? null)
       .run();
 
     const created = await db

@@ -41,6 +41,7 @@ describe('Scores API', () => {
         value: 94,
         type: 'EXAM',
         teacherId: 't1',
+        remark: 'Great effort and steady improvement.',
       };
 
       const request = new Request('http://localhost/api/v1/teacher/scores', {
@@ -60,6 +61,7 @@ describe('Scores API', () => {
         subject: newScore.subject,
         value: newScore.value,
         type: newScore.type,
+        remark: newScore.remark,
       });
     });
   });

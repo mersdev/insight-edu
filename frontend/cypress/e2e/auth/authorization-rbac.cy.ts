@@ -45,12 +45,6 @@ describe('Authorization - Role-Based Access Control', () => {
       cy.wait(500);
     });
 
-    it('should access locations page', () => {
-      cy.visit('/#/locations');
-      cy.hash().should('eq', '#/locations');
-      cy.contains(/locations/i).should('be.visible');
-    });
-
     it('should NOT access teacher-specific pages', () => {
       cy.visit('/#/teacher/classes');
       cy.wait(1000);
@@ -106,12 +100,6 @@ describe('Authorization - Role-Based Access Control', () => {
 
     it('should NOT access classes management', () => {
       cy.visit('/#/classes');
-      // Should redirect to teacher classes
-      cy.hash({ timeout: 5000 }).should('eq', '#/teacher/classes');
-    });
-
-    it('should NOT access locations management', () => {
-      cy.visit('/#/locations');
       // Should redirect to teacher classes
       cy.hash({ timeout: 5000 }).should('eq', '#/teacher/classes');
     });
@@ -208,4 +196,3 @@ describe('Authorization - Role-Based Access Control', () => {
     });
   });
 });
-

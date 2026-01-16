@@ -67,6 +67,7 @@ export class MockD1 {
         email: 'sarahjenkins@edu.com',
         subject: 'Mathematics',
         subjects: '["Mathematics"]',
+        subject_levels: '[{"subject":"Mathematics","levels":["Upper Secondary"]}]',
         levels: '["Upper Secondary"]',
         phone: '012-345 6789',
         description: 'Head of Mathematics Department.',
@@ -79,6 +80,7 @@ export class MockD1 {
         email: 'davidlee@edu.com',
         subject: 'Science',
         subjects: '["Science", "Physics"]',
+        subject_levels: '[{"subject":"Science","levels":["Upper Secondary"]},{"subject":"Physics","levels":["Science Club"]}]',
         levels: '["Upper Secondary", "Science Club"]',
         phone: '016-789 0123',
         description: 'Science and Physics Teacher.',
@@ -89,7 +91,6 @@ export class MockD1 {
         id: 'c1',
         name: 'Form 4 Mathematics A',
         teacher_id: 't1',
-        location_id: 'l1',
         grade: 'Form 4',
         default_schedule: '{"days": ["Monday"], "time": "09:00", "durationMinutes": 60}',
       },
@@ -97,7 +98,6 @@ export class MockD1 {
         id: 'c2',
         name: 'Form 4 Science B',
         teacher_id: 't2',
-        location_id: 'l2',
         grade: 'Form 4',
         default_schedule: '{"days": ["Wednesday"], "time": "11:00", "durationMinutes": 60}',
       },
@@ -296,9 +296,10 @@ export class MockD1 {
         email: args[4],
         subject: args[5],
         subjects: args[6],
-        levels: args[7],
-        phone: args[8],
-        description: args[9],
+        subject_levels: args[7],
+        levels: args[8],
+        phone: args[9],
+        description: args[10],
       };
       this.data.teachers.push(teacher);
       return { success: true };
@@ -308,9 +309,8 @@ export class MockD1 {
         id: args[0],
         name: args[1],
         teacher_id: args[2],
-        location_id: args[3],
-        grade: args[4],
-        default_schedule: args[5],
+        grade: args[3],
+        default_schedule: args[4],
       };
       this.data.classes.push(cls);
       return { success: true };
@@ -367,6 +367,7 @@ export class MockD1 {
         value: args[3],
         teacher_id: args[4],
         type: args[5],
+        remark: args[6],
       };
       this.data.scores.push(score);
       return { success: true };
@@ -400,6 +401,25 @@ export class MockD1 {
     }
     if (sql.includes('DELETE FROM teachers')) {
       this.data.teachers = this.data.teachers.filter((t) => t.id !== args[0]);
+      return { success: true };
+    }
+    if (sql.includes('DELETE FROM classes')) {
+      const classId = args[0];
+      this.data.classes = this.data.classes.filter((c) => c.id !== classId);
+      this.data.students = this.data.students.map((student) => {
+        let classIds = [];
+        try {
+          classIds = JSON.parse(student.class_ids || '[]');
+        } catch {
+          classIds = [];
+        }
+        if (!Array.isArray(classIds)) classIds = [];
+        if (!classIds.includes(classId)) {
+          return student;
+        }
+        const updatedIds = classIds.filter((cid) => cid !== classId);
+        return { ...student, class_ids: JSON.stringify(updatedIds) };
+      });
       return { success: true };
     }
     if (sql.includes('DELETE FROM users')) {

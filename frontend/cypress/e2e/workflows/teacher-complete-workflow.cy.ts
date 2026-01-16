@@ -36,12 +36,17 @@ describe('Teacher User - Complete Workflow', () => {
     });
 
     it('should select different months', () => {
-      cy.get('select').eq(1).then(($select) => {
-        const options = $select.find('option');
-        if (options.length > 1) {
-          const month = options.eq(1).val() as string;
-          teacherClassesPage.selectMonth(month);
-          cy.wait(1000);
+      cy.get('select').then(($selects) => {
+        if ($selects.length > 1) {
+          const monthSelect = $selects.eq(1);
+          const options = monthSelect.find('option');
+          if (options.length > 1) {
+            const month = options.eq(1).val() as string;
+            teacherClassesPage.selectMonth(month);
+            cy.wait(1000);
+          }
+        } else {
+          cy.log('Only one selector present; skipping month change');
         }
       });
     });

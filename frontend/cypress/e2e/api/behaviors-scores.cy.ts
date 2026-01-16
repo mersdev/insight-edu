@@ -64,96 +64,84 @@ describe('API Integration - Behaviors and Scores', () => {
     it('should record behavior rating', () => {
       const timestamp = Date.now();
 
-      // Create all required data: location -> teacher -> class -> session -> student
       cy.request({
         method: 'POST',
-        url: `${apiUrl}/admin/locations`,
+        url: `${apiUrl}/admin/teachers`,
         headers: { 'Authorization': `Bearer ${authToken}` },
         body: {
-          id: `loc_beh_${timestamp}`,
-          name: `Behavior Test Location ${timestamp}`,
-          address: '789 Test Blvd'
+          id: `t_beh_${timestamp}`,
+          name: `Behavior Teacher ${timestamp}`,
+          englishName: `Teacher ${timestamp}`,
+          email: `beh.teacher.${timestamp}@test.com`,
+          phone: '012-345 6789',
+          subjects: [{
+            name: 'English',
+            levels: ['Form 1']
+          }]
         }
-      }).then((locResponse) => {
-        const locationId = locResponse.body.id;
+      }).then((teacherResponse) => {
+        const teacherId = teacherResponse.body.id;
 
         cy.request({
           method: 'POST',
-          url: `${apiUrl}/admin/teachers`,
+          url: `${apiUrl}/admin/classes`,
           headers: { 'Authorization': `Bearer ${authToken}` },
           body: {
-            id: `t_beh_${timestamp}`,
-            name: `Behavior Teacher ${timestamp}`,
-            englishName: `Teacher ${timestamp}`,
-            email: `beh.teacher.${timestamp}@test.com`,
-            phone: '012-345 6789',
-            subject: 'English'
+            id: `c_beh_${timestamp}`,
+            name: `Behavior Class ${timestamp}`,
+            grade: 'Form 1',
+            teacherId: teacherId,
           }
-        }).then((teacherResponse) => {
-          const teacherId = teacherResponse.body.id;
+        }).then((classResponse) => {
+          const classId = classResponse.body.id;
 
           cy.request({
             method: 'POST',
-            url: `${apiUrl}/admin/classes`,
+            url: `${apiUrl}/admin/sessions`,
             headers: { 'Authorization': `Bearer ${authToken}` },
             body: {
-              id: `c_beh_${timestamp}`,
-              name: `Behavior Class ${timestamp}`,
-              grade: 'Form 1',
-              teacherId: teacherId,
-              locationId: locationId
+              id: `sess_beh_${timestamp}`,
+              classId: classId,
+              date: new Date().toISOString().split('T')[0],
+              startTime: '16:00',
+              type: 'REGULAR',
+              status: 'SCHEDULED'
             }
-          }).then((classResponse) => {
-            const classId = classResponse.body.id;
+          }).then((sessionResponse) => {
+            const sessionId = sessionResponse.body.id;
 
             cy.request({
               method: 'POST',
-              url: `${apiUrl}/admin/sessions`,
+              url: `${apiUrl}/auth/register`,
               headers: { 'Authorization': `Bearer ${authToken}` },
               body: {
-                id: `sess_beh_${timestamp}`,
-                classId: classId,
-                date: new Date().toISOString().split('T')[0],
-                startTime: '16:00',
-                type: 'REGULAR',
-                status: 'SCHEDULED'
-              }
-            }).then((sessionResponse) => {
-              const sessionId = sessionResponse.body.id;
+                id: `p_beh_${timestamp}`,
+                name: 'Test Parent',
+                email: `parent.beh.${timestamp}@test.com`,
+                password: '123',
+                role: 'PARENT'
+              },
+              failOnStatusCode: false
+            }).then((parentResponse) => {
+              const parentId = parentResponse.body.id || `p_beh_${timestamp}`;
 
-              // Create a parent user first
               cy.request({
                 method: 'POST',
-                url: `${apiUrl}/auth/register`,
+                url: `${apiUrl}/admin/students`,
                 headers: { 'Authorization': `Bearer ${authToken}` },
                 body: {
-                  id: `p_beh_${timestamp}`,
-                  name: 'Test Parent',
-                  email: `parent.beh.${timestamp}@test.com`,
-                  password: '123',
-                  role: 'PARENT'
-                },
-                failOnStatusCode: false
-              }).then((parentResponse) => {
-                const parentId = parentResponse.body.id || `p_beh_${timestamp}`;
-
-                cy.request({
-                  method: 'POST',
-                  url: `${apiUrl}/admin/students`,
-                  headers: { 'Authorization': `Bearer ${authToken}` },
-                  body: {
-                    id: `s_beh_${timestamp}`,
-                    name: `Behavior Student ${timestamp}`,
-                    school: 'Test School',
-                    classIds: [classId],
-                    parentId: parentId,
-                    parentName: 'Test Parent',
-                    relationship: 'Mother',
-                    emergencyContact: '012-345 6789',
-                    parentEmail: `parent.beh.${timestamp}@test.com`
-                  }
-                }).then((studentResponse) => {
-                  const studentId = studentResponse.body.id;
+                  id: `s_beh_${timestamp}`,
+                  name: `Behavior Student ${timestamp}`,
+                  school: 'Test School',
+                  classIds: [classId],
+                  parentId: parentId,
+                  parentName: 'Test Parent',
+                  relationship: 'Mother',
+                  emergencyContact: '012-345 6789',
+                  parentEmail: `parent.beh.${timestamp}@test.com`
+                }
+              }).then((studentResponse) => {
+                const studentId = studentResponse.body.id;
 
                 const behaviorRating = {
                   studentId: studentId,
@@ -181,7 +169,6 @@ describe('API Integration - Behaviors and Scores', () => {
                   expect(response.body).to.have.property('category', behaviorRating.category);
                   expect(response.body).to.have.property('rating', behaviorRating.rating);
                   expect(response.body).to.have.property('date');
-                });
                 });
               });
             });

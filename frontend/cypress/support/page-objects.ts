@@ -208,6 +208,44 @@ export class ClassesPage {
   }
 }
 
+export class LocationsPage {
+  visit(): void {
+    cy.visit('/#/locations');
+  }
+
+  clickAddLocation(): void {
+    cy.contains('button', /add/i).click();
+  }
+
+  fillLocationForm(data: { name: string; address: string }): void {
+    cy.get('input[placeholder="e.g. Cheras Branch"]').type(data.name);
+    cy.get('input[placeholder="e.g. 123 Jalan Damai"]').type(data.address);
+  }
+
+  submitLocationForm(): void {
+    cy.contains('button', /save|submit/i).click();
+  }
+
+  verifyLocationsPageDisplayed(): void {
+    cy.contains('h1', /locations/i).should('be.visible');
+  }
+
+  searchLocation(name: string): void {
+    cy.get('input[placeholder*="Search"]').type(name);
+  }
+
+  sortLocations(): void {
+    cy.get('th').then(($ths) => {
+      const header = $ths.filter((_, el) => /location|name/i.test(el.textContent || '')).first();
+      if (header.length) {
+        cy.wrap(header).click();
+      } else {
+        cy.contains('button', /sort/i).click({ force: true });
+      }
+    });
+  }
+}
+
 export class StudentReportPage {
   visit(): void {
     cy.visit('/#/reports');

@@ -53,39 +53,52 @@ export async function handleCreateStudent({ body, db, corsHeaders }) {
       ? baseParentName
       : `${baseParentName} Parent`;
     const providedParentEmail = parentEmail?.trim();
-    let loginParentEmail = providedParentEmail || formatNotificationEmail(parentDisplayName, 'PARENT');
-    let resolvedParentId = parentId || null;
+    let loginParentEmail = providedParentEmail || null;
+    let resolvedParentId = null;
 
     const userById = parentId
       ? await db.prepare('SELECT id, role, email FROM users WHERE id = ?').bind(parentId).first()
       : null;
-    const existingUserByEmail = await db
-      .prepare('SELECT id, role, email FROM users WHERE email = ?')
-      .bind(loginParentEmail)
-      .first();
 
-    const existingUser = userById || existingUserByEmail;
-
-    if (existingUser) {
-      if (existingUser.role !== 'PARENT') {
+    if (userById) {
+      if (userById.role !== 'PARENT') {
         return jsonResponse(
-          { error: 'Validation Error', message: 'Parent email already belongs to a non-parent user' },
+          { error: 'Validation Error', message: 'Provided parent account is not a parent user' },
           409,
           corsHeaders
         );
       }
-      resolvedParentId = existingUser.id;
-      loginParentEmail = existingUser.email || loginParentEmail;
-    } else {
-      const generatedParentId = parentId && parentId !== 'p_new' ? parentId : `p_${id}`;
-      const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+      resolvedParentId = userById.id;
+      loginParentEmail = loginParentEmail || userById.email || null;
+    }
 
-      await db
-        .prepare('INSERT INTO users (id, name, email, password, password_hash, role, must_change_password, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)')
-        .bind(generatedParentId, parentDisplayName, loginParentEmail, DEFAULT_PASSWORD, passwordHash, 'PARENT', 1)
-        .run();
+    if (loginParentEmail) {
+      const existingUserByEmail = await db
+        .prepare('SELECT id, role, email FROM users WHERE email = ?')
+        .bind(loginParentEmail)
+        .first();
 
-      resolvedParentId = generatedParentId;
+      if (existingUserByEmail) {
+        if (existingUserByEmail.role !== 'PARENT') {
+          return jsonResponse(
+            { error: 'Validation Error', message: 'Parent email already belongs to a non-parent user' },
+            409,
+            corsHeaders
+          );
+        }
+        resolvedParentId = existingUserByEmail.id;
+        loginParentEmail = existingUserByEmail.email || loginParentEmail;
+      } else {
+        const generatedParentId = parentId && parentId !== 'p_new' ? parentId : `p_${id}`;
+        const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+
+        await db
+          .prepare('INSERT INTO users (id, name, email, password, password_hash, role, must_change_password, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)')
+          .bind(generatedParentId, parentDisplayName, loginParentEmail, DEFAULT_PASSWORD, passwordHash, 'PARENT', 1)
+          .run();
+
+        resolvedParentId = generatedParentId;
+      }
     }
 
     await db
@@ -139,20 +152,45 @@ export async function handleUpdateStudent({ params, body, db, corsHeaders }) {
       address,
     } = body;
 
+    const existing = await db
+      .prepare('SELECT * FROM students WHERE id = ?')
+      .bind(studentId)
+      .first();
+
+    if (!existing) {
+      return jsonResponse(
+        { error: 'Not Found', message: 'Student not found' },
+        404,
+        corsHeaders
+      );
+    }
+
+    const existingCamel = toCamelCase(existing);
+    const finalParentEmail = parentEmail !== undefined ? (parentEmail?.trim() || null) : existing.parent_email;
+    const finalParentId = parentId !== undefined ? parentId : existing.parent_id;
+    const finalClassIds = classIds !== undefined ? classIds : existingCamel.classIds || [];
+    const finalAttendance = attendance !== undefined ? attendance : existing.attendance;
+    const finalAtRisk = atRisk !== undefined ? (atRisk ? 1 : 0) : existing.at_risk;
+    const finalSchool = school !== undefined ? school : existing.school;
+    const finalParentName = parentName !== undefined ? parentName : existing.parent_name;
+    const finalRelationship = relationship !== undefined ? relationship : existing.relationship;
+    const finalEmergencyContact = emergencyContact !== undefined ? emergencyContact : existing.emergency_contact;
+    const finalAddress = address !== undefined ? address : existing.address;
+
     await db
       .prepare('UPDATE students SET name = ?, parent_id = ?, class_ids = ?, attendance = ?, at_risk = ?, school = ?, parent_name = ?, relationship = ?, emergency_contact = ?, parent_email = ?, address = ? WHERE id = ?')
       .bind(
-        name || null,
-        parentId || null,
-        JSON.stringify(classIds || []),
-        attendance !== undefined ? attendance : null,
-        atRisk !== undefined ? (atRisk ? 1 : 0) : null,
-        school || null,
-        parentName || null,
-        relationship || null,
-        emergencyContact || null,
-        parentEmail || null,
-        address || null,
+        name ?? existing.name,
+        finalParentId || null,
+        JSON.stringify(finalClassIds || []),
+        finalAttendance,
+        finalAtRisk,
+        finalSchool || null,
+        finalParentName || null,
+        finalRelationship || null,
+        finalEmergencyContact || null,
+        finalParentEmail || null,
+        finalAddress || null,
         studentId
       )
       .run();

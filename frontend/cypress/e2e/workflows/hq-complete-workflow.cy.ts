@@ -7,7 +7,7 @@
  * - Uses page objects for maintainability (Open/Closed principle)
  */
 
-import { LoginPage, DashboardPage, TeachersPage, StudentsPage, ClassesPage, LocationsPage } from '../../support/page-objects';
+import { LoginPage, DashboardPage, TeachersPage, StudentsPage, ClassesPage } from '../../support/page-objects';
 import { ApiInterceptor } from '../../support/api-helpers';
 import { AuthHelper } from '../../support/test-helpers';
 
@@ -17,7 +17,6 @@ describe('HQ User - Complete Workflow', () => {
   const teachersPage = new TeachersPage();
   const studentsPage = new StudentsPage();
   const classesPage = new ClassesPage();
-  const locationsPage = new LocationsPage();
   const apiInterceptor = new ApiInterceptor();
 
   beforeEach(() => {
@@ -49,48 +48,11 @@ describe('HQ User - Complete Workflow', () => {
       dashboardPage.navigateToClasses();
       classesPage.verifyClassesPageDisplayed();
 
-      // Navigate to Locations
-      cy.visit('/#/dashboard');
-      dashboardPage.navigateToLocations();
-      locationsPage.verifyLocationsPageDisplayed();
     });
 
     it('should generate AI insights on dashboard', () => {
       dashboardPage.verifyDashboardDisplayed();
       // AI insights generation is tested separately due to API dependencies
-    });
-  });
-
-  describe('Location Management', () => {
-    beforeEach(() => {
-      AuthHelper.loginAsHQ();
-      locationsPage.visit();
-    });
-
-    it('should create a new location', () => {
-      locationsPage.clickAddLocation();
-      cy.wait(500);
-
-      locationsPage.fillLocationForm({
-        name: `Test Location ${Date.now()}`,
-        address: '123 Test Street, Test City'
-      });
-
-      locationsPage.submitLocationForm();
-      cy.wait(2000); // Wait for creation to complete
-
-      // Verify location appears in list
-      locationsPage.verifyLocationsPageDisplayed();
-    });
-
-    it('should search for locations', () => {
-      locationsPage.searchLocation('Test');
-      cy.wait(500);
-    });
-
-    it('should sort locations', () => {
-      locationsPage.sortLocations();
-      cy.wait(500);
     });
   });
 
@@ -193,26 +155,22 @@ describe('HQ User - Complete Workflow', () => {
         // 2. View Dashboard
         dashboardPage.verifyKPICards();
 
-        // 3. Manage Locations
-        dashboardPage.navigateToLocations();
-        locationsPage.verifyLocationsPageDisplayed();
-
-        // 4. Manage Teachers
+        // 3. Manage Teachers
         cy.visit('/#/dashboard');
         dashboardPage.navigateToTeachers();
         teachersPage.verifyTeachersPageDisplayed();
 
-        // 5. Manage Students
+        // 4. Manage Students
         cy.visit('/#/dashboard');
         dashboardPage.navigateToStudents();
         studentsPage.verifyStudentsPageDisplayed();
 
-        // 6. Manage Classes
+        // 5. Manage Classes
         cy.visit('/#/dashboard');
         dashboardPage.navigateToClasses();
         classesPage.verifyClassesPageDisplayed();
 
-        // 7. Return to Dashboard
+        // 6. Return to Dashboard
         cy.visit('/#/dashboard');
         dashboardPage.verifyDashboardDisplayed();
       });

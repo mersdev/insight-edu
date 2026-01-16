@@ -40,11 +40,6 @@ describe('Authentication - Protected Routes', () => {
       cy.hash().should('eq', '#/classes');
     });
 
-    it('should allow HQ user to access locations page', () => {
-      cy.visit('/#/locations');
-      cy.hash().should('eq', '#/locations');
-    });
-
     it('should redirect HQ user from teacher-specific routes', () => {
       cy.visit('/#/teacher/classes');
       // Should redirect to home or dashboard
@@ -159,7 +154,6 @@ describe('Authentication - Protected Routes', () => {
         '/#/teachers',
         '/#/students',
         '/#/classes',
-        '/#/locations',
         '/#/teacher/classes',
         '/#/input',
         '/#/reports'

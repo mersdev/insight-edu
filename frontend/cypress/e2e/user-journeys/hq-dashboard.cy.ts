@@ -39,21 +39,12 @@ describe('User Journey - HQ Dashboard', () => {
   });
 
   it('should navigate to classes management', () => {
-    // Navigate to classes page via sidebar (the label is "Class" not "Classes")
-    cy.get('aside').contains(/^class$/i).click();
+    // Navigate to classes page via sidebar (accept both "Class" and "Classes")
+    cy.get('aside').contains(/class(es)?/i).click();
     cy.hash().should('eq', '#/classes');
 
     // Verify classes page loads
     cy.contains(/class/i).should('be.visible');
-  });
-
-  it('should navigate to locations management', () => {
-    // Navigate to locations page via sidebar
-    cy.get('aside').contains(/locations/i).click();
-    cy.hash().should('eq', '#/locations');
-
-    // Verify locations page loads
-    cy.contains(/locations/i).should('be.visible');
   });
 
   it('should display navigation sidebar', () => {
@@ -69,4 +60,3 @@ describe('User Journey - HQ Dashboard', () => {
     cy.get('button[title*="Expand"]').should('exist');
   });
 });
-

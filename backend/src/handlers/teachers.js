@@ -6,6 +6,21 @@ import { formatNotificationEmail } from '../utils/loginEmail.js';
 const DEFAULT_PASSWORD = '123';
 const SALT_ROUNDS = 10;
 
+const dedupeCaseInsensitive = (values = []) => {
+  const seen = new Set();
+  const result = [];
+  values.forEach((value) => {
+    const normalized = (value || '').toString().trim();
+    if (!normalized) return;
+    const key = normalized.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(normalized);
+    }
+  });
+  return result;
+};
+
 const normalizeStringArray = (value) => {
   if (!value) return [];
 
@@ -32,18 +47,110 @@ const normalizeStringArray = (value) => {
     .map(item => (typeof item === 'string' ? item.trim() : String(item).trim()))
     .filter(item => item);
 
-  return Array.from(new Set(cleaned));
+  return dedupeCaseInsensitive(cleaned);
+};
+
+const normalizeSubjectLevels = ({ subjectLevels, subjects, levels }) => {
+  const normalizedLevels = normalizeStringArray(levels);
+  const normalizedSubjects = normalizeStringArray(subjects);
+
+  const parseSubjectLevels = (raw) => {
+    if (!raw) return [];
+    const source = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : raw;
+    if (!Array.isArray(source)) return [];
+
+    const pairs = source
+      .map((entry) => {
+        const subject = typeof entry?.subject === 'string' ? entry.subject.trim() : '';
+        const levelList = normalizeStringArray(entry?.levels);
+        if (!subject) return null;
+        return { subject, levels: levelList };
+      })
+      .filter(Boolean);
+
+    const unique = [];
+    const seen = new Set();
+    pairs.forEach((pair) => {
+      const key = pair.subject.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      unique.push(pair);
+    });
+
+    return unique;
+  };
+
+  const parsed = parseSubjectLevels(subjectLevels);
+  if (parsed.length > 0) {
+    return parsed;
+  }
+
+  // Support subjects payload as array of objects: [{ name: 'Math', levels: ['Form 4'] }]
+  const parsedSubjectsFromObjects = Array.isArray(subjects)
+    ? subjects
+        .map((entry) => {
+          if (!entry || typeof entry !== 'object') return null;
+          const subjectName = (entry.subject || entry.name || '').toString().trim();
+          if (!subjectName) return null;
+          const entryLevels = normalizeStringArray(entry.levels ?? entry.level ?? normalizedLevels);
+          return { subject: subjectName, levels: entryLevels };
+        })
+        .filter(Boolean)
+    : [];
+  if (parsedSubjectsFromObjects.length > 0) {
+    const unique = [];
+    const seen = new Set();
+    parsedSubjectsFromObjects.forEach((pair) => {
+      const key = pair.subject.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      unique.push(pair);
+    });
+    return unique;
+  }
+
+  if (normalizedSubjects.length > 0) {
+    const levelsPerSubject = normalizedLevels.length > 0 ? normalizedLevels : [];
+    return normalizedSubjects.map((subject) => ({
+      subject,
+      levels: levelsPerSubject,
+    }));
+  }
+
+  return [];
 };
 
 const mapTeacherRecord = (record) => {
   const camelRecord = toCamelCase(record);
-  const subjects = normalizeStringArray(record.subjects ?? record.subject ?? camelRecord.subject);
-  const levels = normalizeStringArray(record.levels);
+  const subjectLevels = normalizeSubjectLevels({
+    subjectLevels: record.subject_levels,
+    subjects: record.subjects ?? record.subject ?? camelRecord.subject,
+    levels: record.levels,
+  });
+  const subjectNames = dedupeCaseInsensitive([
+    ...(subjectLevels || []).map((pair) => pair.subject),
+    ...normalizeStringArray(record.subjects ?? record.subject ?? camelRecord.subject),
+  ]);
+  const levels = dedupeCaseInsensitive([
+    ...(subjectLevels || []).flatMap((pair) => pair.levels || []),
+    ...normalizeStringArray(record.levels),
+  ]);
+
+  const subjects = (subjectLevels && subjectLevels.length > 0
+    ? subjectLevels
+    : subjectNames.map((subject) => ({ subject, levels: [] }))
+  ).map((entry) => ({
+    name: entry.subject,
+    levels: entry.levels || [],
+  }));
+
   return {
     ...camelRecord,
     subjects,
+    subjectNames,
     levels,
-    subject: camelRecord.subject || subjects[0] || null,
+    subjectLevels,
+    subject: camelRecord.subject || subjectNames[0] || subjects[0]?.name || null,
   };
 };
 
@@ -67,10 +174,15 @@ export async function handleGetTeachers({ db, corsHeaders }) {
 
 export async function handleCreateTeacher({ body, db, corsHeaders }) {
   try {
-    const { id, name, englishName, chineseName, email, subject, subjects, levels, phone, description } = body;
+    const { id, name, englishName, chineseName, email, subject, subjects, levels, subjectLevels, phone, description } = body;
 
-    const normalizedSubjects = normalizeStringArray(subjects ?? subject);
-    const normalizedLevels = normalizeStringArray(levels);
+    const normalizedSubjectLevels = normalizeSubjectLevels({
+      subjectLevels,
+      subjects: subjects ?? subject,
+      levels,
+    });
+    const normalizedSubjects = dedupeCaseInsensitive(normalizedSubjectLevels.map((entry) => entry.subject));
+    const normalizedLevels = dedupeCaseInsensitive(normalizedSubjectLevels.flatMap((entry) => entry.levels));
 
     if (!id || !name || !email) {
       return jsonResponse(
@@ -83,6 +195,15 @@ export async function handleCreateTeacher({ body, db, corsHeaders }) {
     if (!normalizedSubjects.length) {
       return jsonResponse(
         { error: 'Validation Error', message: 'At least one subject is required' },
+        400,
+        corsHeaders
+      );
+    }
+
+    const hasSubjectLevelGaps = normalizedSubjectLevels.some((pair) => !pair.levels || pair.levels.length === 0);
+    if (hasSubjectLevelGaps) {
+      return jsonResponse(
+        { error: 'Validation Error', message: 'Each subject must include at least one level.' },
         400,
         corsHeaders
       );
@@ -104,7 +225,7 @@ export async function handleCreateTeacher({ body, db, corsHeaders }) {
     }
 
     await db
-      .prepare('INSERT INTO teachers (id, name, english_name, chinese_name, email, subject, subjects, levels, phone, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .prepare('INSERT INTO teachers (id, name, english_name, chinese_name, email, subject, subjects, subject_levels, levels, phone, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(
         id,
         name,
@@ -113,6 +234,7 @@ export async function handleCreateTeacher({ body, db, corsHeaders }) {
         loginEmail,
         normalizedSubjects[0],
         JSON.stringify(normalizedSubjects),
+        JSON.stringify(normalizedSubjectLevels),
         normalizedLevels.length ? JSON.stringify(normalizedLevels) : null,
         phone || null,
         description || null
@@ -176,7 +298,7 @@ export async function handleGetTeacher({ params, db, corsHeaders }) {
 export async function handleUpdateTeacher({ params, body, db, corsHeaders }) {
   const teacherId = params.id;
   try {
-    const { name, englishName, chineseName, email, subjects, levels, phone, description } = body;
+    const { name, englishName, chineseName, email, subjects, levels, subjectLevels, phone, description } = body;
 
     const existingTeacherRecord = await db
       .prepare('SELECT * FROM teachers WHERE id = ?')
@@ -193,7 +315,12 @@ export async function handleUpdateTeacher({ params, body, db, corsHeaders }) {
 
     const existingTeacher = mapTeacherRecord(existingTeacherRecord);
 
-    const finalSubjects = normalizeStringArray(subjects ?? existingTeacher.subjects ?? existingTeacher.subject);
+    const normalizedSubjectLevels = normalizeSubjectLevels({
+      subjectLevels,
+      subjects: subjects ?? existingTeacher.subjects ?? existingTeacher.subject,
+      levels: levels ?? existingTeacher.levels,
+    });
+    const finalSubjects = dedupeCaseInsensitive(normalizedSubjectLevels.map((entry) => entry.subject));
     if (!finalSubjects.length) {
       return jsonResponse(
         { error: 'Validation Error', message: 'At least one subject is required' },
@@ -202,10 +329,18 @@ export async function handleUpdateTeacher({ params, body, db, corsHeaders }) {
       );
     }
 
-    const finalLevels = normalizeStringArray(levels ?? existingTeacher.levels);
+    const finalLevels = dedupeCaseInsensitive(normalizedSubjectLevels.flatMap((entry) => entry.levels || []));
+    const hasSubjectLevelGaps = normalizedSubjectLevels.some((pair) => !pair.levels || pair.levels.length === 0);
+    if (hasSubjectLevelGaps) {
+      return jsonResponse(
+        { error: 'Validation Error', message: 'Each subject must include at least one level.' },
+        400,
+        corsHeaders
+      );
+    }
 
     await db
-      .prepare('UPDATE teachers SET name = ?, english_name = ?, chinese_name = ?, email = ?, subject = ?, subjects = ?, levels = ?, phone = ?, description = ? WHERE id = ?')
+      .prepare('UPDATE teachers SET name = ?, english_name = ?, chinese_name = ?, email = ?, subject = ?, subjects = ?, subject_levels = ?, levels = ?, phone = ?, description = ? WHERE id = ?')
       .bind(
         name ?? existingTeacher.name,
         englishName ?? existingTeacher.englishName,
@@ -213,6 +348,7 @@ export async function handleUpdateTeacher({ params, body, db, corsHeaders }) {
         email ?? existingTeacher.email,
         finalSubjects[0],
         JSON.stringify(finalSubjects),
+        JSON.stringify(normalizedSubjectLevels),
         finalLevels.length ? JSON.stringify(finalLevels) : null,
         phone ?? existingTeacher.phone,
         description ?? existingTeacher.description,

@@ -69,7 +69,6 @@ describe('Classes API', () => {
           name: 'API Created Class',
           grade: 'Form 5',
           teacherId: 't1',
-          locationId: 'l1',
           defaultSchedule: { days: ['Friday'], time: '14:30', durationMinutes: 90 },
         }),
       });
@@ -105,7 +104,6 @@ describe('Classes API', () => {
           name: 'API Class Without Schedule',
         grade: 'Form 6',
           teacherId: 't1',
-          locationId: 'l1',
         }),
       });
 
@@ -123,6 +121,65 @@ describe('Classes API', () => {
       expect(getResponse.status).toBe(200);
       const persisted = await getResponse.json();
       expect(persisted.defaultSchedule).toEqual({ days: [], time: null, durationMinutes: 60 });
+    });
+
+    test('should unassign students when a class is deleted', async () => {
+      const token = createToken('admin', 'admin@edu.com', 'HQ');
+      const classId = `c_api_${Date.now() + 2}`;
+      const studentId = `s_api_${Date.now() + 2}`;
+
+      // Create class
+      const createClassRequest = new Request('http://localhost/api/v1/admin/classes', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: classId,
+          name: 'API Class For Delete',
+          grade: 'Form 3',
+          teacherId: 't1',
+          defaultSchedule: { days: ['Tuesday'], time: '10:00', durationMinutes: 60 },
+        }),
+      });
+      const createClassResponse = await worker.fetch(createClassRequest, mockEnv, mockCtx);
+      expect(createClassResponse.status).toBe(201);
+
+      // Create student enrolled in the class
+      const createStudentRequest = new Request('http://localhost/api/v1/admin/students', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          id: studentId,
+          name: 'Student With Class',
+          classIds: [classId],
+          parentName: 'Parent X',
+          attendance: 100,
+          atRisk: false,
+        }),
+      });
+      const createStudentResponse = await worker.fetch(createStudentRequest, mockEnv, mockCtx);
+      expect(createStudentResponse.status).toBe(201);
+
+      // Delete class
+      const deleteRequest = new Request(`http://localhost/api/v1/admin/classes/${classId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const deleteResponse = await worker.fetch(deleteRequest, mockEnv, mockCtx);
+      expect(deleteResponse.status).toBe(204);
+
+      // Verify student is unassigned
+      const getStudentsRequest = new Request('http://localhost/api/v1/admin/students', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const studentsResponse = await worker.fetch(getStudentsRequest, mockEnv, mockCtx);
+      expect(studentsResponse.status).toBe(200);
+      const studentsData = await studentsResponse.json();
+      const updatedStudent = studentsData.find((s) => s.id === studentId);
+      expect(updatedStudent.classIds || []).not.toContain(classId);
     });
   });
 });

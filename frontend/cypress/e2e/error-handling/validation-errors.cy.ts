@@ -7,7 +7,7 @@
  * - Verifies proper error messages and user feedback
  */
 
-import { LoginPage, TeachersPage, StudentsPage, ClassesPage, LocationsPage } from '../../support/page-objects';
+import { LoginPage, TeachersPage, StudentsPage, ClassesPage } from '../../support/page-objects';
 import { AuthHelper } from '../../support/test-helpers';
 
 describe('Error Handling - Validation Errors', () => {
@@ -15,7 +15,6 @@ describe('Error Handling - Validation Errors', () => {
   const teachersPage = new TeachersPage();
   const studentsPage = new StudentsPage();
   const classesPage = new ClassesPage();
-  const locationsPage = new LocationsPage();
   const apiUrl = Cypress.env('apiUrl') || 'http://localhost:8787/api/v1';
 
   const ensureClassExists = () => {
@@ -48,61 +47,37 @@ describe('Error Handling - Validation Errors', () => {
               })
               .then((teachersResponse) => {
                 const existingTeacher = teachersResponse.body[0];
-                const teacherRequest = existingTeacher
-                  ? cy.wrap(existingTeacher)
-                  : cy
-                      .request({
-                        method: 'POST',
-                        url: `${apiUrl}/admin/teachers`,
-                        headers,
-                        body: {
-                          id: `t_test_${timestamp}`,
-                          name: `Cypress Teacher ${timestamp}`,
-            email: `cypress.teacher.${timestamp}@test.com`,
-                          subject: 'Mathematics',
-                        },
-                      })
-                      .then((response) => response.body);
+                 const teacherRequest = existingTeacher
+                   ? cy.wrap(existingTeacher)
+                   : cy
+                       .request({
+                         method: 'POST',
+                         url: `${apiUrl}/admin/teachers`,
+                         headers,
+                         body: {
+                           id: `t_test_${timestamp}`,
+                           name: `Cypress Teacher ${timestamp}`,
+                           email: `cypress.teacher.${timestamp}@test.com`,
+                           subjects: [{
+                             name: 'Mathematics',
+                             levels: ['Form 4']
+                           }]
+                         },
+                       })
+                       .then((response) => response.body);
 
                 return teacherRequest.then((teacher) => {
-                  return cy
-                    .request({
-                      method: 'GET',
-                      url: `${apiUrl}/admin/locations`,
-                      headers,
-                    })
-                    .then((locationsResponse) => {
-                      const existingLocation = locationsResponse.body[0];
-                      const locationRequest = existingLocation
-                        ? cy.wrap(existingLocation)
-                        : cy
-                            .request({
-                              method: 'POST',
-                              url: `${apiUrl}/admin/locations`,
-                              headers,
-                              body: {
-                                id: `l_test_${timestamp}`,
-                                name: `Cypress Location ${timestamp}`,
-                                address: '123 Cypress Lane',
-                              },
-                            })
-                            .then((response) => response.body);
-
-                      return locationRequest.then((location) => {
-                        return cy.request({
-                          method: 'POST',
-                          url: `${apiUrl}/admin/classes`,
-                          headers,
-                          body: {
-                            id: `c_test_${timestamp}`,
-                            name: `Cypress Class ${timestamp}`,
-                            grade: 'Form 4',
-                            teacherId: teacher.id,
-                            locationId: location.id,
-                          },
-                        });
-                      });
-                    });
+                  return cy.request({
+                    method: 'POST',
+                    url: `${apiUrl}/admin/classes`,
+                    headers,
+                    body: {
+                      id: `c_test_${timestamp}`,
+                      name: `Cypress Class ${timestamp}`,
+                      grade: 'Form 4',
+                      teacherId: teacher.id,
+                    },
+                  });
                 });
               });
           });
@@ -226,19 +201,15 @@ describe('Error Handling - Validation Errors', () => {
   describe('Class Form Validation', () => {
     beforeEach(() => {
       cy.intercept('GET', '**/api/v1/admin/teachers*').as('getTeachers');
-      cy.intercept('GET', '**/api/v1/admin/locations*').as('getLocations');
       AuthHelper.loginAsHQ();
       classesPage.visit();
       AuthHelper.dismissDeviceWarning();
-      cy.wait(['@getTeachers', '@getLocations']);
+      cy.wait('@getTeachers');
     });
 
     it('should validate required fields when creating class', () => {
       cy.get('body').then(($body) => {
         if ($body.text().includes('Please add at least one teacher')) {
-          cy.contains('button', 'OK').click({ force: true });
-        }
-        if ($body.text().includes('Please add at least one location')) {
           cy.contains('button', 'OK').click({ force: true });
         }
       });
@@ -256,9 +227,6 @@ describe('Error Handling - Validation Errors', () => {
         if ($body.text().includes('Please add at least one teacher')) {
           cy.contains('button', 'OK').click({ force: true });
         }
-        if ($body.text().includes('Please add at least one location')) {
-          cy.contains('button', 'OK').click({ force: true });
-        }
       });
       classesPage.clickAddClass();
 
@@ -268,56 +236,6 @@ describe('Error Handling - Validation Errors', () => {
       cy.contains('button', /save|submit/i).should('be.visible').click({ force: true });
 
       // Should show validation error for missing teacher
-      cy.wait(500);
-    });
-
-    it('should require location selection', () => {
-      cy.get('body').then(($body) => {
-        if ($body.text().includes('Please add at least one teacher')) {
-          cy.contains('button', 'OK').click({ force: true });
-        }
-        if ($body.text().includes('Please add at least one location')) {
-          cy.contains('button', 'OK').click({ force: true });
-        }
-      });
-      classesPage.clickAddClass();
-
-      // Close the dialog first to avoid element covered error
-      cy.wait(500);
-      cy.get('input').first().type('Test Class', { force: true });
-      cy.contains('button', /save|submit/i).should('be.visible').click({ force: true });
-
-      // Should show validation error for missing location
-      cy.wait(500);
-    });
-  });
-
-  describe('Location Form Validation', () => {
-    beforeEach(() => {
-      cy.intercept('GET', '**/api/v1/admin/locations*').as('getLocations');
-      AuthHelper.loginAsHQ();
-      locationsPage.visit();
-      AuthHelper.dismissDeviceWarning();
-      cy.wait('@getLocations');
-    });
-
-    it('should validate required fields when creating location', () => {
-      locationsPage.clickAddLocation();
-
-      // Try to submit without filling required fields
-      cy.contains('button', /save|submit/i).should('be.visible').click({ force: true });
-
-      // Should show validation errors or prevent submission
-      cy.wait(500);
-    });
-
-    it('should require location name', () => {
-      locationsPage.clickAddLocation();
-
-      cy.get('input').eq(1).type('123 Test Street', { force: true });
-      cy.contains('button', /save|submit/i).should('be.visible').click({ force: true });
-
-      // Should show validation error for missing name
       cy.wait(500);
     });
   });

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { User, Teacher, ClassGroup, Student, Score, BehaviorRating, Session, AttendanceRecord, Location, RatingCategory } from './types';
+import { User, Teacher, ClassGroup, Student, Score, BehaviorRating, Session, AttendanceRecord, RatingCategory } from './types';
 import { TRANSLATIONS } from './constants';
 import { Navigation } from './components/Navigation';
 import { Toast } from './components/Toast';
@@ -15,7 +15,6 @@ import { HQDashboard } from './views/hq/Dashboard';
 import { Teachers } from './views/hq/Teachers';
 import { Students } from './views/hq/Students';
 import { Classes } from './views/hq/Classes';
-import { Locations } from './views/hq/Locations';
 import { SettingsPage } from './views/hq/Settings';
 import { ScoreInput } from './views/teacher/ScoreInput';
 import { TeacherClasses } from './views/teacher/Classes'; // New Import
@@ -45,7 +44,6 @@ const AppContent: React.FC = () => {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [scores, setScores] = useState<Score[]>([]);
   const [behaviors, setBehaviors] = useState<BehaviorRating[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [ratingCategories, setRatingCategories] = useState<RatingCategory[]>([]);
 
   // Teacher View State
@@ -118,15 +116,14 @@ const AppContent: React.FC = () => {
         try {
           await api.init();
 
-          const [t, c, s, sess, att, sc, beh, loc] = await Promise.all([
+          const [t, c, s, sess, att, sc, beh] = await Promise.all([
               api.fetchTeachers(),
               api.fetchClasses(),
               api.fetchStudents(),
               api.fetchSessions(),
               api.fetchAttendance(),
               api.fetchScores(),
-              api.fetchBehaviors(),
-              api.fetchLocations()
+              api.fetchBehaviors()
           ]);
           setTeachers(t);
           setClasses(c);
@@ -135,7 +132,6 @@ const AppContent: React.FC = () => {
           setAttendance(att);
           setScores(sc);
           setBehaviors(beh);
-          setLocations(loc);
           await refreshRatingCategories();
           // Use backend sessions as-is (no auto-generation)
           setSessions(sess);
@@ -351,7 +347,7 @@ const AppContent: React.FC = () => {
                 {/* HQ Routes */}
                 <Route path="/dashboard" element={
                     <ProtectedRoute user={user}>
-                        {user?.role === 'HQ' ? <HQDashboard t={t} students={students} classes={classes} locations={locations} ratingCategories={ratingCategories} /> : <Navigate to="/" />}
+                        {user?.role === 'HQ' ? <HQDashboard t={t} students={students} classes={classes} teachers={teachers} ratingCategories={ratingCategories} /> : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
                 <Route path="/teachers" element={
@@ -366,12 +362,7 @@ const AppContent: React.FC = () => {
                 } />
                 <Route path="/classes" element={
                     <ProtectedRoute user={user}>
-                        {user?.role === 'HQ' ? <Classes t={t} classes={classes} setClasses={setClasses} teachers={teachers} students={students} sessions={sessions} setSessions={setSessions} locations={locations} /> : <Navigate to="/" />}
-                    </ProtectedRoute>
-                } />
-                <Route path="/locations" element={
-                    <ProtectedRoute user={user}>
-                        {user?.role === 'HQ' ? <Locations t={t} locations={locations} setLocations={setLocations} classes={classes} /> : <Navigate to="/" />}
+                        {user?.role === 'HQ' ? <Classes t={t} classes={classes} setClasses={setClasses} teachers={teachers} students={students} sessions={sessions} setSessions={setSessions} setStudents={setStudents} /> : <Navigate to="/" />}
                     </ProtectedRoute>
                 } />
                 <Route path="/settings" element={

@@ -16,13 +16,6 @@ INSERT INTO users (id, name, email, password, password_hash, role, must_change_p
 ('u_p3', 'Ms. Davis', 'charliedavis@edu.com', '123', '$2b$10$dcbONp5ShVGTrMsKzjN/u.4qawazd0oqzdsepVAAGY1XXJBMmqA/G', 'PARENT', true),
 ('u_p4', 'Ms. Goh', 'gohshuting@edu.com', '123', '$2b$10$S6sU8Ii1VeZ00DudBO1/F.wG2VFYkaZW/7LezY5UYHaAaI7s44ihK', 'PARENT', true);
 
--- Insert locations
-INSERT INTO locations (id, name, address) VALUES
-('l1', 'Cheras', 'Jalan Cerdas, Taman Connaught'),
-('l2', 'Petaling Jaya', 'Jalan Yong Shook Lin, PJ New Town'),
-('l3', 'Subang Jaya', 'Jalan SS 15/8'),
-('l4', 'Kuala Lumpur', 'Jalan Ampang');
-
 -- Insert teachers
 INSERT INTO teachers (id, name, english_name, chinese_name, email, subject, subjects, levels, phone, description) VALUES
 ('t1', 'Sarah Jenkins', 'Sarah', '-', 'sarahjenkins@edu.com', 'Mathematics', '["Mathematics"]', '["Upper Secondary"]', '012-345 6789', 'Head of Mathematics Department.'),
@@ -38,11 +31,11 @@ INSERT OR IGNORE INTO rating_categories (id, name, description) VALUES
 (5, 'Practice', 'Practice habits and effort');
 
 -- Insert classes
-INSERT INTO classes (id, name, teacher_id, location_id, grade, default_schedule) VALUES
-('c1', 'Form 4 Mathematics A', 't1', 'l1', 'Form 4', '{"days": ["Monday"], "time": "09:00", "durationMinutes": 60}'),
-('c2', 'Form 4 Science B', 't2', 'l2', 'Form 4', '{"days": ["Wednesday"], "time": "11:00", "durationMinutes": 60}'),
-('c3', 'Standard 3 English & History', 't3', 'l3', 'Standard 3', '{"days": ["Tuesday", "Thursday"], "time": "10:00", "durationMinutes": 75}'),
-('c4', 'Form 4 Mathematics B', 't1', 'l1', 'Form 4', '{"days": ["Wednesday", "Friday"], "time": "14:00", "durationMinutes": 60}');
+INSERT INTO classes (id, name, teacher_id, grade, default_schedule) VALUES
+('c1', 'Form 4 Mathematics A', 't1', 'Form 4', '{"days": ["Monday"], "time": "09:00", "durationMinutes": 60}'),
+('c2', 'Form 4 Science B', 't2', 'Form 4', '{"days": ["Wednesday"], "time": "11:00", "durationMinutes": 60}'),
+('c3', 'Standard 3 English & History', 't3', 'Standard 3', '{"days": ["Tuesday", "Thursday"], "time": "10:00", "durationMinutes": 75}'),
+('c4', 'Form 4 Mathematics B', 't1', 'Form 4', '{"days": ["Wednesday", "Friday"], "time": "14:00", "durationMinutes": 60}');
 
 -- Insert students
 INSERT INTO students (id, name, parent_id, class_ids, attendance, at_risk, school, parent_name, relationship, emergency_contact, parent_email, address) VALUES

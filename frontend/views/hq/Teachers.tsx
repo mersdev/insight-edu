@@ -7,6 +7,8 @@ import { api } from '../../services/backendApi';
 import { getRandomMalaysianName, getRandomItem, malaysianSubjects, malaysianPhoneNumbers, generateEmailFromName } from '../../utils/malaysianSampleData';
 import { buildLoginWhatsAppMessage, buildWhatsAppLink, openWhatsAppLink } from '../../utils/whatsapp';
 
+type SubjectLevelPair = { subject: string; levels: string[] };
+
 interface TeachersProps {
   t: any;
   teachers: Teacher[];
@@ -40,9 +42,24 @@ const SECONDARY_LEVEL_OPTIONS = Array.from({ length: 6 }, (_, index) => `Form ${
 const LEVEL_DROPDOWN_OPTIONS = [...PRIMARY_LEVEL_OPTIONS, ...SECONDARY_LEVEL_OPTIONS] as const;
 
 const resolveTeacherSubjects = (teacher: Teacher) => {
-  if (teacher.subjects && teacher.subjects.length > 0) {
-    return teacher.subjects;
+  const subjectsFromSubjectLevels =
+    (teacher.subjectLevels || []).map((entry) => entry.subject).filter(Boolean);
+
+  const subjectsFromSubjects = (teacher.subjects || [])
+    .map((entry) =>
+      typeof entry === 'string'
+        ? entry
+        : (entry?.name || (entry as any)?.subject || '').trim()
+    )
+    .filter(Boolean);
+
+  const subjectsFromSubjectNames = teacher.subjectNames || [];
+
+  const combined = [...subjectsFromSubjectLevels, ...subjectsFromSubjectNames, ...subjectsFromSubjects];
+  if (combined.length > 0) {
+    return Array.from(new Set(combined));
   }
+
   return teacher.subject ? [teacher.subject] : [];
 };
 
@@ -54,17 +71,33 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
   });
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [subjectLevels, setSubjectLevels] = useState<SubjectLevelPair[]>([]);
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [subjectSearch, setSubjectSearch] = useState('');
   const [isSubjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
   const subjectDropdownRef = useRef<HTMLDivElement | null>(null);
-  const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
+  const selectedSubjects = useMemo(
+    () => subjectLevels.map((entry) => entry.subject),
+    [subjectLevels]
+  );
+  const pendingCustomSubject = useMemo(() => {
+    const value = subjectSearch.trim();
+    if (!value) return null;
+    const existsInSelected = selectedSubjects.some((s) => s.toLowerCase() === value.toLowerCase());
+    const existsInPresets = SUBJECT_DROPDOWN_OPTIONS.some((s) => s.toLowerCase() === value.toLowerCase());
+    return existsInSelected || existsInPresets ? null : value;
+  }, [subjectSearch, selectedSubjects]);
   const [levelSearch, setLevelSearch] = useState('');
   const [isLevelDropdownOpen, setLevelDropdownOpen] = useState(false);
   const levelDropdownRef = useRef<HTMLDivElement | null>(null);
-  const tagButtonClass =
-    'inline-flex items-center gap-2 rounded-full border border-input bg-muted/10 px-3 py-2 text-sm font-medium text-foreground leading-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
-  
+  const pendingCustomLevel = useMemo(() => {
+    const value = levelSearch.trim();
+    if (!value || !activeSubject) return null;
+    const currentLevels = subjectLevels.find((entry) => entry.subject === activeSubject)?.levels || [];
+    const exists = currentLevels.some((lvl) => lvl.toLowerCase() === value.toLowerCase()) ||
+      LEVEL_DROPDOWN_OPTIONS.some((lvl) => lvl.toLowerCase() === value.toLowerCase());
+    return exists ? null : value;
+  }, [levelSearch, activeSubject, subjectLevels]);
   // Search and Sort State
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -72,9 +105,14 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
 
   const filteredSubjectOptions = useMemo(() => {
     const query = subjectSearch.trim().toLowerCase();
-    return query
+    const baseOptions = query
       ? SUBJECT_DROPDOWN_OPTIONS.filter((subject) => subject.toLowerCase().includes(query))
       : SUBJECT_DROPDOWN_OPTIONS;
+    const customOption = subjectSearch.trim();
+    if (customOption && !baseOptions.some((option) => option.toLowerCase() === customOption.toLowerCase())) {
+      return [customOption, ...baseOptions];
+    }
+    return baseOptions;
   }, [subjectSearch]);
 
   const filteredLevelOptions = useMemo(() => {
@@ -103,8 +141,16 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
 
   // Derive unique subjects for filter
   const subjects = useMemo(() => {
-    const unique = new Set(teachers.flatMap((t) => resolveTeacherSubjects(t)));
-    return Array.from(unique).sort();
+    const unique = new Map<string, string>();
+    teachers.forEach((teacher) => {
+      resolveTeacherSubjects(teacher).forEach((subject) => {
+        const key = subject.toLowerCase();
+        if (!unique.has(key)) {
+          unique.set(key, subject);
+        }
+      });
+    });
+    return Array.from(unique.values()).sort((a, b) => a.localeCompare(b));
   }, [teachers]);
 
   useEffect(() => {
@@ -121,6 +167,12 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!activeSubject && subjectLevels.length > 0) {
+      setActiveSubject(subjectLevels[0].subject);
+    }
+  }, [activeSubject, subjectLevels]);
+
   const handleSubjectInputChange = (value: string) => {
     setSubjectSearch(value);
     setSubjectDropdownOpen(true);
@@ -129,7 +181,14 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
   const addSubject = (subject: string) => {
     const trimmed = subject.trim();
     if (!trimmed) return;
-    setSelectedSubjects((prev) => Array.from(new Set([trimmed, ...prev])));
+    setSubjectLevels((prev) => {
+      const exists = prev.some((entry) => entry.subject.toLowerCase() === trimmed.toLowerCase());
+      if (exists) {
+        return prev;
+      }
+      return [{ subject: trimmed, levels: [] }, ...prev];
+    });
+    setActiveSubject(trimmed);
     setSubjectSearch('');
     setSubjectDropdownOpen(false);
   };
@@ -139,7 +198,32 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
   };
 
   const removeSubject = (subject: string) => {
-    setSelectedSubjects((prev) => prev.filter((item) => item !== subject));
+    setSubjectLevels((prev) => prev.filter((item) => item.subject !== subject));
+    if (activeSubject === subject) {
+      setActiveSubject(null);
+    }
+  };
+
+  const renameSubject = (oldSubject: string, newSubject: string) => {
+    const trimmed = newSubject.trim();
+    if (!trimmed) return;
+    setSubjectLevels((prev) => {
+      const withoutOld = prev.filter((entry) => entry.subject !== oldSubject);
+      const existingIndex = withoutOld.findIndex((entry) => entry.subject.toLowerCase() === trimmed.toLowerCase());
+      if (existingIndex >= 0) {
+        // Merge levels if the new subject already exists
+        const mergedLevels = Array.from(
+          new Set([...(withoutOld[existingIndex].levels || []), ...(prev.find((e) => e.subject === oldSubject)?.levels || [])])
+        );
+        const updated = [...withoutOld];
+        updated[existingIndex] = { ...updated[existingIndex], levels: mergedLevels, subject: withoutOld[existingIndex].subject };
+        return updated;
+      }
+      return [{ subject: trimmed, levels: prev.find((e) => e.subject === oldSubject)?.levels || [] }, ...withoutOld];
+    });
+    if (activeSubject === oldSubject) {
+      setActiveSubject(trimmed);
+    }
   };
 
   const handleLevelInputChange = (value: string) => {
@@ -147,32 +231,98 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
     setLevelDropdownOpen(true);
   };
 
-  const addLevel = (level: string) => {
+  const addLevel = (level: string, targetSubject?: string) => {
     const trimmed = level.trim();
-    if (!trimmed) return;
-    setSelectedLevels((prev) => Array.from(new Set([trimmed, ...prev])));
+    const subjectTarget = targetSubject || activeSubject;
+    if (!trimmed || !subjectTarget) {
+      setErrorDialog('Select a subject first, then add the matching Standard / Form level.');
+      return;
+    }
+    setSubjectLevels((prev) => {
+      let found = false;
+      const updated = prev.map((entry) => {
+        if (entry.subject === subjectTarget) {
+          found = true;
+          const updatedLevels = Array.from(new Set([trimmed, ...(entry.levels || [])]));
+          return { ...entry, levels: updatedLevels };
+        }
+        return entry;
+      });
+      if (!found) {
+        return [{ subject: subjectTarget, levels: [trimmed] }, ...updated];
+      }
+      return updated;
+    });
     setLevelSearch('');
     setLevelDropdownOpen(false);
   };
 
   const handleLevelSelect = (level: string) => {
-    addLevel(level);
+    const subjectValue = subjectSearch.trim() || activeSubject || subjectLevels[0]?.subject || '';
+    addLevel(level, subjectValue || undefined);
   };
 
-  const removeLevel = (level: string) => {
-    setSelectedLevels((prev) => prev.filter((item) => item !== level));
+  const handleAddSubjectLevel = () => {
+    const subjectValue = subjectSearch.trim() || activeSubject || subjectLevels[0]?.subject || '';
+    const levelValue = levelSearch.trim();
+    if (!subjectValue) {
+      setErrorDialog('Add a subject to continue.');
+      return;
+    }
+    if (!levelValue) {
+      setErrorDialog('Add at least one Standard / Form level.');
+      return;
+    }
+    setSubjectLevels((prev) => {
+      const trimmedSubject = subjectValue.trim();
+      const trimmedLevel = levelValue.trim();
+      let found = false;
+      const updated = prev.map((entry) => {
+        if (entry.subject.toLowerCase() === trimmedSubject.toLowerCase()) {
+          found = true;
+          const mergedLevels = Array.from(new Set([trimmedLevel, ...(entry.levels || [])]));
+          return { ...entry, subject: entry.subject, levels: mergedLevels };
+        }
+        return entry;
+      });
+      if (!found) {
+        return [{ subject: trimmedSubject, levels: [trimmedLevel] }, ...updated];
+      }
+      return updated;
+    });
+    setActiveSubject(subjectValue);
+    setSubjectSearch('');
+    setLevelSearch('');
+    setSubjectDropdownOpen(false);
+    setLevelDropdownOpen(false);
+  };
+
+  const updateLevelsFromText = (subject: string, text: string) => {
+    const parsed = text
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    setSubjectLevels((prev) =>
+      prev.map((entry) =>
+        entry.subject === subject ? { ...entry, levels: Array.from(new Set(parsed)) } : entry
+      )
+    );
   };
 
   const handleOpenDialog = (teacher?: Teacher) => {
     if (teacher) {
       setEditingTeacher(teacher);
-      const teacherSubjects = teacher.subjects && teacher.subjects.length > 0
-        ? teacher.subjects
-        : teacher.subject
-          ? [teacher.subject]
+      const fallbackSubjects = resolveTeacherSubjects(teacher);
+      const teacherSubjectLevels = (teacher.subjectLevels && teacher.subjectLevels.length > 0)
+        ? teacher.subjectLevels
+        : fallbackSubjects.length > 0
+          ? fallbackSubjects.map((subject) => ({
+              subject,
+              levels: teacher.levels || [],
+            }))
           : [];
-      setSelectedSubjects(teacherSubjects);
-      setSelectedLevels(teacher.levels || []);
+      setSubjectLevels(teacherSubjectLevels);
+      setActiveSubject(teacherSubjectLevels[0]?.subject || null);
       setNewTeacher({
         name: teacher.name,
         email: teacher.email,
@@ -180,13 +330,13 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
         chineseName: teacher.chineseName,
         phone: teacher.phone,
         description: teacher.description,
-        subject: teacherSubjects[0] || teacher.subject || '',
+        subject: teacherSubjectLevels[0]?.subject || teacher.subject || '',
       });
     } else {
       setEditingTeacher(null);
       setNewTeacher({ name: '', email: '', englishName: '', chineseName: '', phone: '', description: '' });
-      setSelectedSubjects([]);
-      setSelectedLevels([]);
+      setSubjectLevels([]);
+      setActiveSubject(null);
     }
     setDialogOpen(true);
     setSubjectDropdownOpen(false);
@@ -201,8 +351,8 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
     setLevelDropdownOpen(false);
     setSubjectSearch('');
     setLevelSearch('');
-    setSelectedSubjects([]);
-    setSelectedLevels([]);
+    setSubjectLevels([]);
+    setActiveSubject(null);
     setEditingTeacher(null);
     setNewTeacher({ name: '', email: '', englishName: '', chineseName: '', phone: '', description: '' });
   };
@@ -234,23 +384,30 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
       return;
     }
 
-    if (selectedSubjects.length === 0) {
+    if (subjectLevels.length === 0) {
       setErrorDialog('Please add at least one subject for the teacher.');
       return;
     }
 
-    if (selectedLevels.length === 0) {
-      setErrorDialog('Please add at least one Standard or Form entry (e.g. Standard 1 or Form 1).');
+    const hasEmptyLevel = subjectLevels.some((entry) => !entry.levels || entry.levels.length === 0);
+    if (hasEmptyLevel) {
+      setErrorDialog('Add at least one Standard / Form level for each subject.');
       return;
     }
+
+    const flattenedSubjects = subjectLevels.map((entry) => entry.subject);
+    const flattenedLevels = Array.from(
+      new Set(subjectLevels.flatMap((entry) => entry.levels || []))
+    );
 
     const payload: Teacher = {
       id: editingTeacher?.id || `t${Date.now()}`,
       name: newTeacher.name || '',
       email: newTeacher.email || '',
-      subject: selectedSubjects[0],
-      subjects: selectedSubjects,
-      levels: selectedLevels,
+      subject: flattenedSubjects[0],
+      subjects: flattenedSubjects,
+      subjectLevels,
+      levels: flattenedLevels,
       englishName: newTeacher.englishName,
       chineseName: newTeacher.chineseName,
       phone: newTeacher.phone,
@@ -320,8 +477,8 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
       phone: phone,
       description: getRandomItem(descriptions),
     });
-    setSelectedSubjects([subject]);
-    setSelectedLevels([getRandomItem(LEVEL_DROPDOWN_OPTIONS)]);
+    setSubjectLevels([{ subject, levels: [getRandomItem(LEVEL_DROPDOWN_OPTIONS)] }]);
+    setActiveSubject(subject);
     setSubjectSearch('');
     setLevelSearch('');
     setSubjectDropdownOpen(false);
@@ -491,6 +648,7 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}
         title={t.addNewTeacher}
+        disableOverlayClose
         footer={
           <div className="flex items-center justify-between w-full">
             <Button
@@ -508,7 +666,7 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
           </div>
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2 max-h-[60vh] overflow-y-auto pr-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2 max-h-[70vh] overflow-y-auto pr-2">
            <div className="md:col-span-2 space-y-2">
              <label className="block text-sm font-medium mb-1">{t.fullName} *</label>
              <Input 
@@ -533,139 +691,181 @@ export const Teachers: React.FC<TeachersProps> = ({ t, teachers, setTeachers, cl
                 placeholder={t.chineseNamePlaceholder} 
              />
            </div>
-           <div
-             className="md:col-span-2 space-y-2 relative"
-             ref={subjectDropdownRef}
-             data-cy="teacher-subject-field"
-           >
-            <label className="block text-sm font-medium mb-1">
-              {t.subject} <span className="text-destructive">*</span>
-              <span className="block text-xs font-normal text-muted-foreground">
-                Assign at least one subject; multiple subjects are supported.
-              </span>
-            </label>
-            <Input 
-               value={subjectSearch} 
-               onChange={(e) => handleSubjectInputChange(e.target.value)} 
-               placeholder={t.subjectPlaceholder} 
-               autoComplete="off"
-               onFocus={() => setSubjectDropdownOpen(true)}
-               onClick={() => setSubjectDropdownOpen(true)}
-               onKeyDown={(e) => {
-                 if (e.key === 'Enter') {
-                   e.preventDefault();
-                   addSubject(subjectSearch);
-                 }
-               }}
-               data-cy="teacher-subject-input"
-            />
-            {selectedSubjects.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-1">
-                {selectedSubjects.map((subject) => (
-                  <button
-                    key={`selected-subject-${subject}`}
-                    type="button"
-                    className={tagButtonClass}
-                    onClick={() => removeSubject(subject)}
-                  >
-                    {subject}
-                    <span aria-hidden>×</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div
-              className={cn(
-                'absolute left-0 right-0 z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-background shadow-lg',
-                isSubjectDropdownOpen ? 'block' : 'hidden'
-              )}
-            >
-              {filteredSubjectOptions.filter(option => !selectedSubjects.includes(option)).length > 0 ? (
-                filteredSubjectOptions
-                  .filter(option => !selectedSubjects.includes(option))
-                  .map((subject) => (
-                    <button
-                      key={subject}
-                      type="button"
-                      data-cy="subject-dropdown-option"
-                      className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-primary/10 focus:bg-primary/10 focus:outline-none"
-                      onClick={() => handleSubjectSelect(subject)}
-                    >
-                      {subject}
-                    </button>
-                  ))
-              ) : (
-                <div className="px-3 py-2 text-xs text-muted-foreground">No subjects found.</div>
-              )}
+          <div className="md:col-span-2 space-y-4">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">
+                {t.subject} & {t.levels} <span className="text-destructive">*</span>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Add subject and level together in one step. Custom entries are supported; suggestions appear as you type.
+              </p>
             </div>
-          </div>
-          <div
-            className="md:col-span-2 space-y-2 relative"
-            ref={levelDropdownRef}
-            data-cy="teacher-level-field"
-          >
-            <label className="block text-sm font-medium mb-1">
-              Standard / Form <span className="text-destructive">*</span>
-              <span className="block text-xs font-normal text-muted-foreground">
-                Pick the grade tag that matches the tutor&apos;s assignment (Standard 1-6 or Form 1-6).
-              </span>
-            </label>
-            <Input
-              value={levelSearch}
-              onChange={(e) => handleLevelInputChange(e.target.value)}
-              placeholder="e.g. Standard 1 or Form 1"
-              autoComplete="off"
-              onFocus={() => setLevelDropdownOpen(true)}
-              onClick={() => setLevelDropdownOpen(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addLevel(levelSearch);
-                }
-              }}
-              data-cy="teacher-level-input"
-            />
-            {selectedLevels.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-1">
-                {selectedLevels.map((level) => (
-                  <button
-                    key={`selected-level-${level}`}
-                    type="button"
-                    className={tagButtonClass}
-                    onClick={() => removeLevel(level)}
-                  >
-                    {level}
-                    <span aria-hidden>×</span>
-                  </button>
-                ))}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+              <div
+                className="md:col-span-5 space-y-1 relative"
+                ref={subjectDropdownRef}
+                data-cy="teacher-subject-field"
+              >
+                <Input 
+                  value={subjectSearch} 
+                  onChange={(e) => handleSubjectInputChange(e.target.value)} 
+                  placeholder={t.subjectPlaceholder} 
+                  autoComplete="off"
+                  onFocus={() => setSubjectDropdownOpen(true)}
+                  onClick={() => setSubjectDropdownOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSubjectLevel();
+                    }
+                  }}
+                  data-cy="teacher-subject-input"
+                />
+                <div
+                  className={cn(
+                    'absolute left-0 right-0 z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-background shadow-lg',
+                    isSubjectDropdownOpen ? 'block' : 'hidden'
+                  )}
+                >
+                  {pendingCustomSubject && (
+                    <div className="border-b border-border/60 bg-muted/30">
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-sm font-medium text-primary hover:bg-primary/10 focus:bg-primary/10 focus:outline-none"
+                        onClick={() => handleSubjectSelect(pendingCustomSubject)}
+                      >
+                        Add "{pendingCustomSubject}"
+                      </button>
+                    </div>
+                  )}
+                  {filteredSubjectOptions.filter(option => !selectedSubjects.includes(option)).length > 0 ? (
+                    filteredSubjectOptions
+                      .filter(option => !selectedSubjects.includes(option))
+                      .map((subject) => (
+                        <button
+                          key={subject}
+                          type="button"
+                          data-cy="subject-dropdown-option"
+                          className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-primary/10 focus:bg-primary/10 focus:outline-none"
+                          onClick={() => handleSubjectSelect(subject)}
+                        >
+                          {subject}
+                        </button>
+                      ))
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No subjects found.</div>
+                  )}
+                </div>
               </div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Primary uses Standard 1-6 · Secondary uses Form 1-6 grade tags.
-            </p>
-            <div
-              className={cn(
-                'absolute left-0 right-0 z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-background shadow-lg',
-                isLevelDropdownOpen ? 'block' : 'hidden'
+              <div
+                className="md:col-span-5 space-y-1 relative"
+                ref={levelDropdownRef}
+                data-cy="teacher-level-field"
+              >
+                <Input
+                  value={levelSearch}
+                  onChange={(e) => handleLevelInputChange(e.target.value)}
+                  placeholder="e.g. Standard 1 or Form 1"
+                  autoComplete="off"
+                  onFocus={() => setLevelDropdownOpen(true)}
+                  onClick={() => setLevelDropdownOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSubjectLevel();
+                    }
+                  }}
+                  data-cy="teacher-level-input"
+                />
+                <div
+                  className={cn(
+                    'absolute left-0 right-0 z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-background shadow-lg',
+                    isLevelDropdownOpen ? 'block' : 'hidden'
+                  )}
+                >
+                  {pendingCustomLevel && (
+                    <div className="border-b border-border/60 bg-muted/30">
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-sm font-medium text-primary hover:bg-primary/10 focus:bg-primary/10 focus:outline-none"
+                        onClick={() => handleLevelSelect(pendingCustomLevel)}
+                      >
+                        Add "{pendingCustomLevel}"
+                      </button>
+                    </div>
+                  )}
+                  {filteredLevelOptions.filter(option => !(subjectLevels.find((entry) => entry.subject === activeSubject)?.levels || []).includes(option)).length > 0 ? (
+                    filteredLevelOptions
+                      .filter(option => {
+                        const currentLevels = subjectLevels.find((entry) => entry.subject === activeSubject)?.levels || [];
+                        return !currentLevels.includes(option);
+                      })
+                      .map(level => (
+                        <button
+                          key={level}
+                          type="button"
+                          data-cy="level-dropdown-option"
+                          className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-primary/10 focus:bg-primary/10 focus:outline-none"
+                          onClick={() => handleLevelSelect(level)}
+                        >
+                          {level}
+                        </button>
+                      ))
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No levels found.</div>
+                  )}
+                </div>
+              </div>
+              <div className="md:col-span-2 flex items-center">
+                <Button className="w-full" onClick={handleAddSubjectLevel}>
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2" data-cy="subject-level-list">
+              {subjectLevels.length === 0 && (
+                <div className="text-sm text-muted-foreground border border-dashed rounded-lg p-3">
+                  Add a subject and level to build the tutor&apos;s loadout.
+                </div>
               )}
-            >
-              {filteredLevelOptions.filter(option => !selectedLevels.includes(option)).length > 0 ? (
-                filteredLevelOptions
-                  .filter(option => !selectedLevels.includes(option))
-                  .map(level => (
-                    <button
-                      key={level}
-                      type="button"
-                      data-cy="level-dropdown-option"
-                      className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-primary/10 focus:bg-primary/10 focus:outline-none"
-                      onClick={() => handleLevelSelect(level)}
+              {subjectLevels.map((entry) => {
+                const isActive = activeSubject === entry.subject;
+                return (
+                  <div
+                    key={`subject-row-${entry.subject}`}
+                    className={cn(
+                      'border rounded-lg p-3 flex flex-col gap-3 md:flex-row md:items-center md:gap-4 bg-white',
+                      isActive && 'border-primary/60 shadow-sm bg-primary/5'
+                    )}
+                    onClick={() => setActiveSubject(entry.subject)}
+                  >
+                    <Input
+                      className="flex-1"
+                      value={entry.subject}
+                      onChange={(e) => renameSubject(entry.subject, e.target.value)}
+                      onFocus={() => setActiveSubject(entry.subject)}
+                      placeholder={t.subjectPlaceholder}
+                    />
+                    <Input
+                      className="flex-1"
+                      value={(entry.levels || []).join(', ')}
+                      onChange={(e) => updateLevelsFromText(entry.subject, e.target.value)}
+                      onFocus={() => setActiveSubject(entry.subject)}
+                      placeholder="e.g. Standard 1 or Form 1"
+                    />
+                    <Button
+                      className="bg-destructive text-white hover:bg-destructive/90 md:ml-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSubject(entry.subject);
+                      }}
                     >
-                      {level}
-                    </button>
-                  ))
-              ) : (
-                <div className="px-3 py-2 text-xs text-muted-foreground">No levels found.</div>
-              )}
+                      Delete
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="md:col-span-2 space-y-2">
