@@ -126,8 +126,17 @@ describe('Teacher User - Complete Workflow', () => {
       studentReportPage.verifyStudentDataDisplayed();
     });
 
-    it.skip('should show send report WhatsApp button', () => {
+    it('should show send report WhatsApp button', () => {
       studentReportPage.verifySendReportButton();
+    });
+
+    it('should show export/download report button', () => {
+      studentReportPage.verifyExportButton();
+    });
+
+    it('should refresh AI insights', () => {
+      studentReportPage.refreshAIInsights();
+      studentReportPage.verifyAIInsightsDisplayed();
     });
   });
 

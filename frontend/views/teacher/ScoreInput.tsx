@@ -16,6 +16,7 @@ interface ScoreInputProps {
 }
 
 export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, selectedClassId, onSelectClass, onShowToast, teacher }) => {
+  const REMARK_MAX_LENGTH = 200;
   const [scoreColumns, setScoreColumns] = useState(['Exam 1']);
   const [columnTypes, setColumnTypes] = useState<Record<string, Score['type']>>({ 'Exam 1': 'EXAM' });
   const [isAddColOpen, setAddColOpen] = useState(false);
@@ -282,8 +283,12 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                                                       value={scoreRemarks[student.id]?.[col] || ''}
                                                       onChange={(e) => updateRemark(student.id, col, e.target.value)}
                                                       placeholder="Remark (optional)"
+                                                      maxLength={REMARK_MAX_LENGTH}
                                                       className="w-48 text-xs h-9"
                                                     />
+                                                    <div className="text-[10px] text-gray-400">
+                                                      {(scoreRemarks[student.id]?.[col] || '').length}/{REMARK_MAX_LENGTH}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col items-end gap-1">
@@ -348,8 +353,12 @@ export const ScoreInput: React.FC<ScoreInputProps> = ({ t, students, classes, se
                                                 value={scoreRemarks[student.id]?.[col] || ''}
                                                 onChange={(e) => updateRemark(student.id, col, e.target.value)}
                                                 placeholder="Remark (optional)"
+                                                maxLength={REMARK_MAX_LENGTH}
                                                 className="w-full text-xs"
                                               />
+                                              <div className="text-[10px] text-gray-400 text-right">
+                                                {(scoreRemarks[student.id]?.[col] || '').length}/{REMARK_MAX_LENGTH}
+                                              </div>
                                             </div>
                                         ) : (
                                             <div className="space-y-1">

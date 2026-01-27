@@ -29,7 +29,16 @@ describe('User Journey - Reports Viewing', () => {
       // Verify reports page loads
       cy.hash().should('eq', '#/reports');
       cy.contains(/reports/i).should('be.visible');
-      cy.contains(/post class feedback/i).should('be.visible');
+      cy.contains(/Engagement & Behavior/i).should('be.visible');
+      cy.get('[data-cy="report-month-select"]').should('be.visible');
+      cy.get('[data-cy="edit-insight-btn"]').should('be.visible');
+      cy.get('body').then(($body) => {
+        const cards = $body.find('[data-cy="subject-card"]');
+        if (cards.length > 0) {
+          cy.wrap(cards[0]).click({ force: true });
+          cy.get('[data-cy="subject-records"]').should('be.visible');
+        }
+      });
     });
 
     it('should display student performance data', () => {

@@ -158,15 +158,23 @@ export const generateStudentInsights = async (
     : 'No recent behavior notes.';
 
   const prompt = `
-    Analyze the data below for ${student.name} and return ONLY a JSON array of three objects with "type" (POSITIVE, NEGATIVE, OVERALL) and "message".
-    Each message should include a clear next step for the teacher or parent and reference at least one of the following: attendance, quiz performance, or recent behaviors.
+You are a concise school report writer. Return ONLY valid JSON (no code fences, no prose) that is an array of exactly three objects:
+[
+  {"type":"OVERALL","message":"..."},
+  {"type":"POSITIVE","message":"..."},
+  {"type":"NEGATIVE","message":"..."}
+]
+Rules:
+- type must be one of OVERALL, POSITIVE, NEGATIVE.
+- message must be plain text (no markdown, no emojis).
+- Each message must include a concrete “Next Step:” for teacher or parent and reference attendance, quiz performance, or recent behaviors.
 
-    Student: ${student.name}
-    Attendance: ${student.attendance}%
-    Quiz Summary: ${quizSummary}
-    Recent Scores: ${recentScoreHighlights || 'No recent scores.'}
-    Behavior Highlights: ${behaviorSummary}
-  `;
+Student: ${student.name}
+Attendance: ${student.attendance}%
+Quiz Summary: ${quizSummary}
+Recent Scores: ${recentScoreHighlights || 'No recent scores.'}
+Behavior Highlights: ${behaviorSummary}
+`;
 
   try {
     const raw = await generateWithFallbackModel(prompt, {
