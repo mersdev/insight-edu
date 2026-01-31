@@ -114,9 +114,11 @@ CREATE TABLE IF NOT EXISTS behaviors (
 -- Student Insights table
 CREATE TABLE IF NOT EXISTS student_insights (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  student_id TEXT UNIQUE REFERENCES students(id) ON DELETE CASCADE,
+  student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
+  report_month_key TEXT NOT NULL,
   insights TEXT NOT NULL,
-  last_analyzed TEXT NOT NULL
+  last_analyzed TEXT NOT NULL,
+  UNIQUE(student_id, report_month_key)
 );
 
 -- Create indexes for better query performance

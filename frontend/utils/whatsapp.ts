@@ -53,6 +53,12 @@ interface WindowWithCypress extends Window {
 }
 
 const isCypressDetected = typeof window !== 'undefined' && (window as WindowWithCypress).Cypress;
+const isSafariBrowser = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  // Safari has "Safari" but not Chrome/Edge/Firefox/OPR
+  return /Safari/.test(ua) && !/(Chrome|CriOS|Chromium|Edg|OPR|Firefox|FxiOS)/.test(ua);
+};
 
 let loginWhatsAppMessageBuilder: LoginWhatsAppMessageBuilder = isCypressDetected
   ? stubLoginWhatsAppMessage
@@ -78,9 +84,13 @@ export const openWhatsAppLink = (link: string | null | undefined) => {
     console.debug('[WhatsApp Mock] Navigation suppressed:', link);
     return;
   }
+  const safari = isSafariBrowser();
   const newWindow = window.open(link, '_blank', 'noopener,noreferrer');
-  if (!newWindow) {
+  if (!newWindow && safari) {
     window.location.href = link;
+  } else if (!newWindow) {
+    // For non-Safari, avoid redirect; user can allow popups or tap link manually.
+    console.warn('WhatsApp popup blocked by browser; please allow popups or tap the link:', link);
   }
 };
 

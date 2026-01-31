@@ -21,5 +21,15 @@ describe('Health Endpoint', () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.status).toBe('ok');
+    expect(data.message).toBe('Server is running');
+  });
+
+  test('should return ok for root health check', async () => {
+    const request = new Request('http://localhost/health');
+    const response = await worker.fetch(request, mockEnv, mockCtx);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.status).toBe('ok');
   });
 });

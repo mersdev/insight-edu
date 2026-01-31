@@ -257,14 +257,22 @@ export const api = {
   },
 
   // Student Insights
-  fetchStudentInsight: async (studentId: string): Promise<StudentInsightRecord | undefined> => {
+  fetchStudentInsight: async (studentId: string, reportMonthKey?: string): Promise<StudentInsightRecord | undefined> => {
     try {
-      const response = await fetch(`${TEACHER_BASE}/student-insights/${studentId}`, {
+      const query = reportMonthKey ? `?reportMonthKey=${encodeURIComponent(reportMonthKey)}` : '';
+      const response = await fetch(`${TEACHER_BASE}/student-insights/${studentId}${query}`, {
         headers: getAuthHeaders(),
       });
       if (response.status === 404) return undefined;
       const data = await response.json();
-      return toCamelCase(data);
+      const normalized = toCamelCase(data);
+      if (Array.isArray(normalized)) {
+        if (reportMonthKey) {
+          return normalized.find((record) => record.reportMonthKey === reportMonthKey);
+        }
+        return normalized[0];
+      }
+      return normalized;
     } catch (error) {
       return undefined;
     }

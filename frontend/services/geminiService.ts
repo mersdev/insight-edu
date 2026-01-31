@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import { Insight, Student, Score, BehaviorRating, Teacher, ClassGroup, Session } from "../types";
 
 // Prefer Vite env var, then common fallbacks.
@@ -8,42 +7,49 @@ const API_KEY =
   process.env.API_KEY ||
   '';
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
-const PRIMARY_MODEL = 'gemini-3-flash-preview';
-const FALLBACK_MODEL = 'gemini-2.5-flash';
-const DEFAULT_CONFIG = { thinkingConfig: { thinkingLevel: 'low' } };
+const PRIMARY_MODEL = 'gemini-2.0-flash';
+const GENERATE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${PRIMARY_MODEL}:generateContent`;
 
-const generateWithFallbackModel = async (prompt: string, config?: Record<string, unknown>) => {
+const extractText = (data: any) => data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+const generateWithModel = async (
+  prompt: string,
+  options?: { responseMimeType?: string }
+) => {
   if (!API_KEY) return null;
-  const models = [PRIMARY_MODEL, FALLBACK_MODEL];
-  for (const model of models) {
-    try {
-      const { config: overrideConfig, ...rest } = config || {};
-      const mergedConfig = {
-        ...DEFAULT_CONFIG,
-        ...(overrideConfig as Record<string, unknown> | undefined),
-      };
+  try {
+    const response = await fetch(GENERATE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-goog-api-key': API_KEY,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: options?.responseMimeType
+          ? { responseMimeType: options.responseMimeType }
+          : undefined,
+      }),
+    });
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: mergedConfig,
-        ...rest,
-      });
-
-      if (response.text) {
-        return response.text;
-      }
-    } catch (error) {
-      console.error(`AI model ${model} error:`, error);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI model error:', errorText);
+      return null;
     }
+
+    const data = await response.json();
+    const text = extractText(data);
+    return typeof text === 'string' ? text : null;
+  } catch (error) {
+    console.error('AI request failed:', error);
+    return null;
   }
-  return null;
 };
 
 // General helper for generating content
 const generateAIContent = async (prompt: string, fallbackMessage: string) => {
-  const text = await generateWithFallbackModel(prompt);
+  const text = await generateWithModel(prompt);
   return text || fallbackMessage;
 };
 
@@ -158,20 +164,33 @@ export const generateStudentInsights = async (
     : 'No recent behavior notes.';
 
   const prompt = `
-    Analyze the data below for ${student.name} and return ONLY a JSON array of three objects with "type" (POSITIVE, NEGATIVE, OVERALL) and "message".
-    Each message should include a clear next step for the teacher or parent and reference at least one of the following: attendance, quiz performance, or recent behaviors.
+You are a school report writer. Return ONLY valid JSON (no code fences, no prose) that is an array of exactly three objects:
+[
+  {"type":"OVERALL","message":"..."},
+  {"type":"POSITIVE","message":"..."},
+  {"type":"NEGATIVE","message":"..."}
+]
+Rules:
+- type must be one of OVERALL, POSITIVE, NEGATIVE.
+- message must be plain text (no markdown, no emojis).
+- Do NOT include "Next Step:" or any labeled steps.
+- Each message must be a single paragraph (no line breaks).
+- Use 2-4 sentences per message.
+- Focus on the student's Strengths & Achievements and Growth Focus.
+- The OVERALL message must summarize the most important strength and the top growth focus.
+- The POSITIVE message must list 1-2 specific strengths backed by scores or behaviors.
+- The NEGATIVE message must name one specific gap and a practical action to address it, without labeling it as a step.
 
-    Student: ${student.name}
-    Attendance: ${student.attendance}%
-    Quiz Summary: ${quizSummary}
-    Recent Scores: ${recentScoreHighlights || 'No recent scores.'}
-    Behavior Highlights: ${behaviorSummary}
-  `;
+Student: ${student.name}
+Attendance: ${student.attendance}%
+Quiz Summary: ${quizSummary}
+Recent Scores: ${recentScoreHighlights || 'No recent scores.'}
+Behavior Highlights: ${behaviorSummary}
+`;
 
   try {
-    const raw = await generateWithFallbackModel(prompt, {
+    const raw = await generateWithModel(prompt, {
       responseMimeType: "application/json",
-      config: DEFAULT_CONFIG,
     });
     if (raw) {
       try {
@@ -240,7 +259,7 @@ const simulateInsights = (student: Student, scores: Score[], quizScores: Score[]
   insights.push({
     studentId: student.id,
     type: 'OVERALL',
-    message: `Overall performance is ${avg >= 75 ? 'strong' : 'progressing steadily'}. Next Step: ${avg >= 75 ? 'continue with stretch goals.' : 'reinforce foundational topics before the next assessment.'}`,
+    message: `Overall performance is ${avg >= 75 ? 'strong' : 'progressing steadily'}. ${avg >= 75 ? 'continue with stretch goals.' : 'reinforce foundational topics before the next assessment.'}`,
     date: new Date().toISOString(),
   });
 

@@ -273,6 +273,19 @@ export class StudentReportPage {
   verifySendReportButton(): void {
     cy.contains(/whatsapp|send.*report/i, { matchCase: false }).should('be.visible');
   }
+
+  verifyExportButton(): void {
+    cy.contains('button', /download pdf/i).scrollIntoView().should('be.visible');
+  }
+
+  refreshAIInsights(): void {
+    cy.contains('button', /refresh summary|refresh/i).scrollIntoView().click();
+  }
+
+  verifyAIInsightsDisplayed(): void {
+    cy.contains(/Monthly Learning Summary/i).should('be.visible');
+    cy.contains(/Strengths & Achievements/i).should('be.visible');
+  }
 }
 
 export class TeacherClassesPage {

@@ -13,7 +13,7 @@ export class StudentReportPage extends BasePage {
   verifyStudentReportPageDisplayed(): void {
     this.verifyUrl();
     this.dismissDialogIfPresent();
-    cy.contains(/reports/i).should('be.visible');
+    cy.contains(/report/i).should('be.visible');
   }
 
   /**
@@ -41,6 +41,13 @@ export class StudentReportPage extends BasePage {
   }
 
   /**
+   * Verify export PDF button is visible
+   */
+  verifyExportButton(): void {
+    cy.contains('button', /download pdf/i).scrollIntoView().should('be.visible');
+  }
+
+  /**
    * Generate AI insights
    */
   generateAIInsights(): void {
@@ -51,8 +58,15 @@ export class StudentReportPage extends BasePage {
    * Verify AI insights are displayed
    */
   verifyAIInsightsDisplayed(): void {
-    cy.wait(2000);
-    cy.get('body').should('contain.text', /insight|analysis/i);
+    cy.contains(/Monthly Learning Summary/i).should('be.visible');
+    cy.contains(/Strengths & Achievements/i).should('be.visible');
+  }
+
+  /**
+   * Trigger AI refresh
+   */
+  refreshAIInsights(): void {
+    cy.contains('button', /refresh summary|refresh/i).scrollIntoView().click();
   }
 
   /**

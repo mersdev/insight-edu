@@ -117,6 +117,7 @@ export interface StudentInsightRecord {
   studentId: string;
   insights: Insight[];
   lastAnalyzed: string;
+  reportMonthKey: string;
 }
 
 export interface LanguageContextType {

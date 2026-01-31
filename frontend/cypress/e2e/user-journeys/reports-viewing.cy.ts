@@ -29,7 +29,47 @@ describe('User Journey - Reports Viewing', () => {
       // Verify reports page loads
       cy.hash().should('eq', '#/reports');
       cy.contains(/reports/i).should('be.visible');
-      cy.contains(/post class feedback/i).should('be.visible');
+      cy.contains(/Engagement & Behavior/i).should('be.visible');
+      cy.get('[data-cy="report-month-select"]').should('be.visible');
+      cy.get('[data-cy="edit-insight-btn"]').should('be.visible');
+      cy.get('body').then(($body) => {
+        const cards = $body.find('[data-cy="subject-card"]');
+        if (cards.length > 0) {
+          cy.wrap(cards[0]).click({ force: true });
+          cy.get('[data-cy="subject-records"]').should('be.visible');
+        }
+      });
+    });
+
+    it('should paginate attendance tables and keep descending order', () => {
+      cy.visit('/#/reports');
+      cy.hash().should('eq', '#/reports');
+
+      cy.get('#report-section-attendance-details').then(($section) => {
+        const rows = $section.find('tbody tr');
+        if (rows.length === 0) {
+          cy.log('No attendance rows to paginate/order');
+          return;
+        }
+
+        const dates = [...rows].map((row) => {
+          const text = row.querySelector('td')?.textContent?.trim() || '';
+          const [month, day] = text.split(' ');
+          const monthIndex = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(month);
+          if (monthIndex === -1) return NaN;
+          return monthIndex * 31 + Number(day);
+        });
+        for (let i = 1; i < dates.length; i += 1) {
+          if (!Number.isNaN(dates[i - 1]) && !Number.isNaN(dates[i])) {
+            expect(dates[i - 1]).to.be.at.least(dates[i]);
+          }
+        }
+
+        if ($section.text().includes('Page') && $section.text().includes('Next')) {
+          cy.wrap($section).contains('button', /Next/i).click({ force: true });
+          cy.wrap($section).contains(/Page/i).should('be.visible');
+        }
+      });
     });
 
     it('should display student performance data', () => {

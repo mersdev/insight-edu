@@ -437,6 +437,6 @@ INSERT INTO behaviors (student_id, session_id, date, category, teacher_id, ratin
 ('s2', 'ses_c3_6', '2025-12-09 10:00:00', 'Practice', 't3', 4);
 
 -- Seed student insights to support manual indicators
-INSERT INTO student_insights (student_id, insights, last_analyzed) VALUES
-('s1', '[{"student_id":"s1","type":"POSITIVE","message":"Ali consistently contributes in English discussions and shows curiosity beyond the syllabus.","date":"2025-12-19T10:15:00Z"},{"student_id":"s1","type":"NEGATIVE","message":"Needs to slow down when writing essays to avoid careless mistakes.","date":"2025-12-19T10:20:00Z"}]', '2025-12-19T10:30:00Z'),
-('s3', '[{"student_id":"s3","type":"OVERALL","message":"Charlie is improving in Science contributions but still needs encouragement to speak up in class.","date":"2025-12-18T08:45:00Z"}]', '2025-12-18T09:00:00Z');
+INSERT INTO student_insights (student_id, report_month_key, insights, last_analyzed) VALUES
+('s1', '2025-12', '[{"student_id":"s1","type":"POSITIVE","message":"Ali consistently contributes in English discussions and shows curiosity beyond the syllabus.","date":"2025-12-19T10:15:00Z"},{"student_id":"s1","type":"NEGATIVE","message":"Needs to slow down when writing essays to avoid careless mistakes.","date":"2025-12-19T10:20:00Z"}]', '2025-12-19T10:30:00Z'),
+('s3', '2025-12', '[{"student_id":"s3","type":"OVERALL","message":"Charlie is improving in Science contributions but still needs encouragement to speak up in class.","date":"2025-12-18T08:45:00Z"}]', '2025-12-18T09:00:00Z');

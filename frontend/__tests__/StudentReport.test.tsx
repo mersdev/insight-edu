@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { StudentReport } from '../views/shared/StudentReport';
 import { TRANSLATIONS } from '../constants';
@@ -58,7 +58,7 @@ describe('StudentReport exam coverage', () => {
   const scores: Score[] = [
     {
       studentId: 's1',
-      date: '2025-01-01',
+      date: '2025-03-01',
       subject: 'Math',
       value: 92,
       type: 'EXAM',
@@ -67,7 +67,7 @@ describe('StudentReport exam coverage', () => {
     },
     {
       studentId: 's1',
-      date: '2025-02-01',
+      date: '2025-03-05',
       subject: 'Science',
       value: 85,
       type: 'EXAM',
@@ -75,7 +75,7 @@ describe('StudentReport exam coverage', () => {
     },
     {
       studentId: 's1',
-      date: '2025-03-01',
+      date: '2025-03-10',
       subject: 'Math',
       value: 88,
       type: 'HOMEWORK',
@@ -89,32 +89,32 @@ describe('StudentReport exam coverage', () => {
   const ratingCategories: RatingCategory[] = [];
 
   it('shows exam breakdown sections, remarks, and parent-friendly summary when scores exist', async () => {
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <StudentReport
-            t={t}
-            user={user}
-            students={[student]}
-            classes={classes}
-            scores={scores}
-            behaviors={behaviors}
-            sessions={sessions}
-            attendance={attendance}
-            teachers={[teacher]}
-            ratingCategories={ratingCategories}
-          />
-        </MemoryRouter>
-      );
-    });
+    const { container } = render(
+      <MemoryRouter>
+        <StudentReport
+          t={t}
+          user={user}
+          students={[student]}
+          classes={classes}
+          scores={scores}
+          behaviors={behaviors}
+          sessions={sessions}
+          attendance={attendance}
+          teachers={[teacher]}
+          ratingCategories={ratingCategories}
+        />
+      </MemoryRouter>
+    );
 
     await screen.findByText(/Monthly Learning Summary/i);
-    expect(screen.getByText(/Parent-friendly update/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Math/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Science/i)).toBeInTheDocument();
-    expect(await screen.findByText(t.examBreakdownBySubject)).toBeInTheDocument();
-    expect(screen.getByText(/What this means/i)).toBeInTheDocument();
-    expect(screen.getByText(/Strong grasp of algebra./i)).toBeInTheDocument();
-    expect(screen.getByText(/attendance/i)).toBeInTheDocument();
+    expect(container.querySelector('[data-cy="report-month-select"]')).toBeInTheDocument();
+    expect(screen.getByText(/Edit Summary/i)).toBeInTheDocument();
+    expect(screen.getByText(/Subject Records/i)).toBeInTheDocument();
+    expect(screen.getByText(/monthly performance highlights are being prepared/i)).toBeInTheDocument();
+    expect(screen.getByText(/Academic Performance/i)).toBeInTheDocument();
+    expect(container.querySelector('button[data-cy="subject-card"][data-subject="Math"]')).toBeInTheDocument();
+    expect(container.querySelector('button[data-cy="subject-card"][data-subject="Science"]')).toBeInTheDocument();
+    expect(screen.getByText(/Remarked/i)).toBeInTheDocument();
+    expect(screen.getByText(/Attendance Overview/i)).toBeInTheDocument();
   });
 });
