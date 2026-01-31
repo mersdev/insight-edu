@@ -70,6 +70,11 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
 
   // Student Profile Schedule View
   const [scheduleDate, setScheduleDate] = useState(new Date());
+  const reportMonthKey = useMemo(() => {
+    const year = scheduleDate.getFullYear();
+    const month = String(scheduleDate.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }, [scheduleDate]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -84,15 +89,26 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
   const performGeneration = async (student: Student) => {
     setIsAiLoading(true);
     try {
-      const sScores = scores.filter(s => s.studentId === student.id);
-      const sBehaviors = behaviors.filter(b => b.studentId === student.id);
+      const sScores = scores.filter(
+        (s) =>
+          s.studentId === student.id &&
+          s.date &&
+          s.date.startsWith(reportMonthKey)
+      );
+      const sBehaviors = behaviors.filter(
+        (b) =>
+          b.studentId === student.id &&
+          ((b.date && b.date.startsWith(reportMonthKey)) ||
+            (!b.date && b.sessionId && sessions.some((s) => s.id === b.sessionId && s.date.startsWith(reportMonthKey))))
+      );
       const insights = await generateStudentInsights(student, sScores, sBehaviors);
       const now = new Date().toISOString();
 
       await api.saveStudentInsight({
         studentId: student.id,
         insights,
-        lastAnalyzed: now
+        lastAnalyzed: now,
+        reportMonthKey
       });
 
       const formatted = insights.map(i => {
@@ -118,31 +134,24 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
 
       const initInsights = async () => {
           try {
-              const record = await api.fetchStudentInsight(selectedStudentId);
-              let shouldGenerate = true;
+              const record = await api.fetchStudentInsight(selectedStudentId, reportMonthKey);
 
               if (record) {
-                  const now = new Date();
-                  const last = new Date(record.lastAnalyzed);
-                  if (!Number.isNaN(last.getTime()) && now.getTime() - last.getTime() <= 12 * 60 * 60 * 1000) {
-                      const text = (record.insights || []).map(i => {
-                          const icon = i.type === 'POSITIVE' ? '✅' : i.type === 'NEGATIVE' ? '⚠️' : 'ℹ️';
-                          return `### ${icon} ${i.type}\n${i.message}`;
-                      }).join('\n\n');
-                      setInsightText(text);
-                      setLastUpdated(record.lastAnalyzed);
-                      setIsAiLoading(false);
-                      shouldGenerate = false;
-                  }
+                  const text = (record.insights || []).map(i => {
+                      const icon = i.type === 'POSITIVE' ? '✅' : i.type === 'NEGATIVE' ? '⚠️' : 'ℹ️';
+                      return `### ${icon} ${i.type}\n${i.message}`;
+                  }).join('\n\n');
+                  setInsightText(text);
+                  setLastUpdated(record.lastAnalyzed);
+                  setIsAiLoading(false);
+                  return;
               }
 
-              if (shouldGenerate) {
-                  const student = safeStudents.find(s => s.id === selectedStudentId);
-                  if (student) {
-                      await performGeneration(student);
-                  } else {
-                      setIsAiLoading(false);
-                  }
+              const student = safeStudents.find(s => s.id === selectedStudentId);
+              if (student) {
+                  await performGeneration(student);
+              } else {
+                  setIsAiLoading(false);
               }
           } catch (e) {
               console.error("Failed to load insights", e);
@@ -150,7 +159,7 @@ export const Students: React.FC<StudentsProps> = ({ t, students, setStudents, cl
           }
       };
       initInsights();
-  }, [selectedStudentId]);
+  }, [selectedStudentId, reportMonthKey]);
 
   const handleDelete = async (id: string) => {
     if (confirm(t.deleteStudentConfirm)) {

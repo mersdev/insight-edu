@@ -193,11 +193,35 @@ export class MockD1 {
         );
       });
     }
+    if (sql.includes('FROM student_insights')) {
+      if (sql.includes('student_id = ?') && sql.includes('report_month_key = ?')) {
+        const [studentId, reportMonthKey] = args;
+        return this.data.student_insights.find(
+          (si) => si.student_id === studentId && si.report_month_key === reportMonthKey
+        );
+      }
+      if (sql.includes('student_id = ?')) {
+        const [studentId] = args;
+        return this.data.student_insights.find((si) => si.student_id === studentId);
+      }
+    }
     if (sql.includes('FROM students WHERE parent_id')) {
       return this.data.students.find((s) => s.parent_id === args[0]);
     }
     if (sql.includes('SELECT * FROM settings')) {
       return this.data.settings[0];
+    }
+    if (sql.includes('FROM student_insights')) {
+      if (sql.includes('student_id = ?') && sql.includes('report_month_key = ?')) {
+        const [studentId, reportMonthKey] = args;
+        return this.data.student_insights.find(
+          (si) => si.student_id === studentId && si.report_month_key === reportMonthKey
+        );
+      }
+      if (sql.includes('student_id = ?')) {
+        const [studentId] = args;
+        return this.data.student_insights.find((si) => si.student_id === studentId);
+      }
     }
     if (sql.includes('COUNT(*) AS total FROM rating_categories')) {
       return { total: this.data.rating_categories.length };
@@ -451,6 +475,29 @@ export class MockD1 {
         existing.name = args[0];
         existing.description = args[1];
       }
+      return { success: true };
+    }
+    if (sql.includes('UPDATE student_insights')) {
+      const [insights, lastAnalyzed, studentId, reportMonthKey] = args;
+      const existing = this.data.student_insights.find(
+        (si) => si.student_id === studentId && si.report_month_key === reportMonthKey
+      );
+      if (existing) {
+        existing.insights = insights;
+        existing.last_analyzed = lastAnalyzed;
+      }
+      return { success: true };
+    }
+    if (sql.includes('INSERT INTO student_insights')) {
+      const [studentId, reportMonthKey, insights, lastAnalyzed] = args;
+      const row = {
+        id: this.data.student_insights.length + 1,
+        student_id: studentId,
+        report_month_key: reportMonthKey,
+        insights,
+        last_analyzed: lastAnalyzed,
+      };
+      this.data.student_insights.push(row);
       return { success: true };
     }
     return { success: true };

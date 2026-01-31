@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
-import { Download, MapPin, Phone, Mail, User as UserIcon, ChevronLeft, ChevronRight, BookOpen, Calendar, Clock, Share, Star, Target, Award, Zap, CheckCircle2, BarChart3, MoreHorizontal, History, TrendingUp, TrendingDown, GraduationCap, Sparkles } from 'lucide-react';
+import { Download, MapPin, Phone, Mail, User as UserIcon, ChevronLeft, ChevronRight, BookOpen, Calendar, Clock, Star, Target, Award, Zap, CheckCircle2, BarChart3, MoreHorizontal, History, TrendingUp, TrendingDown, GraduationCap, Sparkles } from 'lucide-react';
 import { Card, Button, Select, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
 import { generateStudentInsights } from '../../services/geminiService';
 import { api } from '../../services/backendApi';
@@ -150,12 +150,30 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
 
   const canEditInsights = user.role !== 'PARENT';
 
+  const isBehaviorInReportMonth = (behavior: BehaviorRating) => {
+    if (behavior.date) {
+      return isSameMonth(new Date(behavior.date), reportMonthStart);
+    }
+    if (behavior.sessionId) {
+      const session = sessions.find((s) => s.id === behavior.sessionId);
+      return session ? isSameMonth(new Date(session.date), reportMonthStart) : false;
+    }
+    return false;
+  };
+
   // Logic to generate and save insights (Copied from Students.tsx)
   const performGeneration = async (student: Student) => {
     setIsAiLoading(true);
     try {
-      const sScores = scores.filter(s => s.studentId === student.id);
-      const sBehaviors = behaviors.filter(b => b.studentId === student.id);
+      const sScores = scores.filter(
+        (s) =>
+          s.studentId === student.id &&
+          s.date &&
+          isSameMonth(new Date(s.date), reportMonthStart)
+      );
+      const sBehaviors = behaviors.filter(
+        (b) => b.studentId === student.id && isBehaviorInReportMonth(b)
+      );
 
       const insights = await generateStudentInsights(student, sScores, sBehaviors);
       setInsightEntries(insights);
@@ -164,7 +182,8 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
       await api.saveStudentInsight({
         studentId: student.id,
         insights,
-        lastAnalyzed: now
+        lastAnalyzed: now,
+        reportMonthKey
       });
 
       const text = formatInsightsToMarkdown(insights);
@@ -181,48 +200,45 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
     }
   };
 
-  // Fetch or Generate Insights on Student Selection
+  // Fetch or Generate Insights on Student Selection / Month Change
   useEffect(() => {
     if (!selectedStudentId) return;
     const hasStudent = safeStudents.some((s) => s.id === selectedStudentId);
     if (!hasStudent) return;
 
-    if (selectedStudentId) {
-      setScheduleDate(new Date());
-      setInsightText(null);
-      setInsightEntries([]);
-      setLastUpdated(null);
-      setIsAiLoading(true);
-      setIsEditingInsights(false);
+    setInsightText(null);
+    setInsightEntries([]);
+    setLastUpdated(null);
+    setIsEditingInsights(false);
+    setIsAiLoading(true);
 
-      const initInsights = async () => {
-        try {
-          const record = await api.fetchStudentInsight(selectedStudentId);
+    const initInsights = async () => {
+      try {
+        const record = await api.fetchStudentInsight(selectedStudentId, reportMonthKey);
 
-          if (record) {
-            const text = formatInsightsToMarkdown(record.insights || []);
-            setInsightText(text);
-            setInsightEntries(record.insights || []);
-            setLastUpdated(record.lastAnalyzed);
-            hydrateEditBuffers(record.insights || [], text);
-            setIsAiLoading(false);
-            return;
-          }
-
-          const student = safeStudents.find(s => s.id === selectedStudentId);
-          if (student) {
-            await performGeneration(student);
-          } else {
-            setIsAiLoading(false);
-          }
-        } catch (e) {
-            console.error("Failed to load insights", e);
-            setIsAiLoading(false);
+        if (record) {
+          const text = formatInsightsToMarkdown(record.insights || []);
+          setInsightText(text);
+          setInsightEntries(record.insights || []);
+          setLastUpdated(record.lastAnalyzed);
+          hydrateEditBuffers(record.insights || [], text);
+          setIsAiLoading(false);
+          return;
         }
-        };
-        initInsights();
-    }
-  }, [selectedStudentId, safeStudents]);
+
+        const student = safeStudents.find(s => s.id === selectedStudentId);
+        if (student) {
+          await performGeneration(student);
+        } else {
+          setIsAiLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to load insights", e);
+        setIsAiLoading(false);
+      }
+    };
+    initInsights();
+  }, [selectedStudentId, safeStudents, reportMonthKey]);
 
   const handleStartEditingInsights = () => {
     hydrateEditBuffers(insightEntries, insightText || '');
@@ -244,6 +260,7 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
         studentId: selectedStudentId,
         insights: updatedInsights,
         lastAnalyzed: now,
+        reportMonthKey,
       });
       const text = formatInsightsToMarkdown(updatedInsights);
       setInsightEntries(updatedInsights);
@@ -588,21 +605,32 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
   // --- Data Calculations ---
   const attendanceStats = useMemo(() => {
     if (!selectedStudentId || !selectedStudent) return { present: 0, total: 0 };
-    const completedSessions = sessions.filter(s =>
-      s.status === 'COMPLETED' &&
+
+    const sessionsInMonth = sessions.filter((s) =>
       (selectedStudent.classIds || []).includes(s.classId) &&
       (!s.targetStudentIds || s.targetStudentIds.includes(selectedStudentId)) &&
       isSameMonth(new Date(s.date), reportMonthStart)
     );
 
+    const sessionIds = new Set(sessionsInMonth.map((s) => s.id));
+    const attendanceInMonth = attendance.filter(
+      (a) => a.studentId === selectedStudentId && sessionIds.has(a.sessionId)
+    );
+
+    if (attendanceInMonth.length > 0) {
+      const present = attendanceInMonth.filter((a) => a.status === 'PRESENT').length;
+      return { present, total: attendanceInMonth.length };
+    }
+
+    const completedSessions = sessionsInMonth.filter((s) => s.status === 'COMPLETED');
     const presentCount = completedSessions.reduce((acc, session) => {
-      const att = attendance.find(a => a.sessionId === session.id && a.studentId === selectedStudentId);
+      const att = attendance.find((a) => a.sessionId === session.id && a.studentId === selectedStudentId);
       const isPresent = att ? att.status === 'PRESENT' : true;
       return acc + (isPresent ? 1 : 0);
     }, 0);
 
     return { present: presentCount, total: completedSessions.length };
-  }, [selectedStudentId, selectedStudent, sessions, attendance]);
+  }, [selectedStudentId, selectedStudent, sessions, attendance, reportMonthStart]);
 
   const attendanceRate = attendanceStats.total > 0
     ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
@@ -655,6 +683,34 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
   const scheduleViewHint = sessionsInView.length === 0
     ? `${formatMonthLabel(scheduleDisplayDate)} sessions are displayed. No sessions scheduled.`
     : `${formatMonthLabel(scheduleDisplayDate)} sessions are displayed.`;
+
+  const sortedSessionsInView = useMemo(() => {
+    return sessionsInView
+      .slice()
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [sessionsInView]);
+
+  const ATTENDANCE_PAGE_SIZE = 6;
+  const SCHEDULE_PAGE_SIZE = 10;
+  const [attendancePage, setAttendancePage] = useState(1);
+  const [schedulePage, setSchedulePage] = useState(1);
+
+  useEffect(() => {
+    setAttendancePage(1);
+    setSchedulePage(1);
+  }, [selectedStudentId, reportMonthStart, sessionsInView.length]);
+
+  const attendancePageCount = Math.max(1, Math.ceil(sortedSessionsInView.length / ATTENDANCE_PAGE_SIZE));
+  const schedulePageCount = Math.max(1, Math.ceil(sortedSessionsInView.length / SCHEDULE_PAGE_SIZE));
+
+  const attendanceSessions = sortedSessionsInView.slice(
+    (attendancePage - 1) * ATTENDANCE_PAGE_SIZE,
+    attendancePage * ATTENDANCE_PAGE_SIZE
+  );
+  const scheduleSessions = sortedSessionsInView.slice(
+    (schedulePage - 1) * SCHEDULE_PAGE_SIZE,
+    schedulePage * SCHEDULE_PAGE_SIZE
+  );
 
   const studentScores = useMemo(() => {
     if (!selectedStudentId) return [];
@@ -1037,13 +1093,6 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                 </Select>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                >
-                  <Share className="w-4 h-4 mr-2" /> Share
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -1681,9 +1730,9 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sessionsInView.slice(0, 6).map((session, idx) => {
+                    {attendanceSessions.map((session, idx) => {
                       const attRecord = attendance.find((a) => a.sessionId === session.id && a.studentId === selectedStudentId);
-                      const status = session.status === 'COMPLETED' ? (attRecord?.status === 'ABSENT' ? 'ABSENT' : 'PRESENT') : 'PRESENT';
+                      const status = attRecord?.status === 'ABSENT' ? 'ABSENT' : 'PRESENT';
                       const dateObj = new Date(session.date);
                       const formattedDate = dateObj.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
                       const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1706,6 +1755,31 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                   </TableBody>
                 </Table>
               </div>
+              {attendancePageCount > 1 && (
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>
+                    Page {attendancePage} of {attendancePageCount}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded-full border border-gray-200 text-gray-600 disabled:opacity-40"
+                      onClick={() => setAttendancePage((prev) => Math.max(1, prev - 1))}
+                      disabled={attendancePage === 1}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded-full border border-gray-200 text-gray-600 disabled:opacity-40"
+                      onClick={() => setAttendancePage((prev) => Math.min(attendancePageCount, prev + 1))}
+                      disabled={attendancePage === attendancePageCount}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* Redesigned Sessions Schedule Section */}
@@ -1739,9 +1813,9 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sessionsInView.map((session) => {
+                    {scheduleSessions.map((session) => {
                       const attRecord = attendance.find((a) => a.sessionId === session.id && a.studentId === selectedStudentId);
-                      const status = session.status === 'COMPLETED' ? (attRecord?.status === 'ABSENT' ? 'ABSENT' : 'PRESENT') : 'PRESENT';
+                      const status = attRecord?.status === 'ABSENT' ? 'ABSENT' : 'PRESENT';
                       const sessionBehaviors = behaviors.filter((b) => b.sessionId === session.id && b.studentId === selectedStudentId);
                       const avgBehavior = sessionBehaviors.length > 0
                         ? (sessionBehaviors.reduce((a, b) => a + b.rating, 0) / sessionBehaviors.length).toFixed(1)
@@ -1798,6 +1872,31 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                   </TableBody>
                 </Table>
               </div>
+              {schedulePageCount > 1 && (
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>
+                    Page {schedulePage} of {schedulePageCount}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded-full border border-gray-200 text-gray-600 disabled:opacity-40"
+                      onClick={() => setSchedulePage((prev) => Math.max(1, prev - 1))}
+                      disabled={schedulePage === 1}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded-full border border-gray-200 text-gray-600 disabled:opacity-40"
+                      onClick={() => setSchedulePage((prev) => Math.min(schedulePageCount, prev + 1))}
+                      disabled={schedulePage === schedulePageCount}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
             {user.role !== 'PARENT' && (
               <div id="report-section-admin" className="p-4 bg-gray-50/50 rounded-xl border mt-6 w-full max-w-full min-w-0">

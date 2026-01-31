@@ -62,13 +62,23 @@ export const api = {
   },
 
   // Student Insights
-  fetchStudentInsight: async (studentId: string): Promise<StudentInsightRecord | undefined> => {
+  fetchStudentInsight: async (studentId: string, reportMonthKey?: string): Promise<StudentInsightRecord | undefined> => {
     await delay(200);
+    if (reportMonthKey) {
+      return store.studentInsights.find(
+        (si: StudentInsightRecord) =>
+          si.studentId === studentId && si.reportMonthKey === reportMonthKey
+      );
+    }
     return store.studentInsights.find((si: StudentInsightRecord) => si.studentId === studentId);
   },
   saveStudentInsight: async (record: StudentInsightRecord): Promise<void> => {
     await delay(300);
-    const index = store.studentInsights.findIndex((si: StudentInsightRecord) => si.studentId === record.studentId);
+    const index = store.studentInsights.findIndex((si: StudentInsightRecord) =>
+      record.reportMonthKey
+        ? si.studentId === record.studentId && si.reportMonthKey === record.reportMonthKey
+        : si.studentId === record.studentId
+    );
     if (index >= 0) {
       store.studentInsights[index] = record;
     } else {
