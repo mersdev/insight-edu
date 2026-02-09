@@ -47,6 +47,15 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
     });
     return map;
   }, [teachers]);
+  const classMap = useMemo(() => {
+    const map = new Map<string, ClassGroup>();
+    classes.forEach((item) => {
+      if (item?.id) {
+        map.set(item.id, item);
+      }
+    });
+    return map;
+  }, [classes]);
 
   const [selectedStudentId, setSelectedStudentId] = useState<string>(() => routeStudentId || safeStudents[0]?.id || '');
   const [insightText, setInsightText] = useState<string | null>(null);
@@ -65,6 +74,8 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
   const [autoScheduleAppliedFor, setAutoScheduleAppliedFor] = useState<string | null>(null);
   const [isSendingReport, setIsSendingReport] = useState(false);
   const [reportStatusMessage, setReportStatusMessage] = useState<string | null>(null);
+  const [scheduleTeacherFilter, setScheduleTeacherFilter] = useState<string>('ALL');
+  const [scheduleSubjectFilter, setScheduleSubjectFilter] = useState<string>('ALL');
   const canSwitchStudent = user.role !== 'HQ';
   const formatMonthLabel = (date: Date) =>
     date.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -690,6 +701,33 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [sessionsInView]);
 
+  const scheduleFilterOptions = useMemo(() => {
+    const teacherNames = new Set<string>();
+    const subjectNames = new Set<string>();
+    sortedSessionsInView.forEach((session) => {
+      const classItem = classMap.get(session.classId);
+      const teacher = classItem?.teacherId ? teacherMap.get(classItem.teacherId) : null;
+      teacherNames.add(teacher?.name || 'Assigned');
+      subjectNames.add(classItem?.name || 'General');
+    });
+    return {
+      teachers: Array.from(teacherNames).sort((a, b) => a.localeCompare(b)),
+      subjects: Array.from(subjectNames).sort((a, b) => a.localeCompare(b)),
+    };
+  }, [sortedSessionsInView, classMap, teacherMap]);
+
+  const filteredScheduleSessionsInView = useMemo(() => {
+    return sortedSessionsInView.filter((session) => {
+      const classItem = classMap.get(session.classId);
+      const teacher = classItem?.teacherId ? teacherMap.get(classItem.teacherId) : null;
+      const teacherName = teacher?.name || 'Assigned';
+      const subjectName = classItem?.name || 'General';
+      const teacherMatch = scheduleTeacherFilter === 'ALL' || teacherName === scheduleTeacherFilter;
+      const subjectMatch = scheduleSubjectFilter === 'ALL' || subjectName === scheduleSubjectFilter;
+      return teacherMatch && subjectMatch;
+    });
+  }, [sortedSessionsInView, classMap, teacherMap, scheduleTeacherFilter, scheduleSubjectFilter]);
+
   const ATTENDANCE_PAGE_SIZE = 6;
   const SCHEDULE_PAGE_SIZE = 10;
   const [attendancePage, setAttendancePage] = useState(1);
@@ -700,14 +738,27 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
     setSchedulePage(1);
   }, [selectedStudentId, reportMonthStart, sessionsInView.length]);
 
+  useEffect(() => {
+    if (scheduleTeacherFilter !== 'ALL' && !scheduleFilterOptions.teachers.includes(scheduleTeacherFilter)) {
+      setScheduleTeacherFilter('ALL');
+    }
+    if (scheduleSubjectFilter !== 'ALL' && !scheduleFilterOptions.subjects.includes(scheduleSubjectFilter)) {
+      setScheduleSubjectFilter('ALL');
+    }
+  }, [scheduleFilterOptions, scheduleTeacherFilter, scheduleSubjectFilter]);
+
+  useEffect(() => {
+    setSchedulePage(1);
+  }, [scheduleTeacherFilter, scheduleSubjectFilter]);
+
   const attendancePageCount = Math.max(1, Math.ceil(sortedSessionsInView.length / ATTENDANCE_PAGE_SIZE));
-  const schedulePageCount = Math.max(1, Math.ceil(sortedSessionsInView.length / SCHEDULE_PAGE_SIZE));
+  const schedulePageCount = Math.max(1, Math.ceil(filteredScheduleSessionsInView.length / SCHEDULE_PAGE_SIZE));
 
   const attendanceSessions = sortedSessionsInView.slice(
     (attendancePage - 1) * ATTENDANCE_PAGE_SIZE,
     attendancePage * ATTENDANCE_PAGE_SIZE
   );
-  const scheduleSessions = sortedSessionsInView.slice(
+  const scheduleSessions = filteredScheduleSessionsInView.slice(
     (schedulePage - 1) * SCHEDULE_PAGE_SIZE,
     schedulePage * SCHEDULE_PAGE_SIZE
   );
@@ -1800,6 +1851,64 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                 </div>
               </div>
 
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                <div className="flex flex-col xl:flex-row xl:items-end gap-4">
+                  <div className="w-full xl:max-w-sm space-y-1">
+                    <label htmlFor="schedule-teacher-filter" className="text-sm font-bold text-gray-800">
+                      Teacher
+                    </label>
+                    <Select
+                      id="schedule-teacher-filter"
+                      value={scheduleTeacherFilter}
+                      onChange={(e) => setScheduleTeacherFilter(e.target.value)}
+                      className="h-12 bg-white text-sm font-medium border-gray-300"
+                    >
+                      <option value="ALL">All teachers</option>
+                      {scheduleFilterOptions.teachers.map((teacherName) => (
+                        <option key={teacherName} value={teacherName}>
+                          {teacherName}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="w-full xl:max-w-sm space-y-1">
+                    <label htmlFor="schedule-subject-filter" className="text-sm font-bold text-gray-800">
+                      Subject
+                    </label>
+                    <Select
+                      id="schedule-subject-filter"
+                      value={scheduleSubjectFilter}
+                      onChange={(e) => setScheduleSubjectFilter(e.target.value)}
+                      className="h-12 bg-white text-sm font-medium border-gray-300"
+                    >
+                      <option value="ALL">All subjects</option>
+                      {scheduleFilterOptions.subjects.map((subjectName) => (
+                        <option key={subjectName} value={subjectName}>
+                          {subjectName}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="xl:ml-auto">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 px-4 text-sm font-semibold"
+                      onClick={() => {
+                        setScheduleTeacherFilter('ALL');
+                        setScheduleSubjectFilter('ALL');
+                      }}
+                      disabled={scheduleTeacherFilter === 'ALL' && scheduleSubjectFilter === 'ALL'}
+                    >
+                      Clear filters
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 font-medium">
+                  Showing {filteredScheduleSessionsInView.length} of {sortedSessionsInView.length} sessions
+                </p>
+              </div>
+
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="border-b-0">
@@ -1823,7 +1932,7 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
 
                       const dateObj = new Date(session.date);
                       const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '/');
-                      const classItem = classes.find((c) => c.id === session.classId);
+                      const classItem = classMap.get(session.classId);
                       const teacher = classItem?.teacherId ? teacherMap.get(classItem.teacherId) : null;
 
                       return (
@@ -1869,6 +1978,13 @@ export const StudentReport: React.FC<StudentReportProps> = ({ t, user, students,
                         </TableRow>
                       );
                     })}
+                    {scheduleSessions.length === 0 && (
+                      <TableRow className="border-t border-gray-50">
+                        <TableCell colSpan={6} className="py-10 text-center text-sm text-gray-500 font-medium">
+                          No sessions match the selected filters.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
