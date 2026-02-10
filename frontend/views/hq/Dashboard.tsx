@@ -5,7 +5,7 @@ import { Users, AlertCircle, TrendingUp, School, Calendar, Activity, Star, Downl
 import { Card, Button, Badge, Dialog, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
 import { Student, ClassGroup, Session, BehaviorRating, AttendanceRecord, RatingCategory, Teacher } from '../../types';
 import { AIInsightSection } from '../../components/AIInsightSection';
-import { generateDashboardInsights } from '../../services/geminiService';
+import { generateDashboardInsights } from '../../services/aiService';
 import { api } from '../../services/backendApi';
 import { calculateAverageAttendance } from '../../utils/attendanceCalculator';
 

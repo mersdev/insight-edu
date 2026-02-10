@@ -6,6 +6,7 @@ const envDir = __dirname;
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, envDir, '');
+  const apiKey = env.VITE_OPENAI_API_KEY || env.OPENAI_API_KEY || '';
   return {
     envDir,
     server: {
@@ -14,8 +15,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.OPENAI_API_KEY': JSON.stringify(apiKey),
     },
     resolve: {
       alias: {
