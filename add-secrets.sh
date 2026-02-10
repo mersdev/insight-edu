@@ -47,7 +47,7 @@ require_var D1_DATABASE_ID "$ENV_BACKEND"
 require_var D1_DATABASE_NAME "$ENV_BACKEND"
 require_var JWT_SECRET "$ENV_BACKEND"
 require_var VITE_API_URL "$ENV_FRONTEND"
-require_var VITE_GEMINI_API_KEY "$ENV_FRONTEND"
+require_var VITE_OPENAI_API_KEY "$ENV_FRONTEND"
 
 # Core Cloudflare Credentials
 echo "Adding Cloudflare credentials..."
@@ -68,7 +68,7 @@ echo ""
 # Frontend Secrets
 echo "Adding frontend secrets..."
 gh secret set VITE_API_URL --body "$VITE_API_URL"
-gh secret set VITE_GEMINI_API_KEY --body "$VITE_GEMINI_API_KEY"
+gh secret set VITE_OPENAI_API_KEY --body "$VITE_OPENAI_API_KEY"
 echo "✓ Frontend secrets added"
 echo ""
 

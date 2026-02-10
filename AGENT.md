@@ -69,7 +69,7 @@ Shared
 Frontend (React + TypeScript)
 - SPA built with Vite and React Router (HashRouter).
 - API client in `frontend/services/backendApi.ts`.
-- AI integration in `frontend/services/geminiService.ts` using `@google/genai`.
+- AI integration in `frontend/services/aiService.ts` using OpenAI `gpt-4.1-mini`.
 
 Backend (Cloudflare Workers)
 - Worker entry: `backend/src/worker.js`.
@@ -123,7 +123,7 @@ Teacher group:
 - SPA should render well on desktop and mobile.
 - API responses are JSON and must include CORS headers.
 - JWT secret must be set in production.
-- AI insights require a valid Gemini API key.
+- AI insights require a valid OpenAI API key.
 
 ## Local Development
 Prereqs: Node.js and Wrangler.
@@ -142,7 +142,7 @@ Frontend:
 ## Environment Variables
 Frontend:
 - `VITE_API_URL` (API base URL; supports host-only or `/api` and resolves to `/api/v1`)
-- `GEMINI_API_KEY` (injected by `frontend/vite.config.ts` into `process.env.API_KEY` and `process.env.GEMINI_API_KEY`)
+- `VITE_OPENAI_API_KEY` or `OPENAI_API_KEY` (injected by `frontend/vite.config.ts` into `process.env.OPENAI_API_KEY`)
 
 Backend (Workers):
 - `JWT_SECRET` (optional; defaults to `test-secret-key`)
@@ -167,7 +167,7 @@ Backend (Cloudflare Workers)
 
 Frontend (Cloudflare Pages)
 1. Build with envs:
-   - `cd frontend && VITE_API_URL=... GEMINI_API_KEY=... npm run build`
+   - `cd frontend && VITE_API_URL=... VITE_OPENAI_API_KEY=... npm run build`
 2. Deploy:
    - `cd frontend && npx wrangler pages deploy dist --project-name=insight-edu-frontend --branch=main`
 

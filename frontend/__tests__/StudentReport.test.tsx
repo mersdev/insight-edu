@@ -13,7 +13,7 @@ vi.mock('../services/backendApi', () => ({
   },
 }));
 
-vi.mock('../services/geminiService', () => ({
+vi.mock('../services/aiService', () => ({
   generateStudentInsights: vi.fn().mockResolvedValue([]),
 }));
 

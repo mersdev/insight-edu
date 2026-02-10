@@ -10,7 +10,7 @@ import { Card, Button, Input, Dialog, Table, TableHeader, TableBody, TableRow, T
 import { Student, ClassGroup, User, Score, Session, AttendanceRecord, BehaviorRating, Teacher, RatingCategory } from '../../types';
 import { api } from '../../services/backendApi';
 import { AIInsightSection } from '../../components/AIInsightSection';
-import { generateStudentInsights } from '../../services/geminiService';
+import { generateStudentInsights } from '../../services/aiService';
 import { getRandomMalaysianName, getRandomItem, malaysianSchools, malaysianPhoneNumbers, malaysianLocations, generateEmailFromName } from '../../utils/malaysianSampleData';
 import { buildLoginWhatsAppMessage, buildWhatsAppLink, openWhatsAppLink } from '../../utils/whatsapp';
 

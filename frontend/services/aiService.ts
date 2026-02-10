@@ -1,40 +1,37 @@
 import { Insight, Student, Score, BehaviorRating, Teacher, ClassGroup, Session } from "../types";
 
-// Prefer Vite env var, then common fallbacks.
 const API_KEY =
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-  process.env.GEMINI_API_KEY ||
-  process.env.API_KEY ||
-  '';
+  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_OPENAI_API_KEY) ||
+  (typeof process !== "undefined" && process.env.OPENAI_API_KEY) ||
+  "";
 
-const PRIMARY_MODEL = 'gemini-2.0-flash';
-const GENERATE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${PRIMARY_MODEL}:generateContent`;
+const PRIMARY_MODEL = "gpt-4.1-mini";
+const GENERATE_URL = "https://api.openai.com/v1/chat/completions";
 
-const extractText = (data: any) => data?.candidates?.[0]?.content?.parts?.[0]?.text;
+const extractText = (data: any) => data?.choices?.[0]?.message?.content;
 
 const generateWithModel = async (
   prompt: string,
   options?: { responseMimeType?: string }
 ) => {
+  void options;
   if (!API_KEY) return null;
   try {
     const response = await fetch(GENERATE_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': API_KEY,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: options?.responseMimeType
-          ? { responseMimeType: options.responseMimeType }
-          : undefined,
+        model: PRIMARY_MODEL,
+        messages: [{ role: "user", content: prompt }],
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI model error:', errorText);
+      console.error("AI model error:", errorText);
       return null;
     }
 
@@ -42,7 +39,7 @@ const generateWithModel = async (
     const text = extractText(data);
     return typeof text === 'string' ? text : null;
   } catch (error) {
-    console.error('AI request failed:', error);
+    console.error("AI request failed:", error);
     return null;
   }
 };

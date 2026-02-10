@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { Download, MapPin, Phone, Mail, User as UserIcon, ChevronLeft, ChevronRight, BookOpen, Calendar, Clock, Star, Target, Award, Zap, CheckCircle2, BarChart3, MoreHorizontal, History, TrendingUp, TrendingDown, GraduationCap, Sparkles } from 'lucide-react';
 import { Card, Button, Select, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
-import { generateStudentInsights } from '../../services/geminiService';
+import { generateStudentInsights } from '../../services/aiService';
 import { api } from '../../services/backendApi';
 import { User, Student, ClassGroup, Score, BehaviorRating, Session, AttendanceRecord, Teacher, RatingCategory, Insight } from '../../types';
 import { buildReportWhatsAppMessage, buildWhatsAppLink, openWhatsAppLink } from '../../utils/whatsapp';

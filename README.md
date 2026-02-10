@@ -8,7 +8,7 @@ A comprehensive educational management system for tracking student performance, 
 - **Student Management**: Track student information, attendance, and performance
 - **Class & Session Management**: Organize classes, teachers, and sessions
 - **Behavior Tracking**: Monitor and record student behavior across multiple categories
-- **AI-Powered Insights**: Generate personalized insights using Google's Gemini AI
+- **AI-Powered Insights**: Generate personalized insights using OpenAI GPT-4.1 mini
 - **Real-time Analytics**: Dashboard with attendance trends and performance metrics
 - **Secure API**: JWT-based authentication with role-based access control
 
@@ -18,7 +18,7 @@ A comprehensive educational management system for tracking student performance, 
 - **Wrangler** (Cloudflare Workers CLI)
   - Use `npx wrangler` to run CLI commands from the local `backend/node_modules/.bin` if you don’t have a global install.
   - To add `wrangler` to your PATH, run `npm install -g wrangler`.
-- **Google Gemini API Key** (for AI insights)
+- **OpenAI API Key** (for AI insights)
 
 ## 🛠️ Tech Stack
 
@@ -81,7 +81,7 @@ npm run dev
 **Frontend (`frontend/.env`, see `frontend/.env.example`):**
 ```
 VITE_API_URL=http://localhost:8787/api
-VITE_GEMINI_API_KEY=...
+VITE_OPENAI_API_KEY=...
 ```
 
 **Sync secrets to GitHub (from repo root):**
@@ -338,7 +338,7 @@ insight-edu/
 │   │   └── parent/         # Parent portal views
 │   ├── services/           # API service layer
 │   │   ├── backendApi.ts   # Backend API client
-│   │   └── geminiService.ts # AI service
+│   │   └── aiService.ts    # AI service
 │   ├── App.tsx             # Main app component
 │   └── package.json
 └── README.md
